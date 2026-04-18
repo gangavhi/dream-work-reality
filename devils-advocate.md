@@ -110,6 +110,16 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ---
 
+### A7b1. Watched folders amplify surprise and timing risk
+
+**Claim:** **Continuous** or **repeated** folder watching can import **half-downloaded** files, **autosave** copies from editors, or **sensitive** documents the user dropped in “just to print”—before they intended to ingest.
+
+**Implication:** **Debouncing**, **ignore patterns**, **“processing” delay** after file settle, and **visible notifications** (“3 new files imported from School PDFs”) are part of **trust**, not polish.
+
+**Mitigation:** **Debounce** after create/modify events; ignore common **temp** and **lockfile** patterns; **default person** and **subfolder** rules explicit; **pause** one tap; **desktop** vs **mobile** behavior **clearly** labeled when background watch is limited.
+
+---
+
 ### A7c. Retained scan images raise stakes beyond structured fields
 
 **Claim:** Letting users **keep photos/PDFs** of licenses, passports, and vaccination cards for **upload convenience** increases **storage size** and **breach impact** if the device is lost or malware exfiltrates files—more than text-only fields alone.

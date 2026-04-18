@@ -73,6 +73,14 @@ When users **opt in** to keeping **scans or files** (e.g. driver license, passpo
 - **Temporary** read of originals for OCR can be **streamed** or **copied into app sandbox** per policy; **processed on-device**; originals outside the vault are **not** uploaded to your backend.
 - **Mitigates:** accidental indexing of unrelated directories—**user intent** is scoped to the chosen path.
 
+#### 3.4.2.1 Watched folders (ongoing read)
+
+If the user enables **watch** on a folder, the app may **repeatedly** read **new or changed** files under that path—still **only** there, still **on-device** processing, still **no** upload of document content to your backend.
+
+- **User control:** **Clear on/off** per watch; **pause** without deleting configuration; **revoke** by removing the watch or the OS permission that granted the path.
+- **Surface area:** A watch is **higher** than a one-shot import (more chances to ingest a file the user forgot was there); **mitigate** with **ignore patterns**, **notifications** summarizing what was ingested, and **easy rollback** per file from the review list.
+- **Platform:** Background execution limits on mobile may force **rescan-on-open** instead of true 24/7 monitoring—**security** (fewer background file touches) and **UX** (honest expectations) align.
+
 ### 3.4.3 Word and Excel files
 
 - **Office** files may contain **macros**; the product should **not execute** them—**data extraction only**—reducing malware surface compared to opening the same file in a full desktop Office suite inside the vault.
