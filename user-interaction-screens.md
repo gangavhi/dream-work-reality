@@ -90,7 +90,7 @@ These screens exist so people can have an identity with the service. **They do n
 
 ## 5. Bringing information in: scan now or upload something you already have
 
-People should be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**; every path runs through **on-device capture/parse**, then a **generative assistant** that **decides structure**, **creates or extends** local database tables if needed, and **saves**—with **review and edit** so mistakes do not stick.
+People should be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**; every path runs through **on-device capture/parse**, then a **generative assistant** that **decides structure**, **creates or extends** local database tables if needed, and **saves automatically**—**import activity** and **edit** flows catch mistakes **after** data is stored, not a queue that blocks saving until someone confirms.
 
 ### 5.1 Choose how to add
 
