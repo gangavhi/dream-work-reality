@@ -20,19 +20,19 @@ This document argues **against** and **for** the product in strong terms. The go
 
 **Claim:** If the product **guesses** which child or adult a school or medical form refers to, it can insert **wrong** names or IDs—a high-stakes failure worse than no autofill. **Multi-field** forms make this worse: **patient** vs **parent/guardian** blocks are easy to **swap** if roles or field semantics are misread.
 
-**Implication:** **Mandatory** explicit **form-subject** selection (or confirmation of a suggestion) before filling; **role-aware** mapping so **child** demographics and **parent** contact don’t collide; persistent **“Form about: …”** (and **which other members** are in scope) indicator; **easy change** of subject and **per-role** overrides.
+**Implication:** **Mandatory** explicit **form-subject** selection (or confirmation of a suggestion) before filling; **role-aware** mapping so **child** demographics and **parent** contact don’t collide; **no** filling **Father’s** slot from **Mother’s** row when the form is **role-specific**; persistent **“Form about: …”** (and **which other members** are in scope) indicator; **easy change** of subject and **per-role** overrides.
 
 **Mitigation:** Default to **ask**; use **hints** only with **confirmation** when multiple similar profiles exist; **disambiguation** when multiple adults could be “Parent 1”; **tests** on pediatric and school form patterns.
 
 ---
 
-### A1a2. Generative “borrow” from another parent can be wrong or embarrassing
+### A1a2. Cross-parent “borrow” must respect generic vs role-specific fields
 
-**Claim:** When **Mother’s** row is empty and the model fills a **parent phone** from **Father**, users may perceive **error** (wrong person) or **privacy** discomfort (shared number exposed in a **mother-labeled** box)—even when logically defensible as “household contact.”
+**Claim:** Using **Father’s** number when the form asks for **Mother’s** number is a **trust** failure—even if both numbers exist. Conversely, refusing **any** automation for a **generic** “parent/guardian phone” when only **one** parent has a mobile **wastes** the user’s time.
 
-**Implication:** **Confidence thresholds**, **provenance** in UI (“Source: Casey’s profile”), **sensitive-field** blocks on cross-person inference, and **one-tap** “use other parent / clear” must ship with the feature—not **silent** substitution.
+**Implication:** **Product rule:** **Undifferentiated** parent/guardian contact → **either** parent’s stored value may be used with **provenance**. **Role-specific** (**Father’s**, **Mother’s**, **Parent 1** …) → **no** substitution from the other parent if missing—**prompt** the user.
 
-**Mitigation:** Prefer **generic** labels (“Parent/guardian phone”) for **borrowed** values when the site allows; **never** cross-fill **government IDs** or **SSN** without explicit policy; **user override** always visible; **learn** per-site overrides when users repeatedly correct.
+**Mitigation:** **Detect** role specificity from labels/accessibility; **never** cross-fill **government IDs** or **SSN** across people; **provenance** on generic borrows; **user override**; **learn** per-site overrides when users repeatedly correct **misclassified** generic vs specific fields.
 
 ---
 
