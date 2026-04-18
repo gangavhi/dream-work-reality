@@ -1,6 +1,6 @@
 # Market analysis: positioning, peers, SWOT, differentiators
 
-This document places the **local-first OCR + household data + form assistance** concept in a competitive landscape, identifies **similar platform categories**, performs a **SWOT** analysis, and states **differentiators** and **problems solved** in plain language.
+This document places the **local-first OCR + generative structuring + household data + form assistance** concept in a competitive landscape, identifies **similar platform categories**, performs a **SWOT** analysis, and states **differentiators** and **problems solved** in plain language.
 
 *Disclaimer: The landscape evolves quickly; treat named categories as illustrative. Validate with current product pages and pricing before strategic decisions.*
 
@@ -11,11 +11,11 @@ This document places the **local-first OCR + household data + form assistance** 
 | Problem | How the concept addresses it |
 |--------|-------------------------------|
 | **Repeated manual entry** of the same identity and household facts across many web forms. | Structured local profiles; **Chrome extension** (with **companion app**) fills from **local memory** in the **real browser**; **tablet/phone** add **in-app** form assist where the platform allows—**no** central copy of household data. |
-| **Scattered document chaos** (photos, PDFs, emails) disconnected from usable fields. | OCR pipelines into a **relational** model with optional provenance. |
-| **Large piles of existing scans** (e.g. one folder per school year) | **User-chosen folder import**: enumerate supported files, **batch OCR on-device**, **review queue** before anything is committed—still **no** cloud document processing. |
-| **Data already in Word/Excel** | **On-device** parse of **`.docx` / `.xlsx`** (etc.) into reviewable fields—fits **school rosters**, **benefits**, **HR** exports without retyping. |
+| **Scattered document chaos** (photos, PDFs, emails) disconnected from usable fields. | OCR plus **on-device generative structuring** maps text into a **relational** model (with **dynamic tables/columns** as needed) and optional provenance. |
+| **Large piles of existing scans** (e.g. one folder per school year) | **User-chosen folder import**: enumerate supported files, **batch OCR on-device**, **generative ingest into local memory**, **review list** for corrections—still **no** cloud document processing by default. |
+| **Data already in Word/Excel** | **On-device** parse of **`.docx` / `.xlsx`** (etc.); **generative mapping** into local tables—fits **school rosters**, **benefits**, **HR** exports without retyping. |
 | **Distrust of cloud aggregators** holding copies of sensitive data. | **Local-first** storage; backend limited to **account** and **explicitly anonymous** operational telemetry. |
-| **High-stakes forms** where mistakes matter. | **Review-first** workflows, inline corrections, optional persistence of corrections locally. |
+| **High-stakes forms** where mistakes matter. | **Review-capable** workflows after ingest, inline corrections, optional persistence of corrections locally. |
 | **Gaps in saved information** | **Explicit prompts** to enter missing fields; optional **save to local memory** for newly entered values so the next form starts richer—without cloud sync. |
 | **Correcting outdated or wrong saved details** | User can **update** existing local values from the form when something on file is wrong or stale—**write-back** to local memory on confirmation, not **only** “add new fields.” |
 | **Multi-person households** | User **selects or confirms which profile** (self, partner, each child) applies to each form—avoids mixing up dependents; aligns fills, gaps, and saves to the right person. |
@@ -57,7 +57,7 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 
 **Overlap:** Capture and OCR.
 
-**Difference:** Output is usually **files**, not a **durable, relational** “household memory” integrated with **web workflows** and **review-to-submit** loops.
+**Difference:** Output is usually **files**, not a **durable, relational** “household memory” with **dynamic local schema** and **form workflows** integrated with **review/edit after ingest**.
 
 ---
 
@@ -123,8 +123,8 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 
 - **Privacy posture** can be a genuine differentiator if implementation matches marketing (local RDBMS, minimal API surface).
 - **Household / relationship modeling** fits real life better than single-profile autofill.
-- **OCR + confirmation** can bridge paper-native institutions to digital workflows.
-- **Review modes** align with benefits, healthcare, education, and government forms—segments with **high willingness to invest time** in correctness.
+- **OCR + on-device generative structuring** can bridge paper-native institutions to digital workflows without a **manual schema gate** before data is stored.
+- **Review and edit** after ingest align with benefits, healthcare, education, and government forms—segments with **high willingness to invest time** in correctness.
 - **Offline selective sharing** addresses **multi-adult and multi-device** households without defaulting to **full cloud replication** of sensitive structured data.
 - **Real-browser workflow** (Chrome extension + companion app) meets users where they already fill forms; **form-only** activation and **respect for native autofill** reduce annoyance versus naive inject-everywhere tools.
 - **Optional retained document files** address **attachment** requirements (IDs, vaccination proof)—not only typing—while keeping images **on device** by default.
@@ -134,7 +134,7 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 ### Weaknesses
 
 - **Web automation fragility** creates inconsistent UX and support load.
-- **OCR errors** on sensitive fields create reputational risk if safeguards are weak.
+- **OCR + generative mapping errors** on sensitive fields create reputational risk if safeguards are weak.
 - **No cloud content** means harder diagnostics and slower “ML improvement loops” unless carefully designed.
 - **User education** burden: users must understand what is local vs account-only.
 - **Proximity sharing** requires careful **messaging** (data *does* move to another device; it *does not* go through your **internet** or **backend** as carrier) and **cross-platform** engineering may lag same-OS quality.
@@ -171,7 +171,7 @@ Differentiators must be **true** under audit—not aspirational.
    First-class dependents, guardians, shared addresses, and per-person document trails—not a flat key-value bag.
 
 3. **Provenance-aware fields**  
-   Users see **where** a value came from (OCR snippet, manual entry, last corrected on date X)—supports trust and review.
+   Users see **where** a value came from (OCR snippet, **generative placement**, manual entry, last corrected on date X)—supports trust and review.
 
 4. **Assisted filling with graceful degradation**  
    When automation fails, the app still wins via **structured preview**, **copy**, and **field spotlighting**—not a hard stop.
@@ -201,7 +201,7 @@ Differentiators must be **true** under audit—not aspirational.
    Explicit **“who is this form for?”** flows—not a single undifferentiated blob of “family data”—reduces costly errors on school, medical, and benefits forms.
 
 13. **Folder sweep**  
-   **Batch import + OCR + review** meets **“I already have a folder of PDFs”**—common for organized families—without a separate scanning-only app.
+   **Batch import + OCR + generative ingest + post-ingest review** meets **“I already have a folder of PDFs”**—common for organized families—without a separate scanning-only app.
 
 14. **Office-native import**  
    **Word/Excel** paths for users whose **source of truth** is already a spreadsheet or document—**not** only photos or PDFs.
@@ -223,10 +223,10 @@ Widespread adoption is not only product—it is **distribution**, **trust**, and
 
 ## 6. Competitive positioning statement (draft)
 
-**For** privacy-conscious individuals and families **who** repeatedly complete complex web forms, **our product** is a **local-first household assistant** that turns documents into structured, reviewable memory and helps complete sessions **in Chrome (via extension + companion app)** and **in other apps on tablet/phone** where supported—**without uploading family PII** to our servers—**unlike** cloud-centric autofill and identity aggregators **because** the canonical data stays on the user’s devices under explicit policies and the backend is limited to account management and non-identifying operational signals. **Unlike** generic AirDrop-style file drops **because** sharing is **field-scoped**, **time-bound**, **household-governed**, and tied to **structured memory** for forms—not opaque blobs.
+**For** privacy-conscious individuals and families **who** repeatedly complete complex web forms, **our product** is a **local-first household assistant** that turns documents into **generatively structured** local memory (including **dynamic schema** in a device database) and helps complete sessions **in Chrome (via extension + companion app)** and **in other apps on tablet/phone** where supported—**without uploading family PII** to our servers—**unlike** cloud-centric autofill and identity aggregators **because** the canonical data stays on the user’s devices under explicit policies and the backend is limited to account management and non-identifying operational signals. **Unlike** generic AirDrop-style file drops **because** sharing is **field-scoped**, **time-bound**, **household-governed**, and tied to **structured memory** for forms—not opaque blobs.
 
 ---
 
 ## 7. Summary
 
-The idea sits at the intersection of **password-manager convenience**, **document scanning**, and **identity wallet** narratives—but is **distinct** if the **local-only data plane** and **household relational model** are executed credibly. **Chrome extension + companion app** aligns with users’ **real browsing** habits while keeping vault data **on device**; **tablet/phone in-app** assist extends reach at the cost of **variable** coverage by app. Adding **offline selective sharing** sharpens the story for **multi-user households** and differentiates from both **cloud family sync** and **dumb file drops**. Market risk concentrates in **web automation brittleness**, **extension store and permissions** friction, **in-app** feasibility, **OCR trust**, and **honest positioning** of proximity sharing (including **cross-platform** maturity). Success likely depends on **disciplined scope**, **transparent failure handling**, and **security proportionate** to the sensitivity of stored data.
+The idea sits at the intersection of **password-manager convenience**, **document scanning**, and **identity wallet** narratives—but is **distinct** if the **local-only data plane** and **household relational model** are executed credibly. **Chrome extension + companion app** aligns with users’ **real browsing** habits while keeping vault data **on device**; **tablet/phone in-app** assist extends reach at the cost of **variable** coverage by app. Adding **offline selective sharing** sharpens the story for **multi-user households** and differentiates from both **cloud family sync** and **dumb file drops**. Market risk concentrates in **web automation brittleness**, **extension store and permissions** friction, **in-app** feasibility, **OCR + generative mapping trust**, and **honest positioning** of proximity sharing (including **cross-platform** maturity). Success likely depends on **disciplined scope**, **transparent failure handling**, and **security proportionate** to the sensitivity of stored data.

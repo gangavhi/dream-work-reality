@@ -66,8 +66,8 @@ These screens exist so people can have an identity with the service. **They do n
 ### 4.3 One person’s detail view
 
 - **Sections** fold open (tap or click) so the screen never feels like one endless wall of fields.  
-- Each field shows **where it came from** in human terms: “You entered this,” “From a scan you took on [date],” “From a file or photo you picked,” “Suggested from a photo on [date]—not confirmed yet,” “Updated while filling a form on [date].”  
-- **What you see first is always the latest** confirmed information—the number, date, or address you would use on a new form today.  
+- Each field shows **where it came from** in human terms: “You entered this,” “From a scan you took on [date],” “From a file or photo you picked,” “**Placed by the assistant** from a photo on [date]—tap to fix if wrong,” “Updated while filling a form on [date].”  
+- **What you see first is always the latest** stored information—the number, date, or address you would use on a new form today (after **generative ingest**, your edits, or a saved form session).  
 - Actions: **Edit**, **Remove this person** (with a careful confirmation), **Share [name]’s details** (opens the sharing flow).
 
 ### 4.4 When something important gets renewed (passport, license, card)
@@ -90,39 +90,37 @@ These screens exist so people can have an identity with the service. **They do n
 
 ## 5. Bringing information in: scan now or upload something you already have
 
-People should be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**; every path leads to the same **careful review** before anything becomes part of the saved household profile.
+People should be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**; every path runs through **on-device capture/parse**, then a **generative assistant** that **decides structure**, **creates or extends** local database tables if needed, and **saves**—with **review and edit** so mistakes do not stick.
 
 ### 5.1 Choose how to add
 
 - **Scan document** — Opens the **camera inside the app** for an **on-the-fly** capture: the user holds the physical document up, fits it in the frame, and takes the picture (or several pages, one after another, if needed). Helpful hints may appear: **hold steady**, **move closer**, **better light**, **try again** if the shot is blurry.  
 - **Choose from gallery** — Picks an **existing** photo already on the device (a screenshot, a photo taken earlier, an image from messages).  
 - **Choose a file** — Especially on tablets and laptops: pick a **saved file** from disk (a scan, a PDF export, an image).  
-- **Word or Excel** — Pick a **`.docx`** or **`.xlsx`** (and other supported types) the user already has. The app **reads the structure on the device**—for a spreadsheet, it might show a **table preview** and ask which **column** matches **name**, **birthdate**, **phone**, and so on, or which **row** is which person. For a Word file, it might suggest blocks of text to turn into **fields**.  
-- **Add everything from a folder** (when the user wants it) — The user can pick a **folder** of documents (or, on some phones, a **bunch of files at once**—whatever the system allows). The app **reads each supported file**, runs **text recognition on the device**, and builds a **to-do list** of items to **review**—nothing is finalized until the user **confirms** each one (or confirms in sensible batches). A progress indicator shows **how many files** are left so long folders don’t feel endless. On **computers**, choosing a whole folder is usually easiest; on **phones**, the flow may look like **select multiple files** or **pick a folder in Files** depending on the device.
+- **Word or Excel** — Pick a **`.docx`** or **`.xlsx`** (and other supported types) the user already has. The app **reads the structure on the device**; the **generative assistant** infers **columns, rows, and fields**, **writes** into local memory (creating tables or columns when needed), then shows a **preview** so the user can **fix** a wrong mapping.  
+- **Add everything from a folder** (when the user wants it) — The user can pick a **folder** of documents (or, on some phones, a **bunch of files at once**—whatever the system allows). The app **reads each supported file**, runs **text recognition on the device**, **structures and stores** each result, and keeps a **list** of imports the user can **open to correct**—progress shows **how many files** are left so long folders don’t feel endless. On **computers**, choosing a whole folder is usually easiest; on **phones**, the flow may look like **select multiple files** or **pick a folder in Files** depending on the device.
 
 ### 5.2 After a capture (whether you scanned or uploaded)
 
-- The app shows **suggested text** pulled from the image, **grouped** into sensible chunks (name block, address block, dates, IDs).  
-- **Nothing is saved as final** until the user **confirms or edits** each part.  
-- Clear labels: **Confirm**, **Edit before saving**, **Discard this suggestion**.  
+- The app shows **what it extracted** and **how it filed it**—names, addresses, dates, IDs—**already saved** in the local database unless the user **undoes** or **discards** this capture.  
+- Clear actions: **Looks good**, **Edit fields**, **Wrong person—reassign**, **Discard this capture**.  
 - Optional: **Which person does this belong to?** if it wasn’t obvious—especially important when **many files** came from one folder so the wrong person isn’t picked by habit.  
 - The user can see **how this was added** in plain words later—for example **“Captured with camera on [date]”**, **“From a file you chose,”** **“From a Word or Excel file you imported,”** or **“From folder import on [date].”**
 
 ### 5.2.1 After you import Word or Excel
 
-- The app shows a **preview** of what it understood—tables, rows, or sections—not a blind dump into the profile.  
-- The user **lines up columns or labels** with the fields they care about (or picks **“this row is [name]”** for a roster-style sheet).  
-- **Nothing is saved** until they **confirm**; they can **cancel** the whole import if the file was the wrong one.
+- The app shows a **preview** of what it understood—tables, rows, or sections—**after** it has **already written** structured rows into local memory.  
+- The user can **adjust** column-to-field links, **reassign** rows to people, or **delete** a bad import if the file was the wrong one.
 
 ### 5.2.2 After a folder import (many files at once)
 
-- The user sees a **list of files** with status: **Not reviewed yet**, **Confirmed**, **Skipped**.  
-- Tapping or opening one file shows the **same** confirmation flow as a single document (section 5.2).  
-- The user can **stop and come back later**; partial progress is saved **on the device** as “pending review,” not as finished profile data until they say so.
+- The user sees a **list of files** with status: **Imported—looks OK**, **Needs attention**, **Skipped**.  
+- Tapping or opening one file shows the **same** fix-up flow as a single document (section 5.2).  
+- The user can **stop and come back later**; data from processed files is **already in the profile**, with a clear path to **edit or roll back** per file.
 
 ### 5.2.3 Keeping a copy of the scan for later (optional)
 
-- After the user confirms the important details from a document (for example **driver license**, **passport or other photo ID**, **vaccination record**, **insurance card**), the app can ask whether to **keep a copy of the scan or file** on the device—not just the typed-out fields.  
+- After the important details from a document are **stored** (for example **driver license**, **passport or other photo ID**, **vaccination record**, **insurance card**), the app can ask whether to **keep a copy of the scan or file** on the device—not just the typed-out fields.  
 - Plain-language choices might look like: **“Save the extracted information only”**, **“Also keep a copy of this scan for uploads”**, or **“Don’t keep the image—only the text.”** Defaults should favor **privacy and smaller storage** unless the user explicitly wants retained copies for **common upload** situations.  
 - The user can **change their mind later** from that person’s profile: **remove the image but keep the text**, **replace the scan**, or **delete everything** for that document.
 

@@ -46,13 +46,13 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ---
 
-### A3. OCR promises are easy; accuracy is not
+### A3. OCR + generative structuring promises are easy; mistakes are not
 
-**Claim:** OCR errors on **high-stakes fields** (SSN, policy numbers, dates) create liability perception. One wrong autofill is worse than manual entry.
+**Claim:** OCR errors—and **wrong generative mappings** (hallucinated fields, bad table splits, mis-assigned person)—on **high-stakes fields** (SSN, policy numbers, dates) create liability perception. One wrong autofill is worse than manual entry.
 
-**Implication:** Users may distrust OCR-first workflows unless **confirmation UX** is mandatory and credible.
+**Implication:** Users may distrust **ingest-first** workflows unless **review, confidence, and edit** UX are strong and **sensitive tiers** get extra friction.
 
-**Mitigation:** Default to **confirm-before-commit** for sensitive field classes; show **confidence** and source snippet; never silently overwrite “verified” fields without explicit action.
+**Mitigation:** Show **confidence** and source **snippets**; **easy edit and rollback** after ingest; **extra prompts** for sensitive field classes; never silently overwrite **user-verified** fields without explicit action; **on-device** generative models by default so structuring does not imply cloud upload.
 
 ---
 
@@ -94,19 +94,19 @@ This document argues **against** and **for** the product in strong terms. The go
 
 **Claim:** Real-world **spreadsheets** have **merged cells**, **multiple tabs**, **formulas**, and **inconsistent headers**. Word docs mix **layouts** that don’t map cleanly to **one row per person**.
 
-**Implication:** Users may blame the product for **wrong** mapped fields if confirmation UX is weak.
+**Implication:** Users may blame the product for **wrong** mapped fields if **post-ingest preview/edit** is weak—even though the generative layer **already persisted** a first pass.
 
-**Mitigation:** **Preview + mapping** step mandatory; **clear** “couldn’t parse” fallback to **manual** or **CSV export** path; document **supported** formats honestly.
+**Mitigation:** **Preview + fix** surfaces; **clear** “couldn’t parse” fallback to **manual** or **CSV export** path; document **supported** formats honestly; allow **undo/delete** of a bad import batch.
 
 ---
 
 ### A7b. Folder import can amplify mistakes and storage use
 
-**Claim:** **Batch OCR** from a user-selected folder speeds onboarding but increases **wrong-person assignment** (every file tagged to the wrong child) and **storage** if users import thousands of images without review.
+**Claim:** **Batch OCR** from a user-selected folder speeds onboarding but increases **wrong-person assignment** (every file tagged to the wrong child) and **storage** if users import thousands of images without follow-up.
 
-**Implication:** **Strong** review UX, **limits** per batch, **duplicate** warnings, and **pause**—treat bulk import as **high risk** for data quality.
+**Implication:** **Strong** **reassign/edit** UX after ingest, **limits** per batch, **duplicate** warnings, and **pause**—treat bulk import as **high risk** for data quality.
 
-**Mitigation:** **No** silent commit; **default person** must be explicit; **hash-based** duplicate skip; **max files** per run.
+**Mitigation:** **Explicit default person** or per-file subject where feasible; **hash-based** duplicate skip; **max files** per run; **audit list** of what was ingested and **bulk rollback** options when the model misfires.
 
 ---
 
@@ -172,17 +172,17 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ---
 
-### B3. OCR + structure is a workflow unlock
+### B3. OCR + generative structure is a workflow unlock
 
-**Claim:** People already photograph documents; the missing step is **turning scans into durable structured memory** tied to people and time.
+**Claim:** People already photograph documents; the missing step is **turning scans into durable structured memory** tied to people and time—**without** forcing a manual schema-design step before anything is stored.
 
-**Implication:** Even partial automation plus a **single review surface** beats folder sprawl.
+**Implication:** **Automatic structuring + local tables** plus a **single correction surface** beats folder sprawl.
 
 ---
 
-### B4. Review-first modes match high-stakes reality
+### B4. Review-capable modes match high-stakes reality
 
-**Claim:** For benefits, immigration, healthcare, and finance, users *want* review. A product that optimizes **confidence and auditability** (provenance, diffs) aligns with the real decision process.
+**Claim:** For benefits, immigration, healthcare, and finance, users *want* **visibility and correction** after ingest—even if data is **already stored**. A product that optimizes **confidence, auditability** (provenance, diffs), and **fast edit** aligns with the real decision process.
 
 ---
 
@@ -242,7 +242,7 @@ This document argues **against** and **for** the product in strong terms. The go
 
 **Claim:** Families who already organize PDFs in **one folder** can **ingest** into structured memory in one session—**onboarding** without re-typing.
 
-**Implication:** Strong **adoption** hook for desktop-first users—if review UX is **not** overwhelming.
+**Implication:** Strong **adoption** hook for desktop-first users—if **post-ingest review** is **not** overwhelming.
 
 ---
 
@@ -258,8 +258,8 @@ This document argues **against** and **for** the product in strong terms. The go
 
 | Force | Summary |
 |-------|---------|
-| **Headwinds** | Fragile web automation, supportability of local-only apps, OCR risk, crowded convenience market, **cross-platform proximity** complexity, **mis-set expectations** on offline sharing. |
-| **Tailwinds** | Privacy demand, household modeling, document-to-structure workflow, review-first use cases, minimal-backend trust story, **delegated household access without cloud copies**, **Chrome + companion app** meeting users in their normal browser. |
+| **Headwinds** | Fragile web automation, supportability of local-only apps, OCR + **generative mapping** risk, crowded convenience market, **cross-platform proximity** complexity, **mis-set expectations** on offline sharing. |
+| **Tailwinds** | Privacy demand, household modeling, document-to-structure workflow, **dynamic local schema**, review-capable use cases, minimal-backend trust story, **delegated household access without cloud copies**, **Chrome + companion app** meeting users in their normal browser. |
 
 **Bottom line:** Success is plausible if the team treats **reliability + honesty + security** as the core product—not “100% autofill.” The biggest strategic mistake would be marketing **magic** while shipping **variance**.
 
@@ -270,7 +270,7 @@ This document argues **against** and **for** the product in strong terms. The go
 Consider pivoting if, after disciplined testing:
 
 1. **Median** time-to-complete does not beat **manual + password manager** on a prioritized list of target forms.
-2. Users **do not trust** OCR-assisted fields without so much confirmation that the flow feels slower than typing.
+2. Users **do not trust** generatively placed fields without so much **review and correction** that the flow feels slower than typing.
 3. Support burden scales linearly with users because **site breakage** dominates.
 4. Monetization cannot fund maintenance of **site packs** / **engine** work.
 5. **Offline sharing** proves unreliable or confusing for a majority of target households (wrong device, failed pairing, or users expecting **server-mediated** “sync”).

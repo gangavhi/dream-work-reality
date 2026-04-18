@@ -1,6 +1,6 @@
 # Brainstorming: filling a form in another app
 
-This document explores **how** the companion product could help users complete forms that appear **inside a third-party native app** (banking, benefits, school portal app, etc.)—not only in a web browser. It focuses on **technical feasibility** and **platform guardrails** on **iOS**, **Android**, and **macOS**. It is **brainstorming**, not a shipping spec or legal review.
+This document explores **how** the companion product could help users complete forms that appear **inside a third-party native app** (banking, benefits, school portal app, etc.)—not only in a web browser. The companion app holds **local structured memory** populated by **OCR/parsers** and **generative structuring** (same dynamic-schema model as in `idea-brainstorming.md`). It focuses on **technical feasibility** and **platform guardrails** on **iOS**, **Android**, and **macOS**. It is **brainstorming**, not a shipping spec or legal review.
 
 **Related docs:** `idea-brainstorming.md` (scenario B/C tablet and phone), `features-list.md`, `how-secure-is-the-data-locally.md`.
 

@@ -2,7 +2,7 @@
 
 This document explains **defense layers** for on-device structured memory, how that relates to **“data does not leave the device”** (and **“does not traverse the internet”**), and what **sharing with household members** can and cannot guarantee. It is written for product and engineering alignment—not as a formal security audit.
 
-**Related docs:** `idea-brainstorming.md` (local data plane & offline sharing), `features-list.md` (security baseline & wish list).
+**Related docs:** `idea-brainstorming.md` (local data plane, **generative structuring**, & offline sharing), `features-list.md` (security baseline & wish list).
 
 ---
 
@@ -77,6 +77,14 @@ When users **opt in** to keeping **scans or files** (e.g. driver license, passpo
 
 - **Office** files may contain **macros**; the product should **not execute** them—**data extraction only**—reducing malware surface compared to opening the same file in a full desktop Office suite inside the vault.
 - Parsed content stored in the DB follows the same **encryption** posture as other local secrets; **optional** retention of the original `.docx`/`.xlsx` is user-controlled like other **retained document files**.
+
+### 3.4.4 Generative structuring (schema inference)
+
+Structured memory relies on a **generative model** to **infer** field mappings and sometimes **create or alter** database tables locally.
+
+- **Default posture:** Run **inference on-device** so **document text and layout** used for structuring **do not** leave the device for that step—consistent with **“no family PII to the backend.”**
+- **If** a future offering used **cloud-based** generative inference, that would be a **separate consent** and threat model: content could transit third-party or vendor-controlled endpoints unless **fully private** contractual and technical guarantees exist—**not** implied by the baseline local-first story.
+- **Supply chain:** On-device models still imply **trust in the model artifact** (signed updates, reproducible versioning); **wrong or biased** outputs are a **correctness** risk mitigated by **UI review**, **edit**, and **rollback**, not only by encryption.
 
 ### 3.5 Key management: hardware-backed keystore / Secure Enclave
 
