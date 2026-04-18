@@ -26,6 +26,16 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ---
 
+### A1a2. Generative “borrow” from another parent can be wrong or embarrassing
+
+**Claim:** When **Mother’s** row is empty and the model fills a **parent phone** from **Father**, users may perceive **error** (wrong person) or **privacy** discomfort (shared number exposed in a **mother-labeled** box)—even when logically defensible as “household contact.”
+
+**Implication:** **Confidence thresholds**, **provenance** in UI (“Source: Casey’s profile”), **sensitive-field** blocks on cross-person inference, and **one-tap** “use other parent / clear” must ship with the feature—not **silent** substitution.
+
+**Mitigation:** Prefer **generic** labels (“Parent/guardian phone”) for **borrowed** values when the site allows; **never** cross-fill **government IDs** or **SSN** without explicit policy; **user override** always visible; **learn** per-site overrides when users repeatedly correct.
+
+---
+
 ### A1b. Browser extensions, store policies, and “forms in other apps”
 
 **Claim:** Shipping a **Chrome extension** plus **companion app** ties you to **browser store review**, permission prompts, and user trust (“why does this need broad access?”). **Form detection** will misfire on some SPAs and succeed on non-forms occasionally. **Third-party native apps** (banking, benefits) often **block** or **complicate** automation; accessibility-based overlays raise **platform** and **ethics** scrutiny.

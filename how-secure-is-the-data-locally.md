@@ -86,9 +86,9 @@ If the user enables **watch** on a folder, the app may **repeatedly** read **new
 - **Office** files may contain **macros**; the product should **not execute** them—**data extraction only**—reducing malware surface compared to opening the same file in a full desktop Office suite inside the vault.
 - Parsed content stored in the DB follows the same **encryption** posture as other local secrets; **optional** retention of the original `.docx`/`.xlsx` is user-controlled like other **retained document files**.
 
-### 3.4.4 Generative structuring (schema inference)
+### 3.4.4 Generative structuring (schema inference) and fill-time household resolution
 
-Structured memory relies on a **generative model** to **infer** field mappings and sometimes **create or alter** database tables locally.
+Structured memory relies on a **generative model** to **infer** field mappings and sometimes **create or alter** database tables locally. The **same class of model** may also **reason** over **which household member’s** stored fields to use when a **preferred** profile (e.g. **Mother**) is **missing** a value but another **linked** member (e.g. **Father**) has a plausible substitute—**entirely on-device** over **local** rows.
 
 - **Default posture:** Run **inference on-device** so **document text and layout** used for structuring **do not** leave the device for that step—consistent with **“no family PII to the backend.”**
 - **If** a future offering used **cloud-based** generative inference, that would be a **separate consent** and threat model: content could transit third-party or vendor-controlled endpoints unless **fully private** contractual and technical guarantees exist—**not** implied by the baseline local-first story.
