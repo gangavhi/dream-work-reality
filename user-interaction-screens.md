@@ -97,8 +97,8 @@ People should be able to add a document **in the moment** (paper in hand), use s
 - **Scan document** — Opens the **camera inside the app** for an **on-the-fly** capture: the user holds the physical document up, fits it in the frame, and takes the picture (or several pages, one after another, if needed). Helpful hints may appear: **hold steady**, **move closer**, **better light**, **try again** if the shot is blurry.  
 - **Choose from gallery** — Picks an **existing** photo already on the device (a screenshot, a photo taken earlier, an image from messages).  
 - **Choose a file** — Especially on tablets and laptops: pick a **saved file** from disk (a scan, a PDF export, an image).  
-- **Word or Excel** — Pick a **`.docx`** or **`.xlsx`** (and other supported types) the user already has. The app **reads the structure on the device**; the **generative assistant** infers **columns, rows, and fields**, **writes** into local memory (creating tables or columns when needed), then shows a **preview** so the user can **fix** a wrong mapping.  
-- **Add everything from a folder** (when the user wants it) — The user can pick a **folder** of documents (or, on some phones, a **bunch of files at once**—whatever the system allows). The app **reads each supported file**, runs **text recognition on the device**, **structures and stores** each result, and keeps a **list** of imports the user can **open to correct**—progress shows **how many files** are left so long folders don’t feel endless. On **computers**, choosing a whole folder is usually easiest; on **phones**, the flow may look like **select multiple files** or **pick a folder in Files** depending on the device.  
+- **Word or Excel** — Pick a **`.docx`** or **`.xlsx`** (and other supported types) the user already has. The app **reads the structure on the device**; the **generative assistant** infers **columns, rows, and fields** and **writes** into local memory (creating tables or columns when needed) **automatically**; the user can **open** that import afterward to **fix** a wrong mapping.  
+- **Add everything from a folder** (when the user wants it) — The user can pick a **folder** of documents (or, on some phones, a **bunch of files at once**—whatever the system allows). The app **processes each supported file** in an **automated** pipeline: **OCR → structure → save**—**no** per-file confirmation gate. **Progress** shows how far the run has gotten; **import activity** lists what finished so the user can **open any item to correct** if something looks wrong. On **computers**, choosing a whole folder is usually easiest; on **phones**, the flow may look like **select multiple files** or **pick a folder in Files** depending on the device.  
 - **Keep watching a folder** (when the user wants it) — The user can turn on **automatic import** for a folder they already chose: **new or updated** files that match supported types are picked up **without** running the full “import everything now” flow again. **Desktop** users may see **“Watching…”** with **last file processed** and **pause**; **phone/tablet** users may see **“We’ll check when you open the app”** or a **periodic scan** if the platform doesn’t allow true background folder watching—**honest** labeling per platform.
 
 ### 5.2 After a capture (whether you scanned or uploaded)
@@ -115,9 +115,10 @@ People should be able to add a document **in the moment** (paper in hand), use s
 
 ### 5.2.2 After a folder import (many files at once)
 
-- The user sees a **list of files** with status: **Imported—looks OK**, **Needs attention**, **Skipped**.  
+- Import is **fully automated**: nothing waits in a **review queue** uncommitted until the user approves.  
+- **Import activity** shows each file with status: **Done**, **Needs attention** (e.g. low confidence or parse error), **Skipped** (unsupported or ignored).  
 - Tapping or opening one file shows the **same** fix-up flow as a single document (section 5.2).  
-- The user can **stop and come back later**; data from processed files is **already in the profile**, with a clear path to **edit or roll back** per file.
+- The user can **leave** while processing continues or **come back later**; data from completed files is **already in the profile**, with a clear path to **edit or roll back** per file.
 
 ### 5.2.3 Watched folders (new files arrive later)
 
@@ -125,7 +126,7 @@ People should be able to add a document **in the moment** (paper in hand), use s
 - **Settings** (per watched folder): **On / Off**, **Pause** (temporary), **Include subfolders** (yes/no), **Default person** for this folder’s ingests, optional **ignore** rules (e.g. skip `*.tmp`), and optional **notify me** when something new was imported.  
 - **Activity:** A small **“Watched folders”** area (or entry under **Imports**) shows **folder name**, **status** (watching / paused / unavailable on this device), **last file processed**, and **errors** (e.g. file locked, unsupported type).  
 - **Platform honesty:** If **continuous** background watching isn’t possible, the UI says **“We’ll scan for new files when you open the app”** (or on a schedule) instead of implying silent 24/7 monitoring.  
-- **Same outcomes** as §5.2.2: each new file appears in the **review list** with **Imported** / **Needs attention**; the user can **fix or roll back** per file.
+- **Same outcomes** as §5.2.2: each new file is **ingested automatically** and appears in **import activity** with **Done** / **Needs attention**; the user can **fix or roll back** per file after the fact.
 
 ### 5.2.4 Keeping a copy of the scan for later (optional)
 
