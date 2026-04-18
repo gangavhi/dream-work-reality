@@ -18,11 +18,11 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ### A1a. Wrong household profile = wrong application
 
-**Claim:** If the product **guesses** which child or adult a school or medical form refers to, it can insert **wrong** names or IDs—a high-stakes failure worse than no autofill.
+**Claim:** If the product **guesses** which child or adult a school or medical form refers to, it can insert **wrong** names or IDs—a high-stakes failure worse than no autofill. **Multi-field** forms make this worse: **patient** vs **parent/guardian** blocks are easy to **swap** if roles or field semantics are misread.
 
-**Implication:** **Mandatory** explicit **subject selection** (or confirmation of a suggestion) before filling; persistent **“Filling for: …”** indicator; **easy change** of profile.
+**Implication:** **Mandatory** explicit **form-subject** selection (or confirmation of a suggestion) before filling; **role-aware** mapping so **child** demographics and **parent** contact don’t collide; persistent **“Form about: …”** (and **which other members** are in scope) indicator; **easy change** of subject and **per-role** overrides.
 
-**Mitigation:** Default to **ask**; use **hints** only with **confirmation** when multiple similar profiles exist.
+**Mitigation:** Default to **ask**; use **hints** only with **confirmation** when multiple similar profiles exist; **disambiguation** when multiple adults could be “Parent 1”; **tests** on pediatric and school form patterns.
 
 ---
 

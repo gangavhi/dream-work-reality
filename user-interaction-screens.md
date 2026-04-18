@@ -59,6 +59,7 @@ These screens exist so people can have an identity with the service. **They do n
 ### 4.2 Adding or editing a person
 
 - **Basics** — Name, how they relate to the household, optional photo.  
+- **Role in the household** — Plain labels the product can use on forms and in the helper—e.g. **Father**, **Mother**, **Parent**, **Child 1**, **Child 2**—and **links** to other people (**parent/guardian of** which children, **partner** with whom). That makes **mixed** forms (child’s doctor visit + parent phone) work without re-typing relationships every time.  
 - **Contact & identity** — Phone, email, address fields grouped in sections people recognize from real life.  
 - **Other sections** — School, work, health, insurance—**only sections you’ve turned on or that apply** (no endless empty forms on day one).  
 - **Save** always visible; **Cancel** returns without saving when nothing critical was entered.
@@ -186,11 +187,13 @@ The product is built so people can use **the same saved information** whether th
 
 ### 7.2 Whose information is this form using?
 
-- A household may have **several people** on file (you, a partner, children, others). The app needs to know **which person’s details** to use—otherwise it might put the wrong child’s name or the wrong ID on an application.  
-- When the user asks for help with a form, the app **asks first** if it isn’t obvious—for example: **“Who is this form for?”** with choices like **Me**, **My partner**, **Alex**, **Sam**, or another **named member** of the household.  
-- Sometimes the app may **suggest** a person (for example if the page title matches a child’s name), but the user should **confirm** before anything is filled—especially when there are **several children**.  
-- A clear line stays on screen while helping—**“We’re using details for: Alex”** (or similar)—with **Change** if the user realizes they picked the wrong profile.  
-- Saving or updating information at the end of the session (section 8) always applies to **whoever** was selected for this form, unless the user switches profile mid-flow and confirms.
+- A household may have **several people** on file (you, a partner, children, others). Many real forms are **about one person** but still ask for **another member’s** information on the same page—for example a **doctor visit for a child** that also needs **parent or guardian** name, phone, insurance holder, or emergency contact.  
+- The household is set up with **roles** people recognize—**Father**, **Mother**, **Parent**, **Child 1**, **Child 2**, and so on—and **who is linked to whom** (e.g. which adults are **parents of** which child). That lets the app **route each box** to the right person **without** mixing up “patient” and “parent” fields.  
+- When the user asks for help, the app asks **who this form is mainly for** if it isn’t obvious—for example: **“Who is this form about?”** with **Me**, **My partner**, **Alex**, **Sam**, or another **named member**. That person is the **form subject** (e.g. the patient or student).  
+- **Other fields** on the same form (guardian, subscriber, billing) are filled from the **correct** other profiles using those roles—**seamlessly**, with a short line on screen such as **“Form about: Sam · Also using: Jordan (parent), Casey (parent)”** so nothing feels hidden. If two parents exist and the form only needs one phone, the app may **ask once** (“Which parent’s number?”) instead of guessing.  
+- Sometimes the app may **suggest** the form subject (for example if the page title matches a child’s name), but the user should **confirm** before anything sensitive is filled—especially when there are **several children**.  
+- **Change** stays available: switch **who the form is about**, or **which parent** supplies a given line, if the user realizes the form was mis-scoped.  
+- Saving or updating information at the end of the session (section 8) applies to the **right person per field**—e.g. a corrected **child** allergy and a corrected **parent** phone update **different** profiles, not a single lumped “form profile.”
 
 ### 7.3 What works the same in Chrome (desktop, tablet, and phone)
 

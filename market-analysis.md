@@ -18,7 +18,7 @@ This document places the **local-first OCR + generative structuring + household 
 | **High-stakes forms** where mistakes matter. | **Review-capable** workflows after ingest, inline corrections, optional persistence of corrections locally. |
 | **Gaps in saved information** | **Explicit prompts** to enter missing fields; optional **save to local memory** for newly entered values so the next form starts richer—without cloud sync. |
 | **Correcting outdated or wrong saved details** | User can **update** existing local values from the form when something on file is wrong or stale—**write-back** to local memory on confirmation, not **only** “add new fields.” |
-| **Multi-person households** | User **selects or confirms which profile** (self, partner, each child) applies to each form—avoids mixing up dependents; aligns fills, gaps, and saves to the right person. |
+| **Multi-person households** | User sets **roles** (e.g. father, mother, children) and **relationships**; picks a **form subject** (who the form is about). Forms that need **more than one member** on the same page (e.g. child **patient** + **parent/guardian** contact) resolve fields to the **correct** profile **seamlessly**—not a single flat “family blob.” |
 | **Forms that require uploading proof** | **Optional retained scans** (license, ID, vaccination record, etc.) stored **on device** so users can **attach** during filing without re-photographing—still **no** central repository of images on your servers. |
 | **Multi-step flows including OTP** | Session-oriented UX in embedded browsing; OTP completed **by the user** in-page (no credential exfiltration to your servers). |
 | **Households need parallel access without a shared cloud vault** | **Offline, selective, time-bound sharing** of structured fields to another trusted device via **proximity transfer** (AirDrop / Nearby Share–class paths)—**no internet relay** of the payload through your backend. |
@@ -128,7 +128,7 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 - **Offline selective sharing** addresses **multi-adult and multi-device** households without defaulting to **full cloud replication** of sensitive structured data.
 - **Real-browser workflow** (Chrome extension + companion app) meets users where they already fill forms; **form-only** activation and **respect for native autofill** reduce annoyance versus naive inject-everywhere tools.
 - **Optional retained document files** address **attachment** requirements (IDs, vaccination proof)—not only typing—while keeping images **on device** by default.
-- **Explicit per-person form scope** (self, partner, each child) fits **multi-dependent** households and reduces high-impact mix-ups.
+- **Explicit form subject + role-aware multi-profile fill** (child’s form + parent/guardian fields on the same page) fits **real** medical, school, and benefits workflows—not only single-profile address autofill.
 - **Word/Excel import** meets **spreadsheet-native** families and small-business workflows without forcing **scan-first** capture.
 
 ### Weaknesses
@@ -197,8 +197,8 @@ Differentiators must be **true** under audit—not aspirational.
 11. **Structured data + optional document vault for uploads**  
    Household fields **and**, when the user opts in, **kept copies** of important scans for **“attach document”** flows—still local-first, unlike tools that only fill text or only store photos with no link to forms.
 
-12. **Per-person form scope**  
-   Explicit **“who is this form for?”** flows—not a single undifferentiated blob of “family data”—reduces costly errors on school, medical, and benefits forms.
+12. **Per-person form scope + multi-profile fields**  
+   Explicit **form subject** (who the form is **about**) plus **roles** (parent, child, guardian) so **one page** can pull **child** and **parent** facts from the **right** profiles—reduces costly errors on school, medical, and benefits forms compared to a single “family” autofill blob.
 
 13. **Folder sweep**  
    **Batch import + OCR + generative ingest + post-ingest review** meets **“I already have a folder of PDFs”**—common for organized families—without a separate scanning-only app.
