@@ -12,6 +12,8 @@ This document places the **local-first OCR + household data + form assistance** 
 |--------|-------------------------------|
 | **Repeated manual entry** of the same identity and household facts across many web forms. | Structured local profiles; **Chrome extension** (with **companion app**) fills from **local memory** in the **real browser**; **tablet/phone** add **in-app** form assist where the platform allows—**no** central copy of household data. |
 | **Scattered document chaos** (photos, PDFs, emails) disconnected from usable fields. | OCR pipelines into a **relational** model with optional provenance. |
+| **Large piles of existing scans** (e.g. one folder per school year) | **User-chosen folder import**: enumerate supported files, **batch OCR on-device**, **review queue** before anything is committed—still **no** cloud document processing. |
+| **Data already in Word/Excel** | **On-device** parse of **`.docx` / `.xlsx`** (etc.) into reviewable fields—fits **school rosters**, **benefits**, **HR** exports without retyping. |
 | **Distrust of cloud aggregators** holding copies of sensitive data. | **Local-first** storage; backend limited to **account** and **explicitly anonymous** operational telemetry. |
 | **High-stakes forms** where mistakes matter. | **Review-first** workflows, inline corrections, optional persistence of corrections locally. |
 | **Gaps in saved information** | **Explicit prompts** to enter missing fields; optional **save to local memory** for newly entered values so the next form starts richer—without cloud sync. |
@@ -127,6 +129,7 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 - **Real-browser workflow** (Chrome extension + companion app) meets users where they already fill forms; **form-only** activation and **respect for native autofill** reduce annoyance versus naive inject-everywhere tools.
 - **Optional retained document files** address **attachment** requirements (IDs, vaccination proof)—not only typing—while keeping images **on device** by default.
 - **Explicit per-person form scope** (self, partner, each child) fits **multi-dependent** households and reduces high-impact mix-ups.
+- **Word/Excel import** meets **spreadsheet-native** families and small-business workflows without forcing **scan-first** capture.
 
 ### Weaknesses
 
@@ -137,6 +140,7 @@ These are **not identical** products, but they compete for **time**, **trust**, 
 - **Proximity sharing** requires careful **messaging** (data *does* move to another device; it *does not* go through your **internet** or **backend** as carrier) and **cross-platform** engineering may lag same-OS quality.
 - **Browser extension + app** duopoly: **store policies**, permissions friction, and **Chrome-first** scope until other browsers are supported.
 - **Larger on-device footprint** and **higher impact** if devices are lost when users opt in to many **retained scans**—messaging and defaults must be careful.
+- **Spreadsheet diversity** (merged cells, weird headers) can frustrate users if **mapping UX** is thin—support burden.
 
 ### Opportunities
 
@@ -195,6 +199,12 @@ Differentiators must be **true** under audit—not aspirational.
 
 12. **Per-person form scope**  
    Explicit **“who is this form for?”** flows—not a single undifferentiated blob of “family data”—reduces costly errors on school, medical, and benefits forms.
+
+13. **Folder sweep**  
+   **Batch import + OCR + review** meets **“I already have a folder of PDFs”**—common for organized families—without a separate scanning-only app.
+
+14. **Office-native import**  
+   **Word/Excel** paths for users whose **source of truth** is already a spreadsheet or document—**not** only photos or PDFs.
 
 ---
 

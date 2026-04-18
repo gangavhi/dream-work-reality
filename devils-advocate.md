@@ -90,7 +90,27 @@ This document argues **against** and **for** the product in strong terms. The go
 
 ---
 
-### A7b. Retained scan images raise stakes beyond structured fields
+### A7a. Word/Excel imports are messy in the wild
+
+**Claim:** Real-world **spreadsheets** have **merged cells**, **multiple tabs**, **formulas**, and **inconsistent headers**. Word docs mix **layouts** that don’t map cleanly to **one row per person**.
+
+**Implication:** Users may blame the product for **wrong** mapped fields if confirmation UX is weak.
+
+**Mitigation:** **Preview + mapping** step mandatory; **clear** “couldn’t parse” fallback to **manual** or **CSV export** path; document **supported** formats honestly.
+
+---
+
+### A7b. Folder import can amplify mistakes and storage use
+
+**Claim:** **Batch OCR** from a user-selected folder speeds onboarding but increases **wrong-person assignment** (every file tagged to the wrong child) and **storage** if users import thousands of images without review.
+
+**Implication:** **Strong** review UX, **limits** per batch, **duplicate** warnings, and **pause**—treat bulk import as **high risk** for data quality.
+
+**Mitigation:** **No** silent commit; **default person** must be explicit; **hash-based** duplicate skip; **max files** per run.
+
+---
+
+### A7c. Retained scan images raise stakes beyond structured fields
 
 **Claim:** Letting users **keep photos/PDFs** of licenses, passports, and vaccination cards for **upload convenience** increases **storage size** and **breach impact** if the device is lost or malware exfiltrates files—more than text-only fields alone.
 
@@ -215,6 +235,22 @@ This document argues **against** and **for** the product in strong terms. The go
 **Claim:** Users mentally sort forms as **“mine,” “my spouse’s,” “this kid’s.”** A product that **asks** and **shows** who the form is for matches that model and **reduces** wrong-child errors.
 
 **Implication:** Better **trust** on school and health workflows than generic “my data” autofill.
+
+---
+
+### B12. Folder import is a migration moment
+
+**Claim:** Families who already organize PDFs in **one folder** can **ingest** into structured memory in one session—**onboarding** without re-typing.
+
+**Implication:** Strong **adoption** hook for desktop-first users—if review UX is **not** overwhelming.
+
+---
+
+### B13. Excel is where real households already keep lists
+
+**Claim:** Rosters, medical tables, and school exports often live in **`.xlsx`** before they ever become a PDF. First-class **spreadsheet import** meets users **where their data already is**.
+
+**Implication:** Differentiation from **scan-only** identity apps—**if** parsing and mapping are **credible**.
 
 ---
 

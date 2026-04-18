@@ -2,7 +2,7 @@
 
 This document separates **mandatory** capabilities (required for the product to be coherent, trustworthy, and aligned with its privacy story) from a **wish list** that would make the platform **formidable** in market—without turning every wish into scope creep for v1.
 
-**Related docs:** `idea-brainstorming.md`, `devils-advocate.md`, `market-analysis.md`, `how-secure-is-the-data-locally.md`, `user-interaction-screens.md`.
+**Related docs:** `idea-brainstorming.md`, `devils-advocate.md`, `market-analysis.md`, `how-secure-is-the-data-locally.md`, `user-interaction-screens.md`, `brainstorming-topic-filling-form-in-another-app.md`.
 
 ---
 
@@ -26,8 +26,11 @@ These are **non-negotiable** for a credible first product that matches the state
 |--------|--------|
 | **On-the-fly document scan** | Built-in **live camera** capture of physical documents (single or multi-page): user scans **now**, with optional alignment/corner hints, retake, and flashlight where available—then same review/confirm flow as uploads. |
 | **Upload from gallery or files** | Pick **existing** photos or saved files (images, PDFs where supported)—for “already have a picture” or laptop-first use. |
+| **Word and Excel import** | User uploads **`.docx` / `.doc`** (where supported) and **`.xlsx` / `.xls`** (where supported); **parse on-device** into tables/text; **column/field mapping** UI; **confirm** before DB commit—**no** macro execution; optional **retain original file** in encrypted storage like other document types. |
+| **Import folder (batch OCR)** | User **opts in** to selecting a **folder** (where the OS allows); app scans for supported file types (including **Office** where listed), runs **OCR on raster-like files** and **parse on Word/Excel** on-device, queues results for **review**—**no** bulk commit without user confirmation; **person assignment** per item or explicit batch rules. **Desktop** typically full folder; **mobile** may use **folder picker** or **multi-file** flows per platform. |
 | **On-device OCR pipeline** | Text extraction runs locally; no upload of document content to your backend. |
-| **Human confirmation before “truth”** | OCR output becomes committed fields only after user review (or explicit per-field confirm)—avoids silent wrong autofill on high-stakes forms. |
+| **On-device Office parsing** | Structured extraction from Word/Excel locally; same **no backend** rule for file content. |
+| **Human confirmation before “truth”** | OCR output and **Office-derived** field candidates become committed only after user review (or explicit per-field confirm)—avoids silent wrong autofill on high-stakes forms. |
 | **Supersede on new capture** | When the user adds a newer **scan or upload** of the **same** document type (e.g. new passport), guided flow: map to existing logical fields → **replace current** → prior values move to **history** with timestamps; **optional** replacement/supersession of **retained scan file** per user choice. |
 | **Optional retained document files (on-device)** | User may **keep encrypted copies** of scans/files (e.g. driver license, passport/photo ID, vaccination record, insurance card) for **form upload** needs—not only extracted text. **Per capture or type:** store **file**, **fields only**, or **both**; **delete** anytime. |
 | **Sensitive-field safeguards** | Configurable confirmation or masking for highest-risk field types (e.g. government IDs, full account numbers—exact taxonomy product-defined). |
@@ -130,6 +133,8 @@ These items **raise the ceiling**: differentiation moats, enterprise readiness, 
 |--------|----------------|
 | **Document-type templates** | “Passport,” “lease,” “W-2,” “immunization”—faster field extraction with fewer errors. |
 | **Desk / laptop camera & scanner workflows** | Where the platform allows: continuous capture from a webcam or driver for a connected scanner—same review pipeline as mobile scan/upload. |
+| **Batch folder import polish** | **Duplicate detection**, **pause/resume**, **parallel OCR** where safe, **per-folder import presets** (e.g. “these are all Sam’s school PDFs”). |
+| **Spreadsheet import templates** | Saved **column mappings** for recurring school/HR spreadsheets—**local** presets only. |
 | **Compressed / “web-ready” exports** | Optional local generation of smaller PDF/JPEG for sites with size limits—still on-device. |
 | **Confidence scores & snippet preview** | User trusts confirmation UI when they see **why** OCR suggested a value. |
 | **Optional second-pass models** | Premium or on-demand heavier models for poor scans—**still on-device** if privacy story holds. |
@@ -189,7 +194,7 @@ These items **raise the ceiling**: differentiation moats, enterprise readiness, 
 
 | Phase | Focus |
 |-------|--------|
-| **MVP** | §1 mandatory: local store + OCR confirm + household UI + **profile/subject selection for each form** (self, partner, kids, other members; ask when unsure) + **optional retained document files** (opt-in, key types) + **Chrome extension + companion app** (form detection, user-invoked fill, native-autofill coexistence, **attach from saved** where possible) + optional **in-app** assist on mobile/tablet where feasible + account boundary + baseline security + **core** proximity sharing (same-ecosystem first if needed). |
+| **MVP** | §1 mandatory: local store + OCR confirm + household UI + **profile/subject selection for each form** (self, partner, kids, other members; ask when unsure) + **optional retained document files** (opt-in, key types) + **Word/Excel import** (at least **xlsx/docx** parse + mapping + review; **no** macro execution) + **folder batch import** (where OS supports folder/multi pick; review queue before DB commit) + **Chrome extension + companion app** (form detection, user-invoked fill, native-autofill coexistence, **attach from saved** where possible) + optional **in-app** assist on mobile/tablet where feasible + account boundary + baseline security + **core** proximity sharing (same-ecosystem first if needed). |
 | **Hardening** | Site packs, audit log, encryption upgrades, clearer telemetry policy, broader in-app coverage. |
 | **Scale & moat** | Cross-platform sharing, enterprise, premium local models, deep site coverage, **additional browsers**. |
 
@@ -209,5 +214,5 @@ To stay formidable **and** credible, the following should **not** be smuggled in
 
 ## 5. Summary
 
-- **Mandatory** = local structured memory with OCR confirmation, **household profile selection** (whose form this is: self, partner, children, other members) with session indicator and **change** affordance, **optional retained document files** (user-controlled, on-device, for uploads), **Chrome extension + companion app** form assistance (form-only activation, coexistence with browser autofill, **attach from saved documents** where applicable), **gap detection** with prompts to enter missing information and **optional save** of **new** values (**insert**), plus **optional update** of **existing** local values when the user changes information on the form and confirms (**insert + update**, never silent), tablet/phone **in-app** paths where feasible, review/fast paths and OTP-friendly UX, strict backend minimization, household CRUD UI, proximity-based selective sharing with expiry and revoke, and a security baseline.
+- **Mandatory** = local structured memory with OCR confirmation, **Word/Excel import** with on-device parsing and **review-before-commit**, **user-chosen folder batch import** with on-device OCR and **review-before-commit**, **household profile selection** (whose form this is: self, partner, children, other members) with session indicator and **change** affordance, **optional retained document files** (user-controlled, on-device, for uploads), **Chrome extension + companion app** form assistance (form-only activation, coexistence with browser autofill, **attach from saved documents** where applicable), **gap detection** with prompts to enter missing information and **optional save** of **new** values (**insert**), plus **optional update** of **existing** local values when the user changes information on the form and confirms (**insert + update**, never silent), tablet/phone **in-app** paths where feasible, review/fast paths and OTP-friendly UX, strict backend minimization, household CRUD UI, proximity-based selective sharing with expiry and revoke, and a security baseline.
 - **Wish list** = curated site coverage, deeper automation, cross-platform sharing, enterprise and compliance depth, premium local intelligence, and revenue tied to **capability**—not to **hosted identity data**.

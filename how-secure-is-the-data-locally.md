@@ -67,6 +67,17 @@ When users **opt in** to keeping **scans or files** (e.g. driver license, passpo
 - **User controls:** **delete file without deleting structured fields** (or vice versa) should be explicit.
 - **Backup:** Same tradeoffs as §3.7—excluding large sensitive blobs from device cloud backup may be desirable; communicate clearly.
 
+### 3.4.2 Reading a user-selected folder (batch import)
+
+- The app should only read files **inside folders the user explicitly selects** (or via **multi-file picker** on mobile)—**no** broad disk access without consent.
+- **Temporary** read of originals for OCR can be **streamed** or **copied into app sandbox** per policy; **processed on-device**; originals outside the vault are **not** uploaded to your backend.
+- **Mitigates:** accidental indexing of unrelated directories—**user intent** is scoped to the chosen path.
+
+### 3.4.3 Word and Excel files
+
+- **Office** files may contain **macros**; the product should **not execute** them—**data extraction only**—reducing malware surface compared to opening the same file in a full desktop Office suite inside the vault.
+- Parsed content stored in the DB follows the same **encryption** posture as other local secrets; **optional** retention of the original `.docx`/`.xlsx` is user-controlled like other **retained document files**.
+
 ### 3.5 Key management: hardware-backed keystore / Secure Enclave
 
 - **Data encryption keys** should be wrapped or derived using **hardware-backed** key storage (Android Keystore, iOS Keychain with Secure Enclave–backed keys where available).
