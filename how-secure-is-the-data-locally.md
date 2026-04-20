@@ -4,6 +4,8 @@ This document explains **defense layers** for on-device structured memory, how t
 
 **Related docs:** `idea-brainstorming.md` (local data plane, **generative structuring**, & offline sharing), `features-list.md` (security baseline & wish list).
 
+**Manual entry vs documents:** Users who **only** enter data by typing **never** create document files or OCR artifacts in the app unless they later **choose** to add scans. That **narrows** the “document stash” attack surface (fewer images/PDFs at rest) while **structured fields** remain in the encrypted database under the same rules as other sources—provenance should record **manual** vs document-backed values for clarity.
+
 ---
 
 ## 1. Threat model in one page

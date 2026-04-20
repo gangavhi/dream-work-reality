@@ -36,7 +36,7 @@ These screens exist so people can have an identity with the service. **They do n
 
 - A **simple welcome** that explains three ideas in plain language:  
   - Add the people you care for.  
-  - Bring in details by **scanning a document now**, **choosing a photo or file**, **importing a Word or Excel file**, **adding a whole folder of documents** (when you want), or typing yourself.  
+  - Bring in details by **typing what you know** (no document needed), **scanning a document now**, **choosing a photo or file**, **importing a Word or Excel file**, or **adding a whole folder of documents** (when you want). **Manual entry** is presented as **equally valid**: many users want **one-time typed facts** in local memory for form filling **without** ever uploading or photographing documents—**privacy**, **simplicity**, and **speed**.  
   - When you’re ready, open a web form and let the app help you fill it—**you stay in control**.  
 - One clear button: **Add someone** or **Set up my household**.
 
@@ -89,12 +89,15 @@ These screens exist so people can have an identity with the service. **They do n
 
 ---
 
-## 5. Bringing information in: scan now or upload something you already have
+## 5. Bringing information in: type it yourself, scan now, or upload something you already have
 
-People should be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**; every path runs through **on-device capture/parse**, then a **generative assistant** that **decides structure**, **creates or extends** local database tables if needed, and **saves automatically**—**import activity** and **edit** flows catch mistakes **after** data is stored, not a queue that blocks saving until someone confirms.
+Users can **fill local memory without any document**: **manual entry** is a **primary path**, not a workaround. Someone may prefer **never** to put scans or files on the device, or may not have documents handy—they still **enter names, addresses, and other facts once** in guided screens, **save** to the same database the extension and form assistant use, and get **full form-fill support**. **Why it matters:** trust (no document artifacts), convenience (facts from memory or another screen), and **parity** with users who use OCR. **What differs:** provenance shows **“You entered this”** (and optional **effective dates** where the product supports them); there is **no** linked scan until the user optionally adds one later.
+
+People should also be able to add a document **in the moment** (paper in hand), use something they already saved—including **Word or Excel**—or pull in a **whole folder**. Document-backed paths run through **on-device capture/parse**, then a **generative assistant** that **decides structure**, **creates or extends** local database tables if needed, and **saves automatically**—**import activity** and **edit** flows catch mistakes **after** data is stored, not a queue that blocks saving until someone confirms.
 
 ### 5.1 Choose how to add
 
+- **Enter manually** — Opens structured **person** and **household** forms (and any product-supported sections the user enables). The user **types** addresses, IDs, school, insurance, and other fields **once**; values **save to local memory** for **future form filling** and **editing**, with **source: manual**. No camera or file picker required. Ideal when the user **chooses not to upload documents** but still wants persistent, reusable data.  
 - **Scan document** — Opens the **camera inside the app** for an **on-the-fly** capture: the user holds the physical document up, fits it in the frame, and takes the picture (or several pages, one after another, if needed). Helpful hints may appear: **hold steady**, **move closer**, **better light**, **try again** if the shot is blurry.  
 - **Choose from gallery** — Picks an **existing** photo already on the device (a screenshot, a photo taken earlier, an image from messages).  
 - **Choose a file** — Especially on tablets and laptops: pick a **saved file** from disk (a scan, a PDF export, an image).  

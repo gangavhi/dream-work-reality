@@ -62,7 +62,7 @@ This document argues **against** and **for** the product in strong terms. The go
 
 **Implication:** Users may distrust **ingest-first** workflows unless **review, confidence, and edit** UX are strong and **sensitive tiers** get extra friction.
 
-**Mitigation:** Show **confidence** and source **snippets**; **easy edit and rollback** after ingest; **extra prompts** for sensitive field classes; never silently overwrite **user-verified** fields without explicit action; **on-device** generative models by default so structuring does not imply cloud upload.
+**Mitigation:** Show **confidence** and source **snippets**; **easy edit and rollback** after ingest; **extra prompts** for sensitive field classes; never silently overwrite **user-verified** fields without explicit action; **on-device** generative models by default so structuring does not imply cloud upload. For users who **avoid document ingest entirely**, a **first-class manual entry** path (typed facts persisted for form fill) limits exposure to OCR/mapping errors while preserving the same local-memory value proposition.
 
 ---
 
