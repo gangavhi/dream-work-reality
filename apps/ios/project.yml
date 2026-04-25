@@ -15,12 +15,25 @@ targets:
     deploymentTarget: "17.0"
     sources:
       - path: DreamWorkApp/Sources
+    resources:
+      - path: DreamWorkApp/Resources
     preBuildScripts:
       - name: Build Rust Core (Simulator)
         script: |
           set -euo pipefail
-          source "$HOME/.cargo/env"
-          rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true
+          if [[ -f "$HOME/.cargo/env" ]]; then
+            # rustup installs here by default; don't hard-fail if missing.
+            source "$HOME/.cargo/env"
+          fi
+
+          if ! command -v cargo >/dev/null 2>&1; then
+            echo "cargo not found; skipping Rust core build (install rustup/cargo to enable)." >&2
+            exit 0
+          fi
+
+          if command -v rustup >/dev/null 2>&1; then
+            rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true
+          fi
           export CARGO_TARGET_DIR="$SRCROOT/../../core/target"
           cargo build \
             --manifest-path "$SRCROOT/../../core/dreamwork_core/Cargo.toml" \
@@ -30,6 +43,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSCameraUsageDescription: "Scan your driver license to autofill form fields."
+        # Allow HTTP for local laptop import (Simulator + on-device dev).
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES

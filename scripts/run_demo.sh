@@ -36,11 +36,15 @@ cd "$ROOT_DIR"
 nohup python3 -m http.server 8000 > "$PID_DIR/form-server.log" 2>&1 &
 echo $! > "$PID_DIR/form-server.pid"
 
-echo "==> Launching iOS Simulator app"
-xcodegen generate --spec "$ROOT_DIR/apps/ios/project.yml" >/dev/null
-xcrun simctl boot "iPhone 16" >/dev/null 2>&1 || true
-open -a Simulator
-xcrun simctl launch booted com.dreamwork.app >/dev/null
+echo "==> Launching iOS Simulator app (optional)"
+if command -v xcodegen >/dev/null 2>&1 && command -v xcrun >/dev/null 2>&1 && open -Ra Simulator >/dev/null 2>&1; then
+  xcodegen generate --spec "$ROOT_DIR/apps/ios/project.yml" >/dev/null
+  xcrun simctl boot "iPhone 16" >/dev/null 2>&1 || true
+  open -a Simulator
+  xcrun simctl launch booted com.dreamwork.app >/dev/null
+else
+  echo "Skipping iOS Simulator launch (Xcode/Simulator not installed)."
+fi
 
 cat <<EOF
 

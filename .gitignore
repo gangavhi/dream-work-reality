@@ -1,0 +1,18 @@
+.DS_Store
+
+# Demo runtime artifacts
+.demo-pids/
+
+# Xcode
+.derivedData/
+DerivedData/
+*.xcuserstate
+*.xcuserdata/
+
+# Simulator screenshots / generated media
+demo/*.png
+demo/*.mp4
+
+# Rust build artifacts
+core/target/
+

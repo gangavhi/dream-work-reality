@@ -8,11 +8,17 @@
 
 /* Begin PBXBuildFile section */
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
+		231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2101157B480B4669EEDF2CB /* PersonProfile.swift */; };
+		2D778DBA45EFDF551563EEE3 /* CapturedValueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */; };
 		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
+		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
 		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
+		7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D855109CD3830514DE12083 /* EditPersonProfileView.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
+		88E02C562C0945B833BC73E8 /* BlankSchoolRegistrationFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */; };
+		8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */; };
 		8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD78F9BE0720055ACED01C93 /* FormsView.swift */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
 		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
@@ -39,13 +45,19 @@
 /* Begin PBXFileReference section */
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseScanner.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
+		4D855109CD3830514DE12083 /* EditPersonProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPersonProfileView.swift; sourceTree = "<group>"; };
 		5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppTests.swift; sourceTree = "<group>"; };
 		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
+		6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturedValueStore.swift; sourceTree = "<group>"; };
 		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
+		93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlankSchoolRegistrationFormView.swift; sourceTree = "<group>"; };
+		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
+		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
 		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
@@ -72,6 +84,9 @@
 		21C6ADEFFD32EB7ED236B9DE /* Forms */ = {
 			isa = PBXGroup;
 			children = (
+				93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */,
+				6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */,
+				3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */,
 				DD78F9BE0720055ACED01C93 /* FormsView.swift */,
 			);
 			path = Forms;
@@ -139,7 +154,10 @@
 		9924A9F463E15B3405C1FD38 /* People */ = {
 			isa = PBXGroup;
 			children = (
+				4D855109CD3830514DE12083 /* EditPersonProfileView.swift */,
+				AA1517A683073C7D0CF48458 /* PeopleStore.swift */,
 				67A881A247ED48F231120564 /* PeopleView.swift */,
+				D2101157B480B4669EEDF2CB /* PersonProfile.swift */,
 			);
 			path = People;
 			sourceTree = "<group>";
@@ -270,7 +288,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nsource \"$HOME/.cargo/env\"\nrustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target aarch64-apple-ios-sim\n";
+			shellScript = "set -euo pipefail\nif [[ -f \"$HOME/.cargo/env\" ]]; then\n  # rustup installs here by default; don't hard-fail if missing.\n  source \"$HOME/.cargo/env\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo not found; skipping Rust core build (install rustup/cargo to enable).\" >&2\n  exit 0\nfi\n\nif command -v rustup >/dev/null 2>&1; then\n  rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true\nfi\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target aarch64-apple-ios-sim\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -288,11 +306,17 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
+				88E02C562C0945B833BC73E8 /* BlankSchoolRegistrationFormView.swift in Sources */,
+				2D778DBA45EFDF551563EEE3 /* CapturedValueStore.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
+				8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */,
+				7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */,
 				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
 				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
+				3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */,
 				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
+				231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */,
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
 			);
@@ -465,6 +489,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -491,6 +517,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

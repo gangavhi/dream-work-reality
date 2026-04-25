@@ -10,9 +10,10 @@ enum AppTab: Hashable {
 @MainActor
 final class AppState: ObservableObject {
     @Published var selectedTab: AppTab = .home
+    @Published var showSchoolIntakeForm: Bool = false
     @Published private(set) var statusText: String = "Core service not loaded"
     @Published private(set) var manualEntryCount: Int = 0
-    @Published private(set) var selectedPersonName: String = "No person loaded"
+    @Published var peopleStore: PeopleStore = PeopleStore()
 
     private let coreService: CoreBridgeService
 
@@ -28,11 +29,16 @@ final class AppState: ObservableObject {
     func saveAndLoadDemoPerson() {
         let id = "person-1"
         let saved = coreService.saveManualEntry(id: id, displayName: "Alex Carter")
-        if saved, let name = coreService.readManualEntryName(id: id) {
-            selectedPersonName = name
-        } else {
-            selectedPersonName = "Failed to load person"
-        }
+        _ = saved ? coreService.readManualEntryName(id: id) : nil
         refreshStatus()
+    }
+
+    func openSchoolIntakeForm() {
+        selectedTab = .forms
+        showSchoolIntakeForm = true
+    }
+
+    func openPeople() {
+        selectedTab = .people
     }
 }

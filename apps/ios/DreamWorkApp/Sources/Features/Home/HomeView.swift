@@ -30,6 +30,11 @@ struct HomeView: View {
                 }
                 .buttonStyle(.bordered)
                 .accessibilityIdentifier("saveLoadPersonButton")
+
+                Button("Open School Intake Form") {
+                    appState.openSchoolIntakeForm()
+                }
+                .buttonStyle(.bordered)
             }
             .padding()
             .navigationTitle("Home")
