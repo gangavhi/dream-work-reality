@@ -40,5 +40,6 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 adb shell am start -n com.dreamwork.app/.MainActivity
 ```
 
-The app uses `http://10.0.2.2:18081` so an emulator can reach the host `core-api`
-service through the same local port expected by the browser extension demo.
+The app uses `http://10.0.2.2:8080` so an emulator can reach the host
+`core-api` service directly. `10.0.2.2` is the Android emulator alias for the
+host machine.
