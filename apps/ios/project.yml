@@ -1,0 +1,69 @@
+name: DreamWorkApp
+options:
+  minimumXcodeGenVersion: 2.38.0
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: 17.0
+configs:
+  Debug: debug
+  Release: release
+targets:
+  DreamWorkApp:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: DreamWorkApp/Sources
+    preBuildScripts:
+      - name: Build Rust Core (Simulator)
+        script: |
+          set -euo pipefail
+          source "$HOME/.cargo/env"
+          rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true
+          export CARGO_TARGET_DIR="$SRCROOT/../../core/target"
+          cargo build \
+            --manifest-path "$SRCROOT/../../core/dreamwork_core/Cargo.toml" \
+            --target aarch64-apple-ios-sim
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app
+        PRODUCT_NAME: DreamWorkApp
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        OTHER_LDFLAGS:
+          - $(inherited)
+          - -L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug
+          - -ldreamwork_core
+    scheme:
+      testTargets:
+        - DreamWorkAppTests
+        - DreamWorkAppUITests
+
+  DreamWorkAppTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: DreamWorkAppTests
+    dependencies:
+      - target: DreamWorkApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.tests
+        GENERATE_INFOPLIST_FILE: YES
+
+  DreamWorkAppUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: DreamWorkAppUITests
+    dependencies:
+      - target: DreamWorkApp
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.uitests
+        GENERATE_INFOPLIST_FILE: YES

@@ -1,0 +1,3 @@
+[workspace]
+members = ["dreamwork_core", "core_api"]
+resolver = "2"

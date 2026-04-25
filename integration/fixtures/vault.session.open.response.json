@@ -1,0 +1,12 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-session-001",
+  "result": {
+    "sessionId": "sess_8e6f2f90",
+    "expiresInSeconds": 600,
+    "grants": [
+      "vault.fill.getCandidates",
+      "vault.fill.apply"
+    ]
+  }
+}

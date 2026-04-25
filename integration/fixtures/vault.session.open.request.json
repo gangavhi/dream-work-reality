@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-session-001",
+  "method": "vault.session.open",
+  "params": {
+    "apiVersion": 1,
+    "unlockReason": "fill",
+    "client": {
+      "surface": "browser-extension",
+      "browser": "chromium"
+    }
+  }
+}

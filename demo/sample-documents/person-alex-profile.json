@@ -1,0 +1,20 @@
+{
+  "person_id": "person-42",
+  "profile_type": "manual_entry_seed",
+  "display_name": "Alex Carter",
+  "first_name": "Alex",
+  "last_name": "Carter",
+  "date_of_birth": "2012-09-14",
+  "household_role": "Child 1",
+  "guardian_name": "Jordan Carter",
+  "guardian_phone": "+1-555-010-0199",
+  "guardian_email": "jordan.carter@example.com",
+  "address_line_1": "2457 Meadowbrook Ave",
+  "city": "Austin",
+  "state": "TX",
+  "postal_code": "78701",
+  "country": "US",
+  "insurance_provider": "Acme Health",
+  "policy_number": "ACME-9921-4438",
+  "notes": "Demo-only synthetic data. Not real PII."
+}

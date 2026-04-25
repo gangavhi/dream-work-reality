@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-session-001",
+  "error": {
+    "code": -32010,
+    "message": "Unsupported apiVersion",
+    "data": {
+      "supportedVersions": [
+        1
+      ]
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-fill-001",
+  "result": {
+    "candidates": [
+      {
+        "candidateId": "cand_001",
+        "displayLabel": "Primary identity profile",
+        "matchScore": 0.94
+      }
+    ]
+  }
+}

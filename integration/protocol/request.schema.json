@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://dream-work-reality.local/integration/protocol/request.schema.json",
+  "title": "Extension to Native Host JSON-RPC Request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["jsonrpc", "id", "method", "params"],
+  "properties": {
+    "jsonrpc": {
+      "type": "string",
+      "const": "2.0"
+    },
+    "id": {
+      "oneOf": [
+        { "type": "string" },
+        { "type": "number" },
+        { "type": "null" }
+      ]
+    },
+    "method": {
+      "type": "string",
+      "pattern": "^[a-z]+(\\.[a-zA-Z][a-zA-Z0-9]*)+$"
+    },
+    "params": {
+      "type": "object",
+      "required": ["apiVersion"],
+      "properties": {
+        "apiVersion": {
+          "type": "integer",
+          "const": 1
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

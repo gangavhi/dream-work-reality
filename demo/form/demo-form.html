@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DreamWork Demo Form</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; margin: 24px; max-width: 900px; }
+    h1 { margin-bottom: 4px; }
+    .hint { color: #555; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 13px; color: #333; }
+    input { padding: 10px; border: 1px solid #bbb; border-radius: 8px; font-size: 14px; }
+    .full { grid-column: 1 / -1; }
+    .actions { margin-top: 16px; display: flex; gap: 10px; }
+    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #888; cursor: pointer; }
+    .primary { background: #1f6feb; color: white; border-color: #1f6feb; }
+  </style>
+</head>
+<body>
+  <h1>School Intake Demo Form</h1>
+  <p class="hint">
+    Use the DreamWork demo extension to autofill this form from local core data.
+  </p>
+
+  <form id="demo-form">
+    <div class="grid">
+      <div class="field">
+        <label for="display_name">Student Full Name</label>
+        <input id="display_name" name="display_name" autocomplete="name" />
+      </div>
+      <div class="field">
+        <label for="date_of_birth">Date of Birth</label>
+        <input id="date_of_birth" name="date_of_birth" placeholder="YYYY-MM-DD" />
+      </div>
+      <div class="field">
+        <label for="guardian_name">Parent / Guardian Name</label>
+        <input id="guardian_name" name="guardian_name" />
+      </div>
+      <div class="field">
+        <label for="guardian_phone">Parent / Guardian Phone</label>
+        <input id="guardian_phone" name="guardian_phone" autocomplete="tel" />
+      </div>
+      <div class="field">
+        <label for="guardian_email">Parent / Guardian Email</label>
+        <input id="guardian_email" name="guardian_email" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label for="policy_number">Policy Number</label>
+        <input id="policy_number" name="policy_number" />
+      </div>
+      <div class="field full">
+        <label for="address_line_1">Street Address</label>
+        <input id="address_line_1" name="address_line_1" autocomplete="street-address" />
+      </div>
+      <div class="field">
+        <label for="city">City</label>
+        <input id="city" name="city" autocomplete="address-level2" />
+      </div>
+      <div class="field">
+        <label for="state">State</label>
+        <input id="state" name="state" autocomplete="address-level1" />
+      </div>
+      <div class="field">
+        <label for="postal_code">ZIP Code</label>
+        <input id="postal_code" name="postal_code" autocomplete="postal-code" />
+      </div>
+      <div class="field">
+        <label for="insurance_provider">Insurance Provider</label>
+        <input id="insurance_provider" name="insurance_provider" />
+      </div>
+    </div>
+
+    <div class="actions">
+      <button type="submit" class="primary">Submit (Demo)</button>
+      <button type="reset">Reset</button>
+    </div>
+  </form>
+
+  <script>
+    document.getElementById("demo-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      alert("Demo form submitted locally.");
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+{
+  "jsonrpc": "2.0",
+  "id": "req-fill-001",
+  "method": "vault.fill.getCandidates",
+  "params": {
+    "apiVersion": 1,
+    "sessionId": "sess_8e6f2f90",
+    "context": {
+      "origin": "https://example.com",
+      "formHints": [
+        "email",
+        "first_name",
+        "last_name"
+      ]
+    }
+  }
+}

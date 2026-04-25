@@ -1,0 +1,610 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
+		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
+		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
+		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
+		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
+		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
+		8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD78F9BE0720055ACED01C93 /* FormsView.swift */; };
+		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
+		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
+		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		86C4394C9D1DC52607BEF276 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B6F7D30D8352B1A06C97B3C2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 405FA494C2293CCC9779B065;
+			remoteInfo = DreamWorkApp;
+		};
+		BC9BDA0614DA83BC99889638 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B6F7D30D8352B1A06C97B3C2 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 405FA494C2293CCC9779B065;
+			remoteInfo = DreamWorkApp;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
+		5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppTests.swift; sourceTree = "<group>"; };
+		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
+		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
+		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
+		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1D384DDA370FF38C9A2B087B /* DreamWorkAppTests */ = {
+			isa = PBXGroup;
+			children = (
+				5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */,
+			);
+			path = DreamWorkAppTests;
+			sourceTree = "<group>";
+		};
+		1DCB59DAA93A8BE819A8AB5E /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				745E4C56058DAA99A6F82FC0 /* SettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
+		21C6ADEFFD32EB7ED236B9DE /* Forms */ = {
+			isa = PBXGroup;
+			children = (
+				DD78F9BE0720055ACED01C93 /* FormsView.swift */,
+			);
+			path = Forms;
+			sourceTree = "<group>";
+		};
+		2CA075D548892616B9600FE2 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */,
+				E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		3DCF067C5456726600AC50FB /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				21C6ADEFFD32EB7ED236B9DE /* Forms */,
+				F6A63F3DAE826E55FCD15461 /* Home */,
+				9924A9F463E15B3405C1FD38 /* People */,
+				1DCB59DAA93A8BE819A8AB5E /* Settings */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		4E1640673B5559C27294F1E2 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */,
+				29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */,
+				2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		6DE7DDB4AA36B77ECAAE06DE = {
+			isa = PBXGroup;
+			children = (
+				1D384DDA370FF38C9A2B087B /* DreamWorkAppTests */,
+				764E50910C8672E17DB2C4D7 /* DreamWorkAppUITests */,
+				7695540409861EF30EEB88B8 /* Sources */,
+				4E1640673B5559C27294F1E2 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		764E50910C8672E17DB2C4D7 /* DreamWorkAppUITests */ = {
+			isa = PBXGroup;
+			children = (
+				FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */,
+			);
+			path = DreamWorkAppUITests;
+			sourceTree = "<group>";
+		};
+		7695540409861EF30EEB88B8 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				2CA075D548892616B9600FE2 /* App */,
+				AA75EFF8F81F05018DDD5181 /* Core */,
+				3DCF067C5456726600AC50FB /* Features */,
+			);
+			name = Sources;
+			path = DreamWorkApp/Sources;
+			sourceTree = "<group>";
+		};
+		9924A9F463E15B3405C1FD38 /* People */ = {
+			isa = PBXGroup;
+			children = (
+				67A881A247ED48F231120564 /* PeopleView.swift */,
+			);
+			path = People;
+			sourceTree = "<group>";
+		};
+		AA75EFF8F81F05018DDD5181 /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
+				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		F6A63F3DAE826E55FCD15461 /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		187C2D834581BF97755FAED6 /* DreamWorkAppTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 46E1AC89ED0ADA9CF7AB2E60 /* Build configuration list for PBXNativeTarget "DreamWorkAppTests" */;
+			buildPhases = (
+				9A2547C7F13B1301238124A8 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				FBCF61203B6C6ABC928A1CB3 /* PBXTargetDependency */,
+			);
+			name = DreamWorkAppTests;
+			packageProductDependencies = (
+			);
+			productName = DreamWorkAppTests;
+			productReference = 29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		405FA494C2293CCC9779B065 /* DreamWorkApp */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F6362B7E79206EA73E51FBF7 /* Build configuration list for PBXNativeTarget "DreamWorkApp" */;
+			buildPhases = (
+				6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */,
+				46368A9D57F919165902FC25 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = DreamWorkApp;
+			packageProductDependencies = (
+			);
+			productName = DreamWorkApp;
+			productReference = D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */;
+			productType = "com.apple.product-type.application";
+		};
+		BB877019B9A5D1DC93CE573C /* DreamWorkAppUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6E373741B19BF8D825CCA577 /* Build configuration list for PBXNativeTarget "DreamWorkAppUITests" */;
+			buildPhases = (
+				0D7D23CEF2A7366328CF761D /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				4FEAA26BAE9E94CEAB9E8313 /* PBXTargetDependency */,
+			);
+			name = DreamWorkAppUITests;
+			packageProductDependencies = (
+			);
+			productName = DreamWorkAppUITests;
+			productReference = 2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B6F7D30D8352B1A06C97B3C2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					BB877019B9A5D1DC93CE573C = {
+						TestTargetID = 405FA494C2293CCC9779B065;
+					};
+				};
+			};
+			buildConfigurationList = 288871E5BC389B04D30085AC /* Build configuration list for PBXProject "DreamWorkApp" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 6DE7DDB4AA36B77ECAAE06DE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4E1640673B5559C27294F1E2 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				405FA494C2293CCC9779B065 /* DreamWorkApp */,
+				187C2D834581BF97755FAED6 /* DreamWorkAppTests */,
+				BB877019B9A5D1DC93CE573C /* DreamWorkAppUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Build Rust Core (Simulator)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "set -euo pipefail\nsource \"$HOME/.cargo/env\"\nrustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target aarch64-apple-ios-sim\n";
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0D7D23CEF2A7366328CF761D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		46368A9D57F919165902FC25 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
+				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
+				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
+				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
+				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
+				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
+				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
+				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		9A2547C7F13B1301238124A8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		4FEAA26BAE9E94CEAB9E8313 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 405FA494C2293CCC9779B065 /* DreamWorkApp */;
+			targetProxy = BC9BDA0614DA83BC99889638 /* PBXContainerItemProxy */;
+		};
+		FBCF61203B6C6ABC928A1CB3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 405FA494C2293CCC9779B065 /* DreamWorkApp */;
+			targetProxy = 86C4394C9D1DC52607BEF276 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		224BF6FD128D09907007CC5D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Debug;
+		};
+		494C60EE1DEC45AA47953D27 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DreamWorkApp;
+			};
+			name = Debug;
+		};
+		507A972ED47AF630B36DD54A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Release;
+		};
+		591A1B064461D4E78FFE90F8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
+					"-ldreamwork_core",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app;
+				PRODUCT_NAME = DreamWorkApp;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		81650927D7CB68787B427439 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
+					"-ldreamwork_core",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app;
+				PRODUCT_NAME = DreamWorkApp;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CB9E1AA5F4211B1C2B1D2385 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DreamWorkApp.app/DreamWorkApp";
+			};
+			name = Debug;
+		};
+		DBD0BC2252DD0B46988A7A82 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DreamWorkApp.app/DreamWorkApp";
+			};
+			name = Release;
+		};
+		F61DF06ABACF0431252C7172 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app.uitests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = DreamWorkApp;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		288871E5BC389B04D30085AC /* Build configuration list for PBXProject "DreamWorkApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				224BF6FD128D09907007CC5D /* Debug */,
+				507A972ED47AF630B36DD54A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		46E1AC89ED0ADA9CF7AB2E60 /* Build configuration list for PBXNativeTarget "DreamWorkAppTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CB9E1AA5F4211B1C2B1D2385 /* Debug */,
+				DBD0BC2252DD0B46988A7A82 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6E373741B19BF8D825CCA577 /* Build configuration list for PBXNativeTarget "DreamWorkAppUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				494C60EE1DEC45AA47953D27 /* Debug */,
+				F61DF06ABACF0431252C7172 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F6362B7E79206EA73E51FBF7 /* Build configuration list for PBXNativeTarget "DreamWorkApp" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				591A1B064461D4E78FFE90F8 /* Debug */,
+				81650927D7CB68787B427439 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B6F7D30D8352B1A06C97B3C2 /* Project object */;
+}

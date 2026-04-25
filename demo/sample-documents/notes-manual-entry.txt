@@ -1,0 +1,15 @@
+Dream Work Reality demo notes
+============================
+
+This file exists to simulate user-uploaded content for ingestion demos.
+All values here are synthetic and safe for local testing.
+
+Person: Alex Carter
+DOB: 2012-09-14
+Guardian: Jordan Carter
+Guardian Phone: +1-555-010-0199
+Guardian Email: jordan.carter@example.com
+Address: 2457 Meadowbrook Ave, Austin, TX 78701
+Insurance: Acme Health
+Policy: ACME-9921-4438
+

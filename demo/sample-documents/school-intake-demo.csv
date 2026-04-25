@@ -1,0 +1,12 @@
+field_key,field_label,field_value,source
+display_name,Student Full Name,Alex Carter,manual-demo
+date_of_birth,Date of Birth,2012-09-14,manual-demo
+guardian_name,Parent or Guardian Name,Jordan Carter,manual-demo
+guardian_phone,Parent or Guardian Phone,+1-555-010-0199,manual-demo
+guardian_email,Parent or Guardian Email,jordan.carter@example.com,manual-demo
+address_line_1,Street Address,2457 Meadowbrook Ave,manual-demo
+city,City,Austin,manual-demo
+state,State,TX,manual-demo
+postal_code,ZIP Code,78701,manual-demo
+insurance_provider,Insurance Provider,Acme Health,manual-demo
+policy_number,Policy Number,ACME-9921-4438,manual-demo
