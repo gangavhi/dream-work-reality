@@ -8,10 +8,6 @@ struct DreamWorkAppApp: App {
         WindowGroup {
             RootTabView()
                 .environmentObject(appState)
-                .task {
-                    // Demo convenience: open the school intake form on launch.
-                    appState.openSchoolIntakeForm()
-                }
         }
     }
 }

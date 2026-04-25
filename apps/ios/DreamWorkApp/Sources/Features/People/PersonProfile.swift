@@ -7,7 +7,11 @@ struct PersonProfile: Identifiable, Codable, Hashable {
     var firstName: String?
     var lastName: String?
     var dateOfBirthMMDDYYYY: String?
+    // Active driver license summary fields (kept for convenience / quick fill).
     var driverLicenseNumber: String?
+    var driverLicenseIssueMMDDYYYY: String?
+    var driverLicenseExpiryMMDDYYYY: String?
+    var driverLicenseState: String?
 
     var email: String?
     var ssnLast4: String?
@@ -22,6 +26,9 @@ struct PersonProfile: Identifiable, Codable, Hashable {
     var familyMembers: [FamilyMember] = []
     var emergencyContacts: [EmergencyContact] = []
 
+    // Full DL history. Only one should be active at a time.
+    var driverLicenses: [DriverLicense] = []
+
     var updatedAt: Date = Date()
 
     var displayTitle: String {
@@ -32,6 +39,16 @@ struct PersonProfile: Identifiable, Codable, Hashable {
         let full = [fn, ln].filter { !$0.isEmpty }.joined(separator: " ")
         return full.isEmpty ? "Unnamed Person" : full
     }
+}
+
+struct DriverLicense: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    var number: String?
+    var state: String?
+    var issueMMDDYYYY: String?
+    var expiryMMDDYYYY: String?
+    var isActive: Bool = true
+    var capturedAt: Date = Date()
 }
 
 struct FamilyMember: Identifiable, Codable, Hashable {

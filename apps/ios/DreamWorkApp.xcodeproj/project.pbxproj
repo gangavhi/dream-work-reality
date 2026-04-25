@@ -8,18 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
+		1F4D5B6D9E2B4C5A8C2F0001 /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */; };
 		231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2101157B480B4669EEDF2CB /* PersonProfile.swift */; };
-		2D778DBA45EFDF551563EEE3 /* CapturedValueStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */; };
+		2A7D0A1B3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */; };
 		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
 		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
-		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
 		7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D855109CD3830514DE12083 /* EditPersonProfileView.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
-		88E02C562C0945B833BC73E8 /* BlankSchoolRegistrationFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */; };
 		8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */; };
-		8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD78F9BE0720055ACED01C93 /* FormsView.swift */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
 		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
 		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
@@ -43,6 +41,8 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
+		2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleSQLiteStore.swift; sourceTree = "<group>"; };
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseScanner.swift; sourceTree = "<group>"; };
@@ -50,16 +50,12 @@
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
 		4D855109CD3830514DE12083 /* EditPersonProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPersonProfileView.swift; sourceTree = "<group>"; };
 		5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppTests.swift; sourceTree = "<group>"; };
-		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
-		6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturedValueStore.swift; sourceTree = "<group>"; };
 		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
-		93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlankSchoolRegistrationFormView.swift; sourceTree = "<group>"; };
 		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
 		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
 		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -84,10 +80,7 @@
 		21C6ADEFFD32EB7ED236B9DE /* Forms */ = {
 			isa = PBXGroup;
 			children = (
-				93FBB1E38F8B3C250B94B393 /* BlankSchoolRegistrationFormView.swift */,
-				6A3EF50206EA661C4A4B6E9B /* CapturedValueStore.swift */,
 				3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */,
-				DD78F9BE0720055ACED01C93 /* FormsView.swift */,
 			);
 			path = Forms;
 			sourceTree = "<group>";
@@ -105,7 +98,6 @@
 			isa = PBXGroup;
 			children = (
 				21C6ADEFFD32EB7ED236B9DE /* Forms */,
-				F6A63F3DAE826E55FCD15461 /* Home */,
 				9924A9F463E15B3405C1FD38 /* People */,
 				1DCB59DAA93A8BE819A8AB5E /* Settings */,
 			);
@@ -156,6 +148,7 @@
 			children = (
 				4D855109CD3830514DE12083 /* EditPersonProfileView.swift */,
 				AA1517A683073C7D0CF48458 /* PeopleStore.swift */,
+				2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */,
 				67A881A247ED48F231120564 /* PeopleView.swift */,
 				D2101157B480B4669EEDF2CB /* PersonProfile.swift */,
 			);
@@ -167,18 +160,12 @@
 			children = (
 				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
 				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
+				1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
 		};
-		F6A63F3DAE826E55FCD15461 /* Home */ = {
-			isa = PBXGroup;
-			children = (
-				66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */,
-			);
-			path = Home;
-			sourceTree = "<group>";
-		};
+		
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -285,6 +272,7 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
+				"$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug/libdreamwork_core.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -306,15 +294,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
-				88E02C562C0945B833BC73E8 /* BlankSchoolRegistrationFormView.swift in Sources */,
-				2D778DBA45EFDF551563EEE3 /* CapturedValueStore.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
+				1F4D5B6D9E2B4C5A8C2F0001 /* SQLiteDB.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
 				8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */,
 				7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */,
-				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
-				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
 				3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */,
+				2A7D0A1B3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift in Sources */,
 				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
 				231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */,
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,

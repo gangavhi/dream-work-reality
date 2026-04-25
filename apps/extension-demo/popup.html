@@ -12,6 +12,15 @@
   </style>
 </head>
 <body>
+  <div style="margin-bottom: 10px;">
+    <div style="font-size: 12px; color: #444; margin-bottom: 6px;">Profile</div>
+    <select id="profileSelect" style="width: 100%; padding: 8px; border-radius: 8px; border: 1px solid #666;"></select>
+    <div style="display: flex; gap: 8px; margin-top: 8px;">
+      <input id="newProfileName" placeholder="wife / daughter / son" style="flex: 1; padding: 8px; border-radius: 8px; border: 1px solid #666;" />
+      <button id="addProfile" style="width: 80px;">Add</button>
+    </div>
+    <button id="removeProfile" style="width: 100%; margin-top: 8px;">Remove selected</button>
+  </div>
   <button id="seed" class="primary">Seed Person in Core API</button>
   <button id="fill">Fill Active Form</button>
   <div id="status">Ready</div>

@@ -12,6 +12,8 @@ struct DriverLicenseScanResult: Sendable {
     var lastName: String?
     var dateOfBirth: Date?
     var documentNumber: String?
+    var issueDate: Date?
+    var expiryDate: Date?
     var addressLine1: String?
     var city: String?
     var state: String?
@@ -192,12 +194,16 @@ struct DriverLicenseScannerView: UIViewControllerRepresentable {
         }
 
         func documentCameraViewControllerDidCancel(_ controller: VNDocumentCameraViewController) {
-            controller.dismiss(animated: true)
+            Task { @MainActor in
+                controller.dismiss(animated: true)
+            }
         }
 
         func documentCameraViewController(_ controller: VNDocumentCameraViewController, didFailWithError error: Error) {
-            controller.dismiss(animated: true) {
-                self.onResult(.failure(error))
+            Task { @MainActor in
+                controller.dismiss(animated: true) {
+                    self.onResult(.failure(error))
+                }
             }
         }
 
@@ -206,13 +212,15 @@ struct DriverLicenseScannerView: UIViewControllerRepresentable {
                 scan.imageOfPage(at: idx).cgImage
             }
 
-            controller.dismiss(animated: true) {
-                Task {
-                    do {
-                        let parsed = try await DriverLicenseScannerPipeline.scan(images: images)
-                        self.onResult(.success(parsed))
-                    } catch {
-                        self.onResult(.failure(error))
+            Task { @MainActor in
+                controller.dismiss(animated: true) {
+                    Task {
+                        do {
+                            let parsed = try await DriverLicenseScannerPipeline.scan(images: images)
+                            self.onResult(.success(parsed))
+                        } catch {
+                            self.onResult(.failure(error))
+                        }
                     }
                 }
             }
@@ -220,17 +228,34 @@ struct DriverLicenseScannerView: UIViewControllerRepresentable {
     }
 }
 
+@MainActor
 private struct ScannerFallbackView: View {
     let onResult: (Result<DriverLicenseScanResult, Error>) -> Void
+
+    private struct RemoteListingItem: Identifiable, Hashable {
+        var id: String { url.absoluteString }
+        let url: URL
+        let isDirectory: Bool
+    }
 
     @State private var selectedItem: PhotosPickerItem?
     @State private var isWorking = false
     @State private var urlString: String = ""
     @State private var isPresentingFilePicker = false
     @State private var isPresentingDownloadsBrowser = false
-    @State private var downloadsBaseURLString: String = "http://127.0.0.1:8009/"
-    @State private var downloadsFiles: [URL] = []
+    @State private var downloadsBaseURLString: String = Self.defaultDownloadsBaseURLString()
+    @State private var downloadsItems: [RemoteListingItem] = []
     @State private var downloadsError: String?
+    @State private var downloadsHint: String?
+
+    private static func defaultDownloadsBaseURLString() -> String {
+#if targetEnvironment(simulator)
+        return "http://127.0.0.1:8009/"
+#else
+        // Real devices cannot reach your Mac via 127.0.0.1; use your Mac's LAN IP instead.
+        return "http://192.168.0.1:8009/"
+#endif
+    }
 
     var body: some View {
         NavigationStack {
@@ -242,6 +267,22 @@ private struct ScannerFallbackView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
+#if targetEnvironment(simulator)
+                Button {
+                    // Simulator Photos is often empty; treat "Choose Photo" as "Pick from laptop".
+                    downloadsBaseURLString = "http://127.0.0.1:8009/"
+                    downloadsHint = "Simulator: browsing laptop server at http://127.0.0.1:8009/"
+                    Task { await loadDownloadsListing() }
+                } label: {
+                    HStack {
+                        Text("Choose Photo (from laptop)")
+                        Spacer()
+                        Image(systemName: "laptopcomputer")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(isWorking)
+#else
                 PhotosPicker(selection: $selectedItem, matching: .images) {
                     HStack {
                         Text("Choose Photo")
@@ -251,6 +292,7 @@ private struct ScannerFallbackView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isWorking)
+#endif
 
                 Button {
                     isPresentingFilePicker = true
@@ -267,6 +309,7 @@ private struct ScannerFallbackView: View {
                     isPresented: $isPresentingFilePicker,
                     allowedContentTypes: [
                         UTType.image,
+                        UTType.heic,
                         UTType.pdf,
                     ],
                     allowsMultipleSelection: false
@@ -296,7 +339,7 @@ private struct ScannerFallbackView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("Browse Mac Downloads (localhost)")
+                    Text("Browse laptop Downloads (HTTP server)")
                         .font(.headline)
 
                     TextField("http://127.0.0.1:8009/", text: $downloadsBaseURLString)
@@ -304,6 +347,23 @@ private struct ScannerFallbackView: View {
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
                         .keyboardType(.URL)
+
+#if targetEnvironment(simulator)
+                    Button("Use local laptop server (127.0.0.1:8009)") {
+                        downloadsBaseURLString = "http://127.0.0.1:8009/"
+                        downloadsHint = "Using simulator host loopback: http://127.0.0.1:8009/"
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isWorking)
+#endif
+
+                    Button(isWorking ? "Detecting…" : "Auto-detect laptop server") {
+                        Task {
+                            await autoDetectDownloadsServer()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(isWorking)
 
                     Button(isWorking ? "Loading…" : "Browse Downloads") {
                         Task {
@@ -313,45 +373,78 @@ private struct ScannerFallbackView: View {
                     .buttonStyle(.bordered)
                     .disabled(isWorking)
 
-                    Text("Tip: run `./scripts/serve_downloads.sh` on your Mac first.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let downloadsHint {
+                        Text(downloadsHint)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("Tip: run `./scripts/serve_downloads.sh` on your Mac first (or `./scripts/run_demo.sh`). On a real iPhone, replace 127.0.0.1 with your Mac’s Wi‑Fi IP (same network).")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
                 .sheet(isPresented: $isPresentingDownloadsBrowser) {
                     NavigationStack {
-                        List {
-                            if let downloadsError {
-                                Text(downloadsError)
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                            }
+                        ScrollViewReader { proxy in
+                            List {
+                                if let downloadsError {
+                                    Text(downloadsError)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
 
-                            Section("Files") {
-                                ForEach(downloadsFiles, id: \.absoluteString) { url in
-                                    Button(url.lastPathComponent) {
-                                        urlString = url.absoluteString
-                                        isPresentingDownloadsBrowser = false
-                                        Task { await loadFromURL() }
+                                Section("Browse") {
+                                    // Anchors for quick scroll control.
+                                    Color.clear
+                                        .frame(height: 0)
+                                        .id("top")
+
+                                    ForEach(downloadsItems) { item in
+                                        if item.isDirectory {
+                                            Button {
+                                                downloadsBaseURLString = item.url.absoluteString
+                                                Task { await loadDownloadsListing() }
+                                            } label: {
+                                                HStack {
+                                                    Image(systemName: "folder")
+                                                    Text(item.url.lastPathComponent.isEmpty ? item.url.absoluteString : item.url.lastPathComponent)
+                                                }
+                                            }
+                                        } else {
+                                            Button {
+                                                urlString = item.url.absoluteString
+                                                isPresentingDownloadsBrowser = false
+                                                Task { await loadFromURL() }
+                                            } label: {
+                                                HStack {
+                                                    Image(systemName: "doc")
+                                                    Text(item.url.lastPathComponent)
+                                                }
+                                            }
+                                        }
                                     }
+
+                                    Color.clear
+                                        .frame(height: 0)
+                                        .id("bottom")
                                 }
                             }
-                        }
-                        .navigationTitle("Downloads")
-                        .navigationBarTitleDisplayMode(.inline)
-                        .toolbar {
-                            ToolbarItem(placement: .topBarTrailing) {
-                                Button("Close") { isPresentingDownloadsBrowser = false }
+                            .navigationTitle("Downloads")
+                            .navigationBarTitleDisplayMode(.inline)
+                            .toolbar {
+                                ToolbarItemGroup(placement: .topBarTrailing) {
+                                    Button("Top") {
+                                        withAnimation { proxy.scrollTo("top", anchor: .top) }
+                                    }
+                                    Button("Bottom") {
+                                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
+                                    }
+                                    Button("Close") { isPresentingDownloadsBrowser = false }
+                                }
                             }
                         }
                     }
                 }
-
-                Button("Simulate Scan (Demo Text)") {
-                    let parsed = DriverLicenseParser.parse(DriverLicenseParser.demoDriverLicenseText)
-                    onResult(.success(parsed))
-                }
-                .buttonStyle(.bordered)
-                .disabled(isWorking)
 
                 if isWorking {
                     ProgressView("Reading…")
@@ -412,6 +505,17 @@ private struct ScannerFallbackView: View {
             return
         }
 
+#if !targetEnvironment(simulator)
+        if let host = url.host?.lowercased(), host == "127.0.0.1" || host == "localhost" {
+            onResult(.failure(NSError(
+                domain: "DriverLicenseScanner",
+                code: 13,
+                userInfo: [NSLocalizedDescriptionKey: "This is a real device. `127.0.0.1` / `localhost` points to your iPhone, not your Mac. Use your Mac’s Wi‑Fi/LAN IP like `http://192.168.x.x:8009/<file>`."]
+            )))
+            return
+        }
+#endif
+
         isWorking = true
         defer { isWorking = false }
 
@@ -419,18 +523,38 @@ private struct ScannerFallbackView: View {
             let parsed = try await DriverLicenseScannerPipeline.scan(remoteURL: url)
             onResult(.success(parsed))
         } catch {
-            onResult(.failure(error))
+            let msg = """
+            Failed to load and scan URL.
+
+            URL: \(url.absoluteString)
+            Error: \(error.localizedDescription)
+            """
+            onResult(.failure(NSError(domain: "DriverLicenseScanner", code: 14, userInfo: [NSLocalizedDescriptionKey: msg])))
         }
     }
 
     private func loadDownloadsListing() async {
-        let trimmed = downloadsBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        var trimmed = downloadsBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Directory listings need a trailing slash so relative hrefs resolve correctly.
+        if !trimmed.isEmpty, !trimmed.hasSuffix("/") {
+            trimmed += "/"
+            downloadsBaseURLString = trimmed
+        }
         guard let baseURL = URL(string: trimmed), baseURL.scheme != nil else {
             downloadsError = "Invalid base URL"
-            downloadsFiles = []
+            downloadsItems = []
             isPresentingDownloadsBrowser = true
             return
         }
+
+#if !targetEnvironment(simulator)
+        if let host = baseURL.host?.lowercased(), host == "127.0.0.1" || host == "localhost" {
+            downloadsError = "This is a real device. `127.0.0.1` / `localhost` points to your iPhone, not your Mac. Use your Mac’s Wi‑Fi/LAN IP like `http://192.168.x.x:8009/`."
+            downloadsItems = []
+            isPresentingDownloadsBrowser = true
+            return
+        }
+#endif
 
         isWorking = true
         defer { isWorking = false }
@@ -443,44 +567,110 @@ private struct ScannerFallbackView: View {
             }
 
             let html = String(data: data, encoding: .utf8) ?? ""
-            let urls = parsePythonHTTPServerListing(html: html, baseURL: baseURL)
-            downloadsFiles = urls
-            downloadsError = urls.isEmpty ? "No .png/.jpg/.jpeg/.pdf found on server." : nil
+            let items = parsePythonHTTPServerListing(html: html, baseURL: baseURL)
+            downloadsItems = items
+            if items.isEmpty {
+                let preview = String(html.prefix(600))
+                downloadsError = """
+                Connected, but couldn’t find any folders or supported files (.png/.jpg/.jpeg/.pdf).
+
+                Base URL: \(baseURL.absoluteString)
+                HTML preview:
+                \(preview)
+                """
+            } else {
+                downloadsError = nil
+            }
             isPresentingDownloadsBrowser = true
         } catch {
             downloadsError = "Failed to load: \(error.localizedDescription)"
-            downloadsFiles = []
+            downloadsItems = []
             isPresentingDownloadsBrowser = true
         }
     }
 
-    private func parsePythonHTTPServerListing(html: String, baseURL: URL) -> [URL] {
+    private func autoDetectDownloadsServer() async {
+        if isWorking { return }
+        isWorking = true
+        defer { isWorking = false }
+
+        downloadsHint = nil
+        downloadsError = nil
+
+        let candidates: [String] = [
+            downloadsBaseURLString,
+            "http://127.0.0.1:8009/",
+            "http://localhost:8009/",
+            "http://host.docker.internal:8009/",
+        ]
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+        .filter { !$0.isEmpty }
+
+        let uniqueCandidates = Array(NSOrderedSet(array: candidates)) as? [String] ?? candidates
+
+        for c in uniqueCandidates {
+            guard let url = URL(string: c), url.scheme != nil else { continue }
+            do {
+                let (data, response) = try await URLSession.shared.data(from: url)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                guard (200..<300).contains(status) else { continue }
+
+                let html = String(data: data, encoding: .utf8) ?? ""
+                let items = parsePythonHTTPServerListing(html: html, baseURL: url)
+
+                downloadsBaseURLString = url.absoluteString
+                downloadsItems = items
+                downloadsError = items.isEmpty ? "Server found, but no folders or supported files in listing." : nil
+                downloadsHint = "Connected to: \(url.absoluteString)"
+                isPresentingDownloadsBrowser = true
+                return
+            } catch {
+                continue
+            }
+        }
+
+        downloadsHint = "Couldn’t auto-detect. If you’re on a real iPhone, use your Mac’s LAN IP like `http://192.168.x.x:8009/` (same Wi‑Fi)."
+        downloadsError = "No reachable downloads server found."
+        downloadsItems = []
+        isPresentingDownloadsBrowser = true
+    }
+
+    private func parsePythonHTTPServerListing(html: String, baseURL: URL) -> [RemoteListingItem] {
         // Parse href="..." from python http.server directory listing.
-        // Keep only common document/image types.
+        // Keep folders and common document/image types.
         let pattern = #"href="([^"]+)""#
         guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
 
         let ns = html as NSString
         let matches = re.matches(in: html, range: NSRange(location: 0, length: ns.length))
-        var urls: [URL] = []
+        var items: [RemoteListingItem] = []
 
         for m in matches {
             guard m.numberOfRanges >= 2 else { continue }
             let href = ns.substring(with: m.range(at: 1))
             if href.hasPrefix("?") || href.hasPrefix("#") { continue }
-            if href.hasSuffix("/") { continue }
             if href == "../" { continue }
 
             let decoded = href.removingPercentEncoding ?? href
+            let isDir = decoded.hasSuffix("/")
+            if isDir {
+                if let url = URL(string: href, relativeTo: baseURL)?.absoluteURL {
+                    items.append(.init(url: url, isDirectory: true))
+                }
+                continue
+            }
             let ext = (decoded as NSString).pathExtension.lowercased()
-            guard ["png", "jpg", "jpeg", "pdf"].contains(ext) else { continue }
+            guard ["png", "jpg", "jpeg", "pdf", "heic", "heif", "tif", "tiff"].contains(ext) else { continue }
             if let url = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-                urls.append(url)
+                items.append(.init(url: url, isDirectory: false))
             }
         }
 
         // Deduplicate + stable sort.
-        let unique = Array(Set(urls)).sorted { $0.lastPathComponent.lowercased() < $1.lastPathComponent.lowercased() }
+        let unique = Array(Set(items)).sorted {
+            if $0.isDirectory != $1.isDirectory { return $0.isDirectory && !$1.isDirectory }
+            return $0.url.lastPathComponent.lowercased() < $1.url.lastPathComponent.lowercased()
+        }
         return unique
     }
 }
@@ -511,7 +701,7 @@ enum Barcode {
     static func detectPayloads(in image: CGImage) throws -> [String] {
         let request = VNDetectBarcodesRequest()
         request.symbologies = [
-            .PDF417,
+            .pdf417,
             .qr,
             .aztec,
             .code128,
@@ -543,6 +733,16 @@ enum DriverLicenseParser {
 
         // DOB patterns: 04/25/2001, 04-25-2001, 2001-04-25
         result.dateOfBirth = firstDate(in: joined)
+
+        // Issue / expiry heuristics (OCR only): look for lines containing "ISS" or "EXP".
+        if let issueLine = normalized.first(where: { $0.lowercased().contains("iss") || $0.lowercased().contains("issued") }),
+           let d = firstDate(in: issueLine) {
+            result.issueDate = d
+        }
+        if let expLine = normalized.first(where: { $0.lowercased().contains("exp") || $0.lowercased().contains("expires") || $0.lowercased().contains("expiration") }),
+           let d = firstDate(in: expLine) {
+            result.expiryDate = d
+        }
 
         // Look for "DOB" / "Birth" lines.
         if result.dateOfBirth == nil {
@@ -603,6 +803,8 @@ enum DriverLicenseParser {
         if out.lastName == nil { out.lastName = fallback.lastName }
         if out.dateOfBirth == nil { out.dateOfBirth = fallback.dateOfBirth }
         if out.documentNumber == nil { out.documentNumber = fallback.documentNumber }
+        if out.issueDate == nil { out.issueDate = fallback.issueDate }
+        if out.expiryDate == nil { out.expiryDate = fallback.expiryDate }
         if out.addressLine1 == nil { out.addressLine1 = fallback.addressLine1 }
         if out.city == nil { out.city = fallback.city }
         if out.state == nil { out.state = fallback.state }
@@ -616,7 +818,8 @@ enum DriverLicenseParser {
     static func parseAAMVAPDF417(_ payload: String) -> DriverLicenseScanResult? {
         // AAMVA DL/ID PDF417 payload usually contains ANSI header then lines with data element IDs.
         // We parse common fields:
-        // DCS last name, DAC first name, DAD middle, DBB DOB (YYYYMMDD), DAQ document number, DAG address, DAI city, DAJ state, DAK zip.
+        // DCS last name, DAC first name, DAD middle, DBB DOB (YYYYMMDD), DBA expiry (YYYYMMDD),
+        // DBD issue (YYYYMMDD), DAQ document number, DAG address, DAI city, DAJ state, DAK zip.
         let text = payload.replacingOccurrences(of: "\r", with: "\n")
         var lines = text.split(whereSeparator: \.isNewline).map { String($0) }
         if lines.isEmpty {
@@ -637,6 +840,8 @@ enum DriverLicenseParser {
         let first = value(for: "DAC")
         let middle = value(for: "DAD")
         let dobRaw = value(for: "DBB")
+        let expRaw = value(for: "DBA")
+        let issRaw = value(for: "DBD")
         let docNumber = value(for: "DAQ")
         let addr1 = value(for: "DAG")
         let city = value(for: "DAI")
@@ -659,6 +864,12 @@ enum DriverLicenseParser {
 
         if let dobRaw {
             out.dateOfBirth = parseAAMVADateYYYYMMDD(dobRaw)
+        }
+        if let issRaw {
+            out.issueDate = parseAAMVADateYYYYMMDD(issRaw)
+        }
+        if let expRaw {
+            out.expiryDate = parseAAMVADateYYYYMMDD(expRaw)
         }
 
         out.addressLine1 = addr1
@@ -766,4 +977,3 @@ enum DriverLicenseParser {
     AUSTIN TX 78701
     """
 }
-
