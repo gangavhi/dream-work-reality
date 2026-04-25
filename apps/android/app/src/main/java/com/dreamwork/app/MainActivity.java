@@ -14,7 +14,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
-    private static final String EMULATOR_CORE_API_URL = "http://10.0.2.2:18081";
+    private static final String EMULATOR_CORE_API_URL = "http://10.0.2.2:8080";
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
