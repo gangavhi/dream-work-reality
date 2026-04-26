@@ -6,6 +6,9 @@ struct PeopleView: View {
     @State private var isConfirmingDeleteAll = false
     @State private var isPresentingScanNew = false
     @State private var scanBanner: String?
+    @State private var isConfirmingDeletePerson = false
+    @State private var pendingDeletePersonID: UUID?
+    @State private var pendingDeletePersonName: String = ""
 
     var body: some View {
         NavigationStack {
@@ -35,6 +38,15 @@ struct PeopleView: View {
                                                 .foregroundStyle(.secondary)
                                         }
                                         insuranceSummaryLine(for: person)
+                                    }
+                                }
+                                .contextMenu {
+                                    Button(role: .destructive) {
+                                        pendingDeletePersonID = person.id
+                                        pendingDeletePersonName = person.displayTitle
+                                        isConfirmingDeletePerson = true
+                                    } label: {
+                                        Label("Delete Profile", systemImage: "trash")
                                     }
                                 }
                             }
@@ -83,6 +95,21 @@ struct PeopleView: View {
                 Button("Cancel", role: .cancel) {}
             } message: {
                 Text("This will permanently delete all saved people profiles on this device.")
+            }
+            .alert("Delete profile?", isPresented: $isConfirmingDeletePerson) {
+                Button("Delete", role: .destructive) {
+                    if let id = pendingDeletePersonID {
+                        appState.peopleStore.delete(id)
+                    }
+                    pendingDeletePersonID = nil
+                    pendingDeletePersonName = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    pendingDeletePersonID = nil
+                    pendingDeletePersonName = ""
+                }
+            } message: {
+                Text("Delete “\(pendingDeletePersonName)” from this device?")
             }
             .alert("Scan result", isPresented: Binding(get: { scanBanner != nil }, set: { if !$0 { scanBanner = nil } })) {
                 Button("OK", role: .cancel) {}
