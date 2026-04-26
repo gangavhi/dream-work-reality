@@ -8,16 +8,16 @@
 
 /* Begin PBXBuildFile section */
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
-		1F4D5B6D9E2B4C5A8C2F0001 /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */; };
 		231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2101157B480B4669EEDF2CB /* PersonProfile.swift */; };
-		2A7D0A1B3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */; };
 		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
 		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
+		5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
 		7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D855109CD3830514DE12083 /* EditPersonProfileView.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
 		8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */; };
+		90D48A78984AE4010E6EDDFF /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0804738C377E55F4B4F30C4A /* SQLiteDB.swift */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
 		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
 		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
@@ -41,8 +41,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
-		2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleSQLiteStore.swift; sourceTree = "<group>"; };
+		0804738C377E55F4B4F30C4A /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseScanner.swift; sourceTree = "<group>"; };
@@ -52,6 +51,7 @@
 		5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppTests.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
 		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleSQLiteStore.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
 		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
 		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
@@ -147,8 +147,8 @@
 			isa = PBXGroup;
 			children = (
 				4D855109CD3830514DE12083 /* EditPersonProfileView.swift */,
+				78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */,
 				AA1517A683073C7D0CF48458 /* PeopleStore.swift */,
-				2A7D0A1A3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift */,
 				67A881A247ED48F231120564 /* PeopleView.swift */,
 				D2101157B480B4669EEDF2CB /* PersonProfile.swift */,
 			);
@@ -160,12 +160,11 @@
 			children = (
 				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
 				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
-				1F4D5B6C9E2B4C5A8C2F0001 /* SQLiteDB.swift */,
+				0804738C377E55F4B4F30C4A /* SQLiteDB.swift */,
 			);
 			path = Core;
 			sourceTree = "<group>";
 		};
-		
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -272,7 +271,6 @@
 			outputFileListPaths = (
 			);
 			outputPaths = (
-				"$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug/libdreamwork_core.a",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -295,15 +293,15 @@
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
-				1F4D5B6D9E2B4C5A8C2F0001 /* SQLiteDB.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
 				8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */,
 				7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */,
+				5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */,
 				3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */,
-				2A7D0A1B3A2B4E4A8C2F0002 /* PeopleSQLiteStore.swift in Sources */,
 				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
 				231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */,
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
+				90D48A78984AE4010E6EDDFF /* SQLiteDB.swift in Sources */,
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

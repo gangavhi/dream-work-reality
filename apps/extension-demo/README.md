@@ -14,7 +14,8 @@ This is a lightweight Chrome MV3 demo extension for local autofill from `core-ap
 1. Ensure `core-api` is running and port-forwarded on `127.0.0.1:18081`.
 2. Open `demo/form/demo-form.html` in browser (via local HTTP server).
 3. Click extension icon.
-4. Click **Seed Person in Core API**.
-5. Click **Fill Active Form**.
+4. Pick a **Profile** (e.g. `wife`, `daughter`, `son`) or add one.
+5. Click **Seed Person in Core API** (seeds that profile name as the record).
+6. Click **Fill Active Form**.
 
 The form fields should populate with demo values.
