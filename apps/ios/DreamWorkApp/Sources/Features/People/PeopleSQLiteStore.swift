@@ -232,6 +232,14 @@ final class PeopleSQLiteStore {
     }
 
     func deletePerson(id: UUID) throws {
+        // Even though foreign keys are enabled (PRAGMA foreign_keys=ON),
+        // delete child rows explicitly to be robust across SQLite configurations.
+        try deleteAll(table: "driver_licenses", personID: id)
+        try deleteAll(table: "family_members", personID: id)
+        try deleteAll(table: "emergency_contacts", personID: id)
+        try deleteAll(table: "documents", personID: id)
+        try deleteAll(table: "genai_fields", personID: id)
+
         let stmt = try db.prepare("DELETE FROM people WHERE id = ?;")
         defer { sqlite3_finalize(stmt) }
         bindText(stmt, 1, id.uuidString)
@@ -245,6 +253,7 @@ final class PeopleSQLiteStore {
         try db.exec("DELETE FROM family_members;")
         try db.exec("DELETE FROM emergency_contacts;")
         try db.exec("DELETE FROM documents;")
+        try db.exec("DELETE FROM genai_fields;")
         try db.exec("DELETE FROM people;")
     }
 
