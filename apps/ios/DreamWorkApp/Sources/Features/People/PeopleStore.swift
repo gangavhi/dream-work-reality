@@ -49,6 +49,13 @@ final class PeopleStore: ObservableObject {
         persistSelectedPerson()
     }
 
+    func deleteAll() {
+        people = []
+        selectedPersonID = nil
+        try? db.deleteAllPeople()
+        persistSelectedPerson()
+    }
+
     func load() {
         people = (try? db.fetchAllPeople()) ?? []
         if selectedPersonID == nil, let raw = UserDefaults.standard.string(forKey: selectedPersonKey) {
@@ -64,6 +71,11 @@ final class PeopleStore: ObservableObject {
         persistSelectedPerson()
         // Refresh ordering from DB (updated_at sort)
         load()
+
+        // Best-effort sync to local core-api so the Chrome extension can use the same data.
+        Task {
+            await CoreAPISync.push(person: person)
+        }
     }
 
     private func persistSelectedPerson() {
@@ -89,5 +101,76 @@ final class PeopleStore: ObservableObject {
         }
         UserDefaults.standard.removeObject(forKey: legacyStorageKey)
     }
+}
+
+private enum CoreAPISync {
+    private struct SaveRequest: Encodable {
+        var id: String
+        var display_name: String
+        var fields: [String: String]
+    }
+
+    static func push(person: PersonProfile) async {
+        guard let url = URL(string: "http://127.0.0.1:18081/manual-entry") else { return }
+
+        let profileName = person.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        if profileName.isEmpty { return }
+
+        let id = profileIdFromName(profileName)
+        var fields: [String: String] = [:]
+
+        func set(_ key: String, _ value: String?) {
+            let t = (value ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty {
+                fields[key] = t
+            }
+        }
+
+        set("display_name", person.displayTitle)
+        set("first_name", person.firstName)
+        set("last_name", person.lastName)
+        // Demo form uses MM/DD/YYYY (date_of_birth).
+        set("date_of_birth_mmddyyyy", person.dateOfBirthMMDDYYYY)
+        if let mmdd = person.dateOfBirthMMDDYYYY {
+            set("date_of_birth", mmdd)
+        }
+        set("address_line_1", person.addressLine1)
+        set("city", person.city)
+        set("state", person.state)
+        set("postal_code", person.postalCode)
+        set("insurance_provider", person.insuranceProvider)
+        set("policy_number", person.policyNumber)
+
+        // Push any extra GenAI-extracted fields too (best-effort).
+        for (k, v) in person.genAIFields {
+            set(k, v)
+        }
+
+        let body = SaveRequest(
+            id: id,
+            display_name: person.displayTitle,
+            fields: fields
+        )
+        guard let data = try? JSONEncoder().encode(body) else { return }
+
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "content-type")
+        req.httpBody = data
+        req.timeoutInterval = 1.5
+
+        _ = try? await URLSession.shared.data(for: req)
+    }
+
+    private static func profileIdFromName(_ name: String) -> String {
+        let n = name
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .lowercased()
+        if n.isEmpty { return "profile-unknown" }
+        let slug = n.replacingOccurrences(of: "[^a-z0-9]+", with: "-", options: .regularExpression)
+        return "profile-\(slug)"
+    }
+
 }
 

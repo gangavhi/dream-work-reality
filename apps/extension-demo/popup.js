@@ -51,9 +51,11 @@ async function getSelectedProfileName() {
 }
 
 async function seedPerson(profileName) {
+  const defaults = buildProfileDefaults(profileName);
   const payload = {
     id: profileIdFromName(profileName),
-    display_name: profileName
+    display_name: defaults.display_name || profileName,
+    fields: defaults
   };
   const response = await fetch("http://127.0.0.1:18081/manual-entry", {
     method: "POST",
@@ -69,24 +71,62 @@ async function loadPerson(profileName) {
   const id = profileIdFromName(profileName);
   const response = await fetch(`http://127.0.0.1:18081/manual-entry/${encodeURIComponent(id)}`);
   if (!response.ok) {
+    // If the record doesn't exist yet, create a minimal one and continue with local profile defaults.
+    if (response.status === 404) {
+      await seedPerson(profileName);
+      return buildProfileDefaults(profileName);
+    }
     throw new Error(`Read failed: HTTP ${response.status}`);
   }
   const person = await response.json();
-  if (!person.display_name) {
-    throw new Error("No display_name returned from core-api.");
+  const defaults = buildProfileDefaults(profileName);
+  const displayName = person.display_name || defaults.display_name || profileName;
+  const storedFields = person.fields || {};
+  // Prefer stored core-api fields, then fall back to extension defaults.
+  return { ...defaults, ...storedFields, display_name: displayName };
+}
+
+function buildProfileDefaults(profileName) {
+  const name = normalizeProfileName(profileName);
+
+  // For now, keep defaults local in the extension.
+  // This gives immediate multi-profile autofill even before core-api stores all fields.
+  if (name === "daughter") {
+    return {
+      display_name: "Sahasra Kota",
+      first_name: "Sahasra",
+      last_name: "Kota",
+      // Demo form uses MM/DD/YYYY.
+      date_of_birth: "03/24/2023",
+      guardian_name: "Sreenivasulu Kota",
+      guardian_email: "sreenivasulu.kota@gmail.com",
+      guardian_phone: "+1 678 2306669",
+      address_line_1: "2528 Burnely Ct",
+      city: "Celina",
+      state: "TX",
+      postal_code: "75009",
+      insurance_provider: "UHG",
+      policy_number: "1234"
+    };
   }
+
+  if (name === "son") {
+    return {
+      display_name: "Son",
+      date_of_birth: ""
+    };
+  }
+
+  if (name === "wife") {
+    return {
+      display_name: "Wife",
+      date_of_birth: ""
+    };
+  }
+
+  // Generic fallback
   return {
-    display_name: person.display_name,
-    date_of_birth: "2012-09-14",
-    guardian_name: "Jordan Carter",
-    guardian_phone: "+1-555-010-0199",
-    guardian_email: "jordan.carter@example.com",
-    address_line_1: "2457 Meadowbrook Ave",
-    city: "Austin",
-    state: "TX",
-    postal_code: "78701",
-    insurance_provider: "Acme Health",
-    policy_number: "ACME-9921-4438"
+    display_name: profileName
   };
 }
 
@@ -98,16 +138,109 @@ async function fillActiveTab(data) {
     target: { tabId: tab.id },
     args: [data],
     func: (formData) => {
-      Object.entries(formData).forEach(([key, value]) => {
-        const input = document.getElementById(key) || document.querySelector(`[name="${key}"]`);
-        if (input) {
-          input.value = value;
-          input.dispatchEvent(new Event("input", { bubbles: true }));
-          input.dispatchEvent(new Event("change", { bubbles: true }));
+      const allInputs = Array.from(document.querySelectorAll("input, textarea, select"));
+      const normalize = (s) => (s || "").toString().trim().toLowerCase();
+
+      function bestLabelFor(el) {
+        const id = el.id;
+        const name = el.getAttribute("name") || "";
+        const placeholder = el.getAttribute("placeholder") || "";
+        const aria = el.getAttribute("aria-label") || "";
+        let labelText = "";
+        if (id) {
+          const lbl = document.querySelector(`label[for="${CSS.escape(id)}"]`);
+          if (lbl) labelText = lbl.textContent || "";
         }
+        return normalize([labelText, aria, placeholder, name, id].filter(Boolean).join(" "));
+      }
+
+      // Canonical keys -> list of hints
+      const hints = {
+        first_name: ["first name", "given name", "fname"],
+        last_name: ["last name", "surname", "family name", "lname"],
+        display_name: ["full name", "display name", "student full name", "name"],
+        date_of_birth: ["date of birth", "dob", "birth date", "birthday"],
+        guardian_name: ["parent", "guardian", "parent or guardian", "guardian name", "parent name"],
+        guardian_email: ["guardian email", "parent email", "email", "e-mail"],
+        guardian_phone: ["guardian phone", "parent phone", "phone", "mobile", "cell"],
+        address_line_1: ["address", "street", "street address", "address line 1"],
+        city: ["city", "town"],
+        state: ["state", "province"],
+        postal_code: ["zip", "zipcode", "postal"],
+        insurance_provider: ["insurance provider", "provider", "insurance"],
+        policy_number: ["policy number", "policy #", "member id", "policy id"]
+      };
+
+      function setValue(el, value) {
+        if (value == null) return;
+        const tag = el.tagName.toLowerCase();
+        if (tag === "select") {
+          // best-effort: match option text/value
+          const v = value.toString();
+          const opt = Array.from(el.options).find(o => o.value === v || normalize(o.textContent) === normalize(v));
+          if (opt) el.value = opt.value;
+        } else {
+          el.value = value;
+        }
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      // Fill by exact id/name first
+      Object.entries(formData).forEach(([key, value]) => {
+        const el = document.getElementById(key) || document.querySelector(`[name="${CSS.escape(key)}"]`);
+        if (el) setValue(el, value);
       });
+
+      // Then fill remaining by label matching (“fill all active forms”)
+      for (const el of allInputs) {
+        const label = bestLabelFor(el);
+        if (!label) continue;
+
+        for (const [key, value] of Object.entries(formData)) {
+          if (value == null || value === "") continue;
+          const keyHints = hints[key];
+          if (!keyHints) continue;
+          if (keyHints.some(h => label.includes(h))) {
+            // Always overwrite so switching profiles updates the form.
+            setValue(el, value);
+          }
+        }
+      }
     }
   });
+}
+
+async function collectActiveTabFields() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("No active tab.");
+
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const inputs = Array.from(document.querySelectorAll("input, textarea, select"));
+      const normalize = (s) => (s || "").toString().trim();
+
+      function labelFor(el) {
+        if (el.id) {
+          const lbl = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
+          if (lbl) return normalize(lbl.textContent || "");
+        }
+        return "";
+      }
+
+      return inputs.map((el) => ({
+        id: normalize(el.id),
+        name: normalize(el.getAttribute("name") || ""),
+        label: labelFor(el),
+        placeholder: normalize(el.getAttribute("placeholder") || ""),
+        aria_label: normalize(el.getAttribute("aria-label") || ""),
+        type: normalize(el.getAttribute("type") || el.tagName.toLowerCase())
+      }));
+    }
+  });
+
+  return Array.isArray(result) ? result : [];
 }
 
 document.getElementById("seed").addEventListener("click", async () => {
@@ -124,9 +257,28 @@ document.getElementById("seed").addEventListener("click", async () => {
 document.getElementById("fill").addEventListener("click", async () => {
   try {
     const profileName = await getSelectedProfileName();
-    setStatus(`Loading profile "${profileName}" from core-api...`);
+    setStatus(`Mapping fields for "${profileName}"...`);
+
+    const fields = await collectActiveTabFields();
+
+    // Ask local mapping endpoint (acts as GenAI stub in demo).
+    let mapped = null;
+    try {
+      const response = await fetch("http://127.0.0.1:18081/genai/map-fields", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ profile_name: profileName, fields })
+      });
+      if (response.ok) {
+        const json = await response.json();
+        mapped = json?.values || null;
+      }
+    } catch (_) {}
+
+    // Fallback to local defaults/core-api display_name
     const data = await loadPerson(profileName);
-    await fillActiveTab(data);
+    const finalData = mapped ? { ...data, ...mapped } : data;
+    await fillActiveTab(finalData);
     setStatus("Form filled on active tab.");
   } catch (error) {
     setStatus(`Fill error:\n${error.message}`);

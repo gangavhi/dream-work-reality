@@ -7,6 +7,8 @@ struct PersonProfile: Identifiable, Codable, Hashable {
     var firstName: String?
     var lastName: String?
     var dateOfBirthMMDDYYYY: String?
+    var height: String?
+    var eyeColor: String?
     // Active driver license summary fields (kept for convenience / quick fill).
     var driverLicenseNumber: String?
     var driverLicenseIssueMMDDYYYY: String?
@@ -16,6 +18,8 @@ struct PersonProfile: Identifiable, Codable, Hashable {
     var email: String?
     var ssnLast4: String?
     var mobilePhone: String?
+    var insuranceProvider: String?
+    var policyNumber: String?
 
     var addressLine1: String?
     var addressLine2: String?
@@ -28,6 +32,13 @@ struct PersonProfile: Identifiable, Codable, Hashable {
 
     // Full DL history. Only one should be active at a time.
     var driverLicenses: [DriverLicense] = []
+
+    // Other documents (e.g. passports). Most-recent first.
+    var documents: [ScannedDocument] = []
+
+    // Arbitrary key/value fields extracted by GenAI. This lets us persist new fields
+    // without changing the schema for every new document type.
+    var genAIFields: [String: String] = [:]
 
     var updatedAt: Date = Date()
 
@@ -48,6 +59,17 @@ struct DriverLicense: Identifiable, Codable, Hashable {
     var issueMMDDYYYY: String?
     var expiryMMDDYYYY: String?
     var isActive: Bool = true
+    var capturedAt: Date = Date()
+}
+
+struct ScannedDocument: Identifiable, Codable, Hashable {
+    var id: UUID = UUID()
+    // e.g. "driver_license", "passport"
+    var type: String
+    var number: String?
+    var issueMMDDYYYY: String?
+    var expiryMMDDYYYY: String?
+    var rawText: String?
     var capturedAt: Date = Date()
 }
 

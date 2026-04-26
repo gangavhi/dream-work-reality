@@ -62,6 +62,9 @@ Open these:
 
 Load Chrome extension from:
 - $ROOT_DIR/apps/extension-demo
+  - Open chrome://extensions
+  - Enable Developer mode
+  - Load unpacked → select that folder
 
 To stop demo background services:
 - $ROOT_DIR/scripts/stop_demo.sh

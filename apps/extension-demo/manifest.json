@@ -4,7 +4,12 @@
   "version": "0.1.0",
   "description": "Demo extension to autofill local form from core-api.",
   "permissions": ["activeTab", "scripting", "storage"],
-  "host_permissions": ["http://127.0.0.1:18081/*", "http://localhost:18081/*"],
+  "host_permissions": [
+    "http://127.0.0.1:18081/*",
+    "http://localhost:18081/*",
+    "http://127.0.0.1:8000/*",
+    "http://localhost:8000/*"
+  ],
   "action": {
     "default_popup": "popup.html"
   }
