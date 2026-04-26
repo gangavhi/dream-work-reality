@@ -2,9 +2,10 @@ import Foundation
 import SwiftUI
 import Vision
 import VisionKit
-import PhotosUI
 import UniformTypeIdentifiers
 import PDFKit
+import CoreImage
+import CoreImage.CIFilterBuiltins
 
 struct DriverLicenseScanResult: Sendable {
     var fullName: String?
@@ -18,6 +19,9 @@ struct DriverLicenseScanResult: Sendable {
     var city: String?
     var state: String?
     var postalCode: String?
+    var height: String?
+    var eyeColor: String?
+    var genAIValues: [String: String]?
     var rawText: String
 }
 
@@ -25,10 +29,12 @@ struct DriverLicenseScanResult: Sendable {
 private enum DriverLicenseScannerPipeline {
     static func scan(images: [CGImage]) async throws -> DriverLicenseScanResult {
         // Prefer PDF417 (AAMVA) barcode payload when available; it is much more reliable than OCR.
-        guard let firstImage = images.first else {
+        guard !images.isEmpty else {
             throw NSError(domain: "DriverLicenseScanner", code: 11, userInfo: [NSLocalizedDescriptionKey: "No images to scan"])
         }
-        let barcodePayloads = (try? Barcode.detectPayloads(in: firstImage)) ?? []
+        // Some imports (screenshots, compressed images, PDFs) make barcode detection flaky.
+        // Try all pages/images and an enhanced pass.
+        let barcodePayloads = (try? Barcode.detectPayloads(in: images)) ?? []
         let barcodeParsed: DriverLicenseScanResult? = barcodePayloads
             .compactMap { DriverLicenseParser.parseAAMVAPDF417($0) }
             .first
@@ -36,15 +42,56 @@ private enum DriverLicenseScannerPipeline {
         let rawText = try await OCR.recognizeText(from: images)
         let ocrParsed = DriverLicenseParser.parse(rawText)
 
-        if let barcodeParsed {
-            var merged = DriverLicenseParser.merge(primary: barcodeParsed, fallback: ocrParsed)
-            if !barcodePayloads.isEmpty {
-                merged.rawText = "BARCODE:\n\(barcodePayloads.joined(separator: "\n---\n"))\n\nOCR:\n\(rawText)"
-            }
-            return merged
-        }
+        // Optional "GenAI" extraction: send BOTH OCR text and (if present) barcode payloads.
+        // This makes extraction reliable even when the photo is blurry but barcode is readable,
+        // or when barcode is missing but OCR is readable.
+        let genAIInput = (barcodePayloads.isEmpty ? rawText : "\(barcodePayloads.joined(separator: "\n"))\n\n\(rawText)")
+        let genAIParsed = await GenAI.extractDriverLicense(from: genAIInput)
 
-        return ocrParsed
+        // Build the profile primarily from GenAI-extracted fields when available.
+        // This ensures profile creation uses the best/most-robust mapping.
+        let base = genAIParsed ?? barcodeParsed ?? ocrParsed
+        var merged = base
+        if let barcodeParsed {
+            merged = DriverLicenseParser.merge(primary: merged, fallback: barcodeParsed)
+        }
+        merged = DriverLicenseParser.merge(primary: merged, fallback: ocrParsed)
+
+        if !barcodePayloads.isEmpty {
+            merged.rawText = "BARCODE:\n\(barcodePayloads.joined(separator: "\n---\n"))\n\nOCR:\n\(rawText)"
+        } else {
+            merged.rawText = rawText
+        }
+        if let genAIParsed {
+            merged.rawText += "\n\nGENAI_EXTRACTED:\n" + summarize(genAIParsed)
+        }
+        return merged
+    }
+
+    private static func summarize(_ r: DriverLicenseScanResult) -> String {
+        [
+            "Full: \(r.fullName ?? "—")",
+            "First: \(r.firstName ?? "—")",
+            "Last: \(r.lastName ?? "—")",
+            "DOB: \(r.dateOfBirth.map { dfMMDDYYYY().string(from: $0) } ?? "—")",
+            "DL#: \(r.documentNumber ?? "—")",
+            "Issue: \(r.issueDate.map { dfMMDDYYYY().string(from: $0) } ?? "—")",
+            "Expiry: \(r.expiryDate.map { dfMMDDYYYY().string(from: $0) } ?? "—")",
+            "Addr: \(r.addressLine1 ?? "—")",
+            "City: \(r.city ?? "—")",
+            "State: \(r.state ?? "—")",
+            "ZIP: \(r.postalCode ?? "—")",
+            "Height: \(r.height ?? "—")",
+            "Eyes: \(r.eyeColor ?? "—")",
+        ].joined(separator: "\n")
+    }
+
+    private static func dfMMDDYYYY() -> DateFormatter {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = "MM/dd/yyyy"
+        return df
     }
 
     static func scan(imageData: Data) async throws -> DriverLicenseScanResult {
@@ -164,6 +211,98 @@ private enum DriverLicenseScannerPipeline {
     }
 }
 
+private enum GenAI {
+    struct ExtractRequest: Encodable {
+        var document_type: String
+        var raw_text: String
+    }
+
+    struct ExtractResponse: Decodable {
+        var values: [String: String]?
+    }
+
+    static func extractDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
+        guard let url = URL(string: "http://127.0.0.1:18081/genai/extract-document") else { return nil }
+        let body = ExtractRequest(document_type: "driver_license", raw_text: rawText)
+        guard let payload = try? JSONEncoder().encode(body) else { return nil }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.httpBody = payload
+        request.timeoutInterval = 1.5
+
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard (200..<300).contains(status) else { return nil }
+            let decoded = try JSONDecoder().decode(ExtractResponse.self, from: data)
+            guard let v = decoded.values, !v.isEmpty else { return nil }
+
+            func pick(_ keys: [String]) -> String? {
+                for k in keys {
+                    if let val = v[k]?.trimmingCharacters(in: .whitespacesAndNewlines), !val.isEmpty {
+                        return val
+                    }
+                }
+                return nil
+            }
+
+            // Map canonical keys to DriverLicenseScanResult.
+            let r = DriverLicenseScanResult(
+                fullName: pick(["full_name", "display_name", "full"]),
+                firstName: pick(["first_name", "first"]),
+                lastName: pick(["last_name", "last"]),
+                dateOfBirth: parseDateMMDDYYYY(pick(["date_of_birth_mmddyyyy", "dob"])),
+                documentNumber: pick(["document_number", "dl"]),
+                issueDate: parseDateMMDDYYYY(pick(["issue_mmddyyyy", "issue"])),
+                expiryDate: parseDateMMDDYYYY(pick(["expiry_mmddyyyy", "expiry"])),
+                addressLine1: pick(["address_line_1", "addr"]),
+                city: pick(["city", "city_name"]),
+                state: pick(["state", "state_code"]),
+                postalCode: pick(["postal_code", "zip"]),
+                height: pick(["height", "hgt"]),
+                eyeColor: pick(["eye_color", "eyes"]),
+                genAIValues: v,
+                rawText: rawText
+            )
+            return r
+        } catch {
+            return nil
+        }
+    }
+
+    private static func parseDateMMDDYYYY(_ s: String?) -> Date? {
+        guard let s else { return nil }
+        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        // Accept MM/dd/yyyy and also yyyy-mm-dd.
+        let df1 = DateFormatter()
+        df1.locale = Locale(identifier: "en_US_POSIX")
+        df1.timeZone = TimeZone(secondsFromGMT: 0)
+        df1.dateFormat = "MM/dd/yyyy"
+        if let d = df1.date(from: trimmed) { return d }
+
+        let df2 = DateFormatter()
+        df2.locale = Locale(identifier: "en_US_POSIX")
+        df2.timeZone = TimeZone(secondsFromGMT: 0)
+        df2.dateFormat = "yyyy-MM-dd"
+        if let d = df2.date(from: trimmed) { return d }
+
+        // Accept yyyymmdd.
+        let digits = trimmed.filter(\.isNumber)
+        if digits.count == 8 {
+            let yyyy = String(digits.prefix(4))
+            let mm = String(digits.dropFirst(4).prefix(2))
+            let dd = String(digits.dropFirst(6).prefix(2))
+            return df1.date(from: "\(mm)/\(dd)/\(yyyy)")
+        }
+
+        return nil
+    }
+}
+
 @MainActor
 struct DriverLicenseScannerView: UIViewControllerRepresentable {
     let onResult: (Result<DriverLicenseScanResult, Error>) -> Void
@@ -232,30 +371,20 @@ struct DriverLicenseScannerView: UIViewControllerRepresentable {
 private struct ScannerFallbackView: View {
     let onResult: (Result<DriverLicenseScanResult, Error>) -> Void
 
-    private struct RemoteListingItem: Identifiable, Hashable {
+    private struct RemoteItem: Identifiable, Hashable {
         var id: String { url.absoluteString }
         let url: URL
-        let isDirectory: Bool
+        let display: String
     }
 
-    @State private var selectedItem: PhotosPickerItem?
     @State private var isWorking = false
-    @State private var urlString: String = ""
     @State private var isPresentingFilePicker = false
-    @State private var isPresentingDownloadsBrowser = false
-    @State private var downloadsBaseURLString: String = Self.defaultDownloadsBaseURLString()
-    @State private var downloadsItems: [RemoteListingItem] = []
-    @State private var downloadsError: String?
-    @State private var downloadsHint: String?
-
-    private static func defaultDownloadsBaseURLString() -> String {
+    @State private var dropHint: String?
 #if targetEnvironment(simulator)
-        return "http://127.0.0.1:8009/"
-#else
-        // Real devices cannot reach your Mac via 127.0.0.1; use your Mac's LAN IP instead.
-        return "http://192.168.0.1:8009/"
+    @State private var isPresentingDownloadsPicker = false
+    @State private var downloadsItems: [RemoteItem] = []
+    @State private var downloadsError: String?
 #endif
-    }
 
     var body: some View {
         NavigationStack {
@@ -263,54 +392,35 @@ private struct ScannerFallbackView: View {
                 Text("Scan Document")
                     .font(.title2)
 
-                Text("On Simulator, use one of the import options below. From a laptop you can either (1) add an image to Photos, (2) drag a file into Files, or (3) serve it over a local URL.")
+                Text("Choose a document to scan (or drag & drop a file from your Mac).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
+                Button {
 #if targetEnvironment(simulator)
-                Button {
-                    // Simulator Photos is often empty; treat "Choose Photo" as "Pick from laptop".
-                    downloadsBaseURLString = "http://127.0.0.1:8009/"
-                    downloadsHint = "Simulator: browsing laptop server at http://127.0.0.1:8009/"
-                    Task { await loadDownloadsListing() }
-                } label: {
-                    HStack {
-                        Text("Choose Photo (from laptop)")
-                        Spacer()
-                        Image(systemName: "laptopcomputer")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isWorking)
+                    // Simulator: show Mac Downloads listing (served by scripts/serve_downloads.sh).
+                    isPresentingDownloadsPicker = true
+                    Task { await loadSimulatorDownloadsListing() }
 #else
-                PhotosPicker(selection: $selectedItem, matching: .images) {
-                    HStack {
-                        Text("Choose Photo")
-                        Spacer()
-                        Image(systemName: "photo")
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(isWorking)
-#endif
-
-                Button {
                     isPresentingFilePicker = true
+#endif
                 } label: {
                     HStack {
-                        Text("Choose File (Files)")
+                        Text("Choose Document")
                         Spacer()
                         Image(systemName: "doc")
                     }
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
                 .disabled(isWorking)
+#if !targetEnvironment(simulator)
                 .fileImporter(
                     isPresented: $isPresentingFilePicker,
                     allowedContentTypes: [
                         UTType.image,
                         UTType.heic,
                         UTType.pdf,
+                        UTType.data,
                     ],
                     allowsMultipleSelection: false
                 ) { result in
@@ -318,132 +428,12 @@ private struct ScannerFallbackView: View {
                         await handleFileImportResult(result)
                     }
                 }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Load from laptop URL")
-                        .font(.headline)
-
-                    TextField("http://127.0.0.1:8000/your-id.jpg", text: $urlString)
-                        .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-
-                    Button(isWorking ? "Loading…" : "Load URL and OCR") {
-                        Task {
-                            await loadFromURL()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isWorking)
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Browse laptop Downloads (HTTP server)")
-                        .font(.headline)
-
-                    TextField("http://127.0.0.1:8009/", text: $downloadsBaseURLString)
-                        .textFieldStyle(.roundedBorder)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-
-#if targetEnvironment(simulator)
-                    Button("Use local laptop server (127.0.0.1:8009)") {
-                        downloadsBaseURLString = "http://127.0.0.1:8009/"
-                        downloadsHint = "Using simulator host loopback: http://127.0.0.1:8009/"
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isWorking)
 #endif
 
-                    Button(isWorking ? "Detecting…" : "Auto-detect laptop server") {
-                        Task {
-                            await autoDetectDownloadsServer()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isWorking)
-
-                    Button(isWorking ? "Loading…" : "Browse Downloads") {
-                        Task {
-                            await loadDownloadsListing()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(isWorking)
-
-                    if let downloadsHint {
-                        Text(downloadsHint)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Text("Tip: run `./scripts/serve_downloads.sh` on your Mac first (or `./scripts/run_demo.sh`). On a real iPhone, replace 127.0.0.1 with your Mac’s Wi‑Fi IP (same network).")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .sheet(isPresented: $isPresentingDownloadsBrowser) {
-                    NavigationStack {
-                        ScrollViewReader { proxy in
-                            List {
-                                if let downloadsError {
-                                    Text(downloadsError)
-                                        .font(.footnote)
-                                        .foregroundStyle(.secondary)
-                                }
-
-                                Section("Browse") {
-                                    // Anchors for quick scroll control.
-                                    Color.clear
-                                        .frame(height: 0)
-                                        .id("top")
-
-                                    ForEach(downloadsItems) { item in
-                                        if item.isDirectory {
-                                            Button {
-                                                downloadsBaseURLString = item.url.absoluteString
-                                                Task { await loadDownloadsListing() }
-                                            } label: {
-                                                HStack {
-                                                    Image(systemName: "folder")
-                                                    Text(item.url.lastPathComponent.isEmpty ? item.url.absoluteString : item.url.lastPathComponent)
-                                                }
-                                            }
-                                        } else {
-                                            Button {
-                                                urlString = item.url.absoluteString
-                                                isPresentingDownloadsBrowser = false
-                                                Task { await loadFromURL() }
-                                            } label: {
-                                                HStack {
-                                                    Image(systemName: "doc")
-                                                    Text(item.url.lastPathComponent)
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    Color.clear
-                                        .frame(height: 0)
-                                        .id("bottom")
-                                }
-                            }
-                            .navigationTitle("Downloads")
-                            .navigationBarTitleDisplayMode(.inline)
-                            .toolbar {
-                                ToolbarItemGroup(placement: .topBarTrailing) {
-                                    Button("Top") {
-                                        withAnimation { proxy.scrollTo("top", anchor: .top) }
-                                    }
-                                    Button("Bottom") {
-                                        withAnimation { proxy.scrollTo("bottom", anchor: .bottom) }
-                                    }
-                                    Button("Close") { isPresentingDownloadsBrowser = false }
-                                }
-                            }
-                        }
-                    }
+                if let dropHint {
+                    Text(dropHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if isWorking {
@@ -456,21 +446,70 @@ private struct ScannerFallbackView: View {
             .padding()
             .navigationTitle("Scan")
             .navigationBarTitleDisplayMode(.inline)
-            .onChange(of: selectedItem) { _, newValue in
-                guard let newValue else { return }
-                Task {
-                    isWorking = true
-                    defer { isWorking = false }
-                    do {
-                        guard let data = try await newValue.loadTransferable(type: Data.self) else {
-                            throw NSError(domain: "DriverLicenseScanner", code: 2, userInfo: [NSLocalizedDescriptionKey: "Unable to read image"])
+#if targetEnvironment(simulator)
+            .sheet(isPresented: $isPresentingDownloadsPicker) {
+                NavigationStack {
+                    List {
+                        if let downloadsError {
+                            Text(downloadsError)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
                         }
-                        let parsed = try await DriverLicenseScannerPipeline.scan(imageData: data)
-                        onResult(.success(parsed))
-                    } catch {
-                        onResult(.failure(error))
+
+                        Section("Mac Downloads") {
+                            ForEach(downloadsItems) { item in
+                                Button(item.display) {
+                                    Task { await scanRemote(url: item.url) }
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Choose from Downloads")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Close") { isPresentingDownloadsPicker = false }
+                        }
+                        ToolbarItem(placement: .topBarTrailing) {
+                            Button("Refresh") { Task { await loadSimulatorDownloadsListing() } }
+                                .disabled(isWorking)
+                        }
                     }
                 }
+            }
+#endif
+            .onDrop(of: [UTType.fileURL.identifier], isTargeted: nil) { providers in
+                guard !isWorking else { return false }
+                guard let provider = providers.first else { return false }
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    Task { @MainActor in
+                        do {
+                            dropHint = nil
+                            guard let data = item as? Data,
+                                  let url = URL(dataRepresentation: data, relativeTo: nil)
+                            else {
+                                dropHint = "Drop failed: couldn’t read file URL."
+                                return
+                            }
+
+                            if isWorking { return }
+                            isWorking = true
+                            defer { isWorking = false }
+
+                            let didStart = url.startAccessingSecurityScopedResource()
+                            defer {
+                                if didStart { url.stopAccessingSecurityScopedResource() }
+                            }
+
+                            let parsed = try await DriverLicenseScannerPipeline.scan(fileURL: url)
+                            onResult(.success(parsed))
+                        } catch {
+                            dropHint = "Drop scan failed: \(error.localizedDescription)"
+                            onResult(.failure(error))
+                        }
+                    }
+                }
+                return true
             }
         }
     }
@@ -498,152 +537,54 @@ private struct ScannerFallbackView: View {
         }
     }
 
-    private func loadFromURL() async {
-        let trimmed = urlString.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let url = URL(string: trimmed), url.scheme != nil else {
-            onResult(.failure(NSError(domain: "DriverLicenseScanner", code: 3, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
-            return
-        }
-
-#if !targetEnvironment(simulator)
-        if let host = url.host?.lowercased(), host == "127.0.0.1" || host == "localhost" {
-            onResult(.failure(NSError(
-                domain: "DriverLicenseScanner",
-                code: 13,
-                userInfo: [NSLocalizedDescriptionKey: "This is a real device. `127.0.0.1` / `localhost` points to your iPhone, not your Mac. Use your Mac’s Wi‑Fi/LAN IP like `http://192.168.x.x:8009/<file>`."]
-            )))
-            return
-        }
-#endif
-
+#if targetEnvironment(simulator)
+    private func scanRemote(url: URL) async {
+        if isWorking { return }
         isWorking = true
         defer { isWorking = false }
-
         do {
             let parsed = try await DriverLicenseScannerPipeline.scan(remoteURL: url)
+            isPresentingDownloadsPicker = false
             onResult(.success(parsed))
         } catch {
-            let msg = """
-            Failed to load and scan URL.
-
-            URL: \(url.absoluteString)
-            Error: \(error.localizedDescription)
-            """
-            onResult(.failure(NSError(domain: "DriverLicenseScanner", code: 14, userInfo: [NSLocalizedDescriptionKey: msg])))
+            downloadsError = "Scan failed: \(error.localizedDescription)"
+            onResult(.failure(error))
         }
     }
 
-    private func loadDownloadsListing() async {
-        var trimmed = downloadsBaseURLString.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Directory listings need a trailing slash so relative hrefs resolve correctly.
-        if !trimmed.isEmpty, !trimmed.hasSuffix("/") {
-            trimmed += "/"
-            downloadsBaseURLString = trimmed
-        }
-        guard let baseURL = URL(string: trimmed), baseURL.scheme != nil else {
-            downloadsError = "Invalid base URL"
-            downloadsItems = []
-            isPresentingDownloadsBrowser = true
-            return
-        }
-
-#if !targetEnvironment(simulator)
-        if let host = baseURL.host?.lowercased(), host == "127.0.0.1" || host == "localhost" {
-            downloadsError = "This is a real device. `127.0.0.1` / `localhost` points to your iPhone, not your Mac. Use your Mac’s Wi‑Fi/LAN IP like `http://192.168.x.x:8009/`."
-            downloadsItems = []
-            isPresentingDownloadsBrowser = true
-            return
-        }
-#endif
-
-        isWorking = true
-        defer { isWorking = false }
-
-        do {
-            let (data, response) = try await URLSession.shared.data(from: baseURL)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            guard (200..<300).contains(status) else {
-                throw NSError(domain: "DriverLicenseScanner", code: 10, userInfo: [NSLocalizedDescriptionKey: "HTTP \(status)"])
-            }
-
-            let html = String(data: data, encoding: .utf8) ?? ""
-            let items = parsePythonHTTPServerListing(html: html, baseURL: baseURL)
-            downloadsItems = items
-            if items.isEmpty {
-                let preview = String(html.prefix(600))
-                downloadsError = """
-                Connected, but couldn’t find any folders or supported files (.png/.jpg/.jpeg/.pdf).
-
-                Base URL: \(baseURL.absoluteString)
-                HTML preview:
-                \(preview)
-                """
-            } else {
-                downloadsError = nil
-            }
-            isPresentingDownloadsBrowser = true
-        } catch {
-            downloadsError = "Failed to load: \(error.localizedDescription)"
-            downloadsItems = []
-            isPresentingDownloadsBrowser = true
-        }
-    }
-
-    private func autoDetectDownloadsServer() async {
+    private func loadSimulatorDownloadsListing() async {
         if isWorking { return }
         isWorking = true
         defer { isWorking = false }
 
-        downloadsHint = nil
-        downloadsError = nil
-
-        let candidates: [String] = [
-            downloadsBaseURLString,
-            "http://127.0.0.1:8009/",
-            "http://localhost:8009/",
-            "http://host.docker.internal:8009/",
-        ]
-        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .filter { !$0.isEmpty }
-
-        let uniqueCandidates = Array(NSOrderedSet(array: candidates)) as? [String] ?? candidates
-
-        for c in uniqueCandidates {
-            guard let url = URL(string: c), url.scheme != nil else { continue }
-            do {
-                let (data, response) = try await URLSession.shared.data(from: url)
-                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-                guard (200..<300).contains(status) else { continue }
-
-                let html = String(data: data, encoding: .utf8) ?? ""
-                let items = parsePythonHTTPServerListing(html: html, baseURL: url)
-
-                downloadsBaseURLString = url.absoluteString
-                downloadsItems = items
-                downloadsError = items.isEmpty ? "Server found, but no folders or supported files in listing." : nil
-                downloadsHint = "Connected to: \(url.absoluteString)"
-                isPresentingDownloadsBrowser = true
-                return
-            } catch {
-                continue
+        // scripts/run_demo.sh starts scripts/serve_downloads.sh on 8009
+        let baseURL = URL(string: "http://127.0.0.1:8009/")!
+        do {
+            let (data, response) = try await URLSession.shared.data(from: baseURL)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard (200..<300).contains(status) else {
+                throw NSError(domain: "DriverLicenseScanner", code: 21, userInfo: [NSLocalizedDescriptionKey: "HTTP \(status)"])
             }
+            let html = String(data: data, encoding: .utf8) ?? ""
+            downloadsItems = parsePythonHTTPServerListing(html: html, baseURL: baseURL)
+            downloadsError = downloadsItems.isEmpty ? "No supported files found in Downloads." : nil
+        } catch {
+            downloadsItems = []
+            downloadsError = """
+            Couldn’t load Mac Downloads.
+            Make sure the server is running: `./scripts/run_demo.sh` (or `./scripts/serve_downloads.sh 8009`)
+            Error: \(error.localizedDescription)
+            """
         }
-
-        downloadsHint = "Couldn’t auto-detect. If you’re on a real iPhone, use your Mac’s LAN IP like `http://192.168.x.x:8009/` (same Wi‑Fi)."
-        downloadsError = "No reachable downloads server found."
-        downloadsItems = []
-        isPresentingDownloadsBrowser = true
     }
 
-    private func parsePythonHTTPServerListing(html: String, baseURL: URL) -> [RemoteListingItem] {
-        // Parse href="..." from python http.server directory listing.
-        // Keep folders and common document/image types.
+    private func parsePythonHTTPServerListing(html: String, baseURL: URL) -> [RemoteItem] {
         let pattern = #"href="([^"]+)""#
         guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
 
         let ns = html as NSString
         let matches = re.matches(in: html, range: NSRange(location: 0, length: ns.length))
-        var items: [RemoteListingItem] = []
+        var items: [RemoteItem] = []
 
         for m in matches {
             guard m.numberOfRanges >= 2 else { continue }
@@ -652,52 +593,190 @@ private struct ScannerFallbackView: View {
             if href == "../" { continue }
 
             let decoded = href.removingPercentEncoding ?? href
-            let isDir = decoded.hasSuffix("/")
-            if isDir {
-                if let url = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-                    items.append(.init(url: url, isDirectory: true))
-                }
-                continue
-            }
+            if decoded.hasSuffix("/") { continue } // keep flat list for simplicity
+
             let ext = (decoded as NSString).pathExtension.lowercased()
             guard ["png", "jpg", "jpeg", "pdf", "heic", "heif", "tif", "tiff"].contains(ext) else { continue }
+
             if let url = URL(string: href, relativeTo: baseURL)?.absoluteURL {
-                items.append(.init(url: url, isDirectory: false))
+                items.append(.init(url: url, display: url.lastPathComponent))
             }
         }
 
-        // Deduplicate + stable sort.
-        let unique = Array(Set(items)).sorted {
-            if $0.isDirectory != $1.isDirectory { return $0.isDirectory && !$1.isDirectory }
-            return $0.url.lastPathComponent.lowercased() < $1.url.lastPathComponent.lowercased()
-        }
-        return unique
+        return Array(Set(items)).sorted { $0.display.lowercased() < $1.display.lowercased() }
     }
+#endif
 }
 
 enum OCR {
     static func recognizeText(from images: [CGImage]) async throws -> String {
         var all: [String] = []
+        let ctx = CIContext(options: [
+            .useSoftwareRenderer: false,
+        ])
 
         for image in images {
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
-            request.recognitionLanguages = ["en-US"]
+            let processed = preprocess(image, context: ctx, scale: 1.5, contrast: 1.35, brightness: 0.02, sharpness: 0.55) ?? image
+            let primary = try recognizeLines(cgImage: processed, minimumTextHeight: 0.01, usesLanguageCorrection: true)
 
-            let handler = VNImageRequestHandler(cgImage: image, options: [:])
-            try handler.perform([request])
+            var combined = primary
 
-            let lines = (request.results ?? [])
-                .compactMap { $0.topCandidates(1).first?.string }
-            all.append(lines.joined(separator: "\n"))
+            // If we didn't catch a ZIP in the full-frame pass, do a targeted crop pass
+            // (Texas DL often has City/ST/ZIP as small text under the street line).
+            if !containsZipOrCityStateZip(combined) {
+                let crops = cropCandidatesForAddressRegion(processed)
+                for crop in crops {
+                    // Stronger preprocessing for tiny address text.
+                    let enhanced = preprocessBinarized(crop, context: ctx, scale: 3.0) ?? crop
+                    let secondary = try recognizeLines(cgImage: enhanced, minimumTextHeight: 0.005, usesLanguageCorrection: false)
+                    if !secondary.isEmpty {
+                        combined += "\n" + secondary
+                        if containsZipOrCityStateZip(combined) {
+                            break
+                        }
+                    }
+                }
+            }
+
+            all.append(combined.trimmingCharacters(in: .whitespacesAndNewlines))
         }
 
         return all.joined(separator: "\n\n")
     }
+
+    private static func recognizeLines(cgImage: CGImage, minimumTextHeight: Float, usesLanguageCorrection: Bool) throws -> String {
+        let request = VNRecognizeTextRequest()
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = usesLanguageCorrection
+        request.recognitionLanguages = ["en-US"]
+        // Encourage recognition of smaller text.
+        request.minimumTextHeight = minimumTextHeight
+
+        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
+        try handler.perform([request])
+
+        // Keep more candidates to reduce "missed" small text like City/ZIP.
+        // We'll dedupe per line to avoid too much noise.
+        let lines = (request.results ?? [])
+            .compactMap { obs -> String? in
+                let cands = obs.topCandidates(3).map { $0.string.trimmingCharacters(in: .whitespacesAndNewlines) }
+                let uniq = Array(NSOrderedSet(array: cands)) as? [String] ?? cands
+                return uniq.first(where: { !$0.isEmpty })
+            }
+
+        return lines.joined(separator: "\n")
+    }
+
+    private static func preprocess(
+        _ image: CGImage,
+        context: CIContext,
+        scale: CGFloat,
+        contrast: CGFloat,
+        brightness: CGFloat,
+        sharpness: CGFloat
+    ) -> CGImage? {
+        // OCR often misses small/light text. Boost contrast, desaturate, and sharpen a bit.
+        let ci = CIImage(cgImage: image)
+
+        let color = CIFilter.colorControls()
+        color.inputImage = ci
+        color.saturation = 0.0
+        color.contrast = Float(contrast)
+        color.brightness = Float(brightness)
+
+        let sharpen = CIFilter.sharpenLuminance()
+        sharpen.inputImage = color.outputImage
+        sharpen.sharpness = Float(sharpness)
+
+        // Upscale slightly to help small fonts (city/zip lines).
+        let transform = CGAffineTransform(scaleX: scale, y: scale)
+        let out = (sharpen.outputImage ?? color.outputImage ?? ci).transformed(by: transform)
+
+        return context.createCGImage(out, from: out.extent)
+    }
+
+    private static func preprocessBinarized(_ image: CGImage, context: CIContext, scale: CGFloat) -> CGImage? {
+        // More aggressive preprocessing to pull out tiny high-frequency text.
+        let ci = CIImage(cgImage: image)
+
+        let color = CIFilter.colorControls()
+        color.inputImage = ci
+        color.saturation = 0.0
+        color.contrast = 1.95
+        color.brightness = 0.06
+
+        // Slight gamma curve by scaling RGB to increase midtones.
+        let matrix = CIFilter.colorMatrix()
+        matrix.inputImage = color.outputImage
+        matrix.rVector = CIVector(x: 1.15, y: 0, z: 0, w: 0)
+        matrix.gVector = CIVector(x: 0, y: 1.15, z: 0, w: 0)
+        matrix.bVector = CIVector(x: 0, y: 0, z: 1.15, w: 0)
+        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
+
+        let sharpen = CIFilter.sharpenLuminance()
+        sharpen.inputImage = matrix.outputImage ?? color.outputImage
+        sharpen.sharpness = 1.0
+
+        let out = (sharpen.outputImage ?? matrix.outputImage ?? color.outputImage ?? ci)
+            .transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        return context.createCGImage(out, from: out.extent)
+    }
+
+    private static func containsZipOrCityStateZip(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        if upper.range(of: #"\b\d{5}\b"#, options: .regularExpression) != nil { return true }
+        if upper.range(of: #"\b[A-Z]{2}\s*\d{5}\b"#, options: .regularExpression) != nil { return true }
+        if upper.range(of: #"\b[A-Z]{3,}\s+TX\s+\d{5}\b"#, options: .regularExpression) != nil { return true }
+        return false
+    }
+
+    private static func cropCandidatesForAddressRegion(_ image: CGImage) -> [CGImage] {
+        // Empirical crops (front of TX DL): address block is left-middle and left-lower.
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        if w <= 2 || h <= 2 { return [] }
+
+        let rects: [CGRect] = [
+            // mid-left band (street + city line)
+            CGRect(x: 0, y: h * 0.30, width: w * 0.68, height: h * 0.40),
+            // slightly lower (city/state/zip line tends to be lower)
+            CGRect(x: 0, y: h * 0.42, width: w * 0.70, height: h * 0.36),
+            // tighter crop just under street line
+            CGRect(x: 0, y: h * 0.46, width: w * 0.62, height: h * 0.22),
+        ].map { $0.integral }
+
+        var out: [CGImage] = []
+        for r in rects {
+            if let c = image.cropping(to: r) {
+                out.append(c)
+            }
+        }
+        return out
+    }
 }
 
 enum Barcode {
+    static func detectPayloads(in images: [CGImage]) throws -> [String] {
+        var all: [String] = []
+        for img in images {
+            all.append(contentsOf: try detectPayloads(in: img))
+            if let enhanced = enhanceForBarcode(img) {
+                all.append(contentsOf: try detectPayloads(in: enhanced))
+            }
+        }
+        // Dedupe but keep stable-ish order.
+        var seen = Set<String>()
+        var out: [String] = []
+        for p in all {
+            let t = p.trimmingCharacters(in: .whitespacesAndNewlines)
+            if t.isEmpty { continue }
+            if seen.insert(t).inserted {
+                out.append(t)
+            }
+        }
+        return out
+    }
+
     static func detectPayloads(in image: CGImage) throws -> [String] {
         let request = VNDetectBarcodesRequest()
         request.symbologies = [
@@ -716,6 +795,24 @@ enum Barcode {
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
         return payloads
     }
+
+    private static func enhanceForBarcode(_ image: CGImage) -> CGImage? {
+        // Upscale and increase contrast to help PDF417 detection on blurry/compressed imports.
+        let ci = CIImage(cgImage: image)
+        let ctx = CIContext(options: [
+            .useSoftwareRenderer: false,
+        ])
+
+        let color = CIFilter.colorControls()
+        color.inputImage = ci
+        color.saturation = 0.0
+        color.contrast = 1.6
+        color.brightness = 0.02
+
+        let scale: CGFloat = 1.8
+        let out = (color.outputImage ?? ci).transformed(by: CGAffineTransform(scaleX: scale, y: scale))
+        return ctx.createCGImage(out, from: out.extent)
+    }
 }
 
 enum DriverLicenseParser {
@@ -731,8 +828,8 @@ enum DriverLicenseParser {
 
         var result = DriverLicenseScanResult(rawText: joined)
 
-        // DOB patterns: 04/25/2001, 04-25-2001, 2001-04-25
-        result.dateOfBirth = firstDate(in: joined)
+        // DOB heuristics: prefer explicit DOB/Birth lines first (otherwise we might pick issue/expiry).
+        result.dateOfBirth = nil
 
         // Issue / expiry heuristics (OCR only): look for lines containing "ISS" or "EXP".
         if let issueLine = normalized.first(where: { $0.lowercased().contains("iss") || $0.lowercased().contains("issued") }),
@@ -745,21 +842,35 @@ enum DriverLicenseParser {
         }
 
         // Look for "DOB" / "Birth" lines.
-        if result.dateOfBirth == nil {
-            if let dobLine = normalized.first(where: { $0.lowercased().contains("dob") || $0.lowercased().contains("birth") }),
-               let d = firstDate(in: dobLine) {
-                result.dateOfBirth = d
-            }
+        if let dobLine = normalized.first(where: {
+            let l = $0.lowercased()
+            return l.contains("dob") || l.contains("birth") || l.contains("date of birth")
+        }),
+        let d = firstDate(in: dobLine) {
+            result.dateOfBirth = d
+        } else {
+            // Fallback: any date in the document.
+            result.dateOfBirth = firstDate(in: joined)
         }
 
-        // Name heuristics: lines after "Name" or common DL patterns.
-        if let nameLine = normalized.first(where: { $0.lowercased().hasPrefix("name") }) {
-            result.fullName = nameLine
+        // Name heuristics:
+        // - Prefer explicit "Name:" lines, but avoid "Driver License" / "License" header lines.
+        if let nameLine = normalized.first(where: {
+            let l = $0.lowercased()
+            return l.hasPrefix("name") && !l.contains("license")
+        }) {
+            let cleaned = nameLine
                 .replacingOccurrences(of: "Name", with: "", options: [.caseInsensitive])
                 .replacingOccurrences(of: ":", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-        } else {
+            if !cleaned.isEmpty {
+                result.fullName = cleaned
+            }
+        }
+
+        if result.fullName == nil {
             // Fallback: pick the first line that looks like a person name (letters/spaces, 2+ words)
+            // but exclude common non-name headers.
             result.fullName = normalized.first(where: looksLikeName)
         }
 
@@ -809,6 +920,7 @@ enum DriverLicenseParser {
         if out.city == nil { out.city = fallback.city }
         if out.state == nil { out.state = fallback.state }
         if out.postalCode == nil { out.postalCode = fallback.postalCode }
+        if out.genAIValues == nil { out.genAIValues = fallback.genAIValues }
         if out.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             out.rawText = fallback.rawText
         }
@@ -912,6 +1024,13 @@ enum DriverLicenseParser {
     }
 
     private static func looksLikeName(_ line: String) -> Bool {
+        let l = line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if l.contains("driver license") || l == "driver license" || l.contains("license") {
+            return false
+        }
+        if l.contains("identification") || l.contains("id card") {
+            return false
+        }
         let words = line.split(separator: " ")
         guard words.count >= 2 else { return false }
         guard line.range(of: #"^[A-Za-z][A-Za-z\-\.\s]+$"#, options: .regularExpression) != nil else { return false }
