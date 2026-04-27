@@ -44,7 +44,10 @@ struct EditPersonProfileView: View {
     @State private var newEmergencyRelationship: String = ""
     @State private var newEmergencyPhone: String = ""
     @State private var autosaveTask: Task<Void, Never>?
-    @State private var updateTick: Int = 0
+
+    // Prevent unintended save when user explicitly cancels or deletes.
+    @State private var didCancel = false
+    @State private var didDelete = false
 
     init(initial: PersonProfile, onSave: @escaping (PersonProfile) -> Void, onDelete: ((UUID) -> Void)? = nil) {
         self.initial = initial
@@ -255,6 +258,12 @@ struct EditPersonProfileView: View {
         .onChange(of: autosaveSignature) { _, _ in
             scheduleAutosave()
         }
+        .onDisappear {
+            // If the user leaves via back swipe / dismiss gesture, persist latest edits too.
+            // (Autosave debounce can miss fast exits.)
+            if didCancel || didDelete { return }
+            onSave(buildProfileFromCurrentValues())
+        }
         .sheet(isPresented: $isPresentingScanner) {
             DriverLicenseScannerView { result in
                 switch result {
@@ -269,19 +278,15 @@ struct EditPersonProfileView: View {
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) {
-                Button("Cancel") { dismiss() }
+                Button("Cancel") {
+                    didCancel = true
+                    dismiss()
+                }
             }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
                     onSave(buildProfileFromCurrentValues())
                     dismiss()
-                }
-            }
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("Update Values") {
-                    onSave(buildProfileFromCurrentValues())
-                    updateTick += 1
-                    banner = "Updated."
                 }
             }
             ToolbarItem(placement: .bottomBar) {
@@ -294,6 +299,7 @@ struct EditPersonProfileView: View {
         }
         .alert("Delete this profile?", isPresented: $isConfirmingDelete) {
             Button("Delete", role: .destructive) {
+                didDelete = true
                 onDelete?(initial.id)
                 dismiss()
             }
@@ -470,7 +476,6 @@ struct EditPersonProfileView: View {
             zip,
             String(familyMembers.count),
             String(emergencyContacts.count),
-            String(updateTick),
         ].joined(separator: "|")
     }
 
