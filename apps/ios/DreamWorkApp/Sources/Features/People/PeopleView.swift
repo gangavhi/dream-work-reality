@@ -40,6 +40,15 @@ struct PeopleView: View {
                                         insuranceSummaryLine(for: person)
                                     }
                                 }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                                    Button(role: .destructive) {
+                                        pendingDeletePersonID = person.id
+                                        pendingDeletePersonName = person.displayTitle
+                                        isConfirmingDeletePerson = true
+                                    } label: {
+                                        Label("Delete", systemImage: "trash")
+                                    }
+                                }
                                 .contextMenu {
                                     Button(role: .destructive) {
                                         pendingDeletePersonID = person.id
