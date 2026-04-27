@@ -1096,3 +1096,129 @@ enum DriverLicenseParser {
     AUSTIN TX 78701
     """
 }
+
+// MARK: - Scan entry screen (exposes scanner in the main tab bar)
+
+@MainActor
+struct ScanView: View {
+    @EnvironmentObject private var appState: AppState
+
+    @State private var isPresentingScanner = false
+    @State private var banner: String?
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Scan Document")
+                    .font(.title2)
+
+                Text("Choose a driver license (camera on device, or Mac Downloads on Simulator) and we’ll save/update the profile automatically.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+
+                Button {
+                    isPresentingScanner = true
+                } label: {
+                    HStack {
+                        Text("Choose Document")
+                        Spacer()
+                        Image(systemName: "doc")
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+
+                if let banner {
+                    Text(banner)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .padding()
+            .navigationTitle("Scan")
+            .navigationBarTitleDisplayMode(.inline)
+        }
+        .sheet(isPresented: $isPresentingScanner) {
+            DriverLicenseScannerView { result in
+                switch result {
+                case .success(let scan):
+                    let profile = buildProfile(from: scan)
+                    appState.peopleStore.upsert(profile, select: true)
+                    banner = "Saved profile: \(profile.displayTitle)"
+                    appState.openPeople()
+                case .failure(let err):
+                    banner = "Scan failed: \(err.localizedDescription)"
+                }
+                isPresentingScanner = false
+            }
+            .ignoresSafeArea()
+        }
+    }
+
+    private func buildProfile(from scan: DriverLicenseScanResult) -> PersonProfile {
+        let fn = scan.firstName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let ln = scan.lastName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let full = scan.fullName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let nickname = ([fn, ln].filter { !$0.isEmpty }.joined(separator: " ").nilIfEmpty) ?? (full.nilIfEmpty ?? "New Profile")
+
+        var p = PersonProfile(nickname: nickname)
+        p.firstName = fn.nilIfEmpty
+        p.lastName = ln.nilIfEmpty
+        if let dob = scan.dateOfBirth {
+            p.dateOfBirthMMDDYYYY = formatMMDDYYYY(dob)
+        }
+
+        // Address
+        p.addressLine1 = scan.addressLine1?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        p.city = scan.city?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        p.state = scan.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        p.postalCode = scan.postalCode?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+
+        // Active DL + DL history (always override from scan).
+        let dl = DriverLicense(
+            number: scan.documentNumber?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            state: scan.state?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty,
+            issueMMDDYYYY: scan.issueDate.map(formatMMDDYYYY),
+            expiryMMDDYYYY: scan.expiryDate.map(formatMMDDYYYY),
+            isActive: true,
+            capturedAt: Date()
+        )
+        p.driverLicenses = [dl]
+        p.driverLicenseNumber = dl.number
+        p.driverLicenseIssueMMDDYYYY = dl.issueMMDDYYYY
+        p.driverLicenseExpiryMMDDYYYY = dl.expiryMMDDYYYY
+        p.driverLicenseState = dl.state
+        p.documents = [
+            ScannedDocument(
+                type: "driver_license",
+                number: dl.number,
+                issueMMDDYYYY: dl.issueMMDDYYYY,
+                expiryMMDDYYYY: dl.expiryMMDDYYYY,
+                rawText: scan.rawText,
+                capturedAt: dl.capturedAt
+            ),
+        ]
+        if let all = scan.genAIValues {
+            p.genAIFields = all
+        }
+
+        p.updatedAt = Date()
+        return p
+    }
+
+    private func formatMMDDYYYY(_ date: Date) -> String {
+        let df = DateFormatter()
+        df.locale = Locale(identifier: "en_US_POSIX")
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.dateFormat = "MM/dd/yyyy"
+        return df.string(from: date)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+}
