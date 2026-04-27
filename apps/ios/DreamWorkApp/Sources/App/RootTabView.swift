@@ -5,6 +5,12 @@ struct RootTabView: View {
 
     var body: some View {
         TabView(selection: $appState.selectedTab) {
+            ScanView()
+                .tabItem {
+                    Label("Scan", systemImage: "doc.viewfinder")
+                }
+                .tag(AppTab.scan)
+
             PeopleView()
                 .tabItem {
                     Label("People", systemImage: "person.2")
