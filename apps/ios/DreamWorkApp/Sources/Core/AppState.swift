@@ -1,13 +1,14 @@
 import Foundation
 
 enum AppTab: Hashable {
+    case scan
     case people
     case settings
 }
 
 @MainActor
 final class AppState: ObservableObject {
-    @Published var selectedTab: AppTab = .people
+    @Published var selectedTab: AppTab = .scan
     @Published private(set) var statusText: String = "Core service not loaded"
     @Published private(set) var manualEntryCount: Int = 0
     @Published var peopleStore: PeopleStore = PeopleStore()
@@ -32,5 +33,9 @@ final class AppState: ObservableObject {
 
     func openPeople() {
         selectedTab = .people
+    }
+
+    func openScan() {
+        selectedTab = .scan
     }
 }
