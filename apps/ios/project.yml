@@ -40,7 +40,7 @@ targets:
             --target aarch64-apple-ios-sim
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.kota.dreamworkapp
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_NSCameraUsageDescription: "Scan your driver license to autofill form fields."
@@ -68,7 +68,7 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.kota.dreamworkapp.tests
         GENERATE_INFOPLIST_FILE: YES
 
   DreamWorkAppUITests:
@@ -81,5 +81,5 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.kota.dreamworkapp.uitests
         GENERATE_INFOPLIST_FILE: YES
