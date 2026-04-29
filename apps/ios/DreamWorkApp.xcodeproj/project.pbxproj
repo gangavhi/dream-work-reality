@@ -55,7 +55,7 @@
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
 		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
 		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
-		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -190,7 +190,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = F6362B7E79206EA73E51FBF7 /* Build configuration list for PBXNativeTarget "DreamWorkApp" */;
 			buildPhases = (
-				6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */,
+				4194D7F030895DCD4048316E /* Build Rust Core */,
 				46368A9D57F919165902FC25 /* Sources */,
 			);
 			buildRules = (
@@ -258,7 +258,7 @@
 /* End PBXProject section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */ = {
+		4194D7F030895DCD4048316E /* Build Rust Core */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -267,14 +267,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Build Rust Core (Simulator)";
+			name = "Build Rust Core";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nif [[ -f \"$HOME/.cargo/env\" ]]; then\n  # rustup installs here by default; don't hard-fail if missing.\n  source \"$HOME/.cargo/env\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo not found; skipping Rust core build (install rustup/cargo to enable).\" >&2\n  exit 0\nfi\n\nif command -v rustup >/dev/null 2>&1; then\n  rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true\nfi\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target aarch64-apple-ios-sim\n";
+			shellScript = "set -euo pipefail\nif [[ -f \"$HOME/.cargo/env\" ]]; then\n  # rustup installs here by default; don't hard-fail if missing.\n  source \"$HOME/.cargo/env\"\nfi\n\nif ! command -v cargo >/dev/null 2>&1; then\n  echo \"cargo not found; skipping Rust core build (install rustup/cargo to enable).\" >&2\n  exit 0\nfi\n\n# Build the Rust core for the active Xcode SDK.\n# - iphoneos      -> aarch64-apple-ios\n# - iphonesimulator (Apple Silicon) -> aarch64-apple-ios-sim\nSDK_NAME=\"${SDK_NAME:-}\"\nif [[ \"$SDK_NAME\" == iphoneos* ]]; then\n  RUST_TARGET=\"aarch64-apple-ios\"\nelse\n  RUST_TARGET=\"aarch64-apple-ios-sim\"\nfi\n\nif command -v rustup >/dev/null 2>&1; then\n  rustup target add \"$RUST_TARGET\" >/dev/null 2>&1 || true\nfi\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target \"$RUST_TARGET\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -472,6 +472,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
@@ -483,7 +484,12 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios/debug",
+					"-ldreamwork_core",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
 					"-ldreamwork_core",
@@ -500,6 +506,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
@@ -511,7 +518,12 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
+				"OTHER_LDFLAGS[sdk=iphoneos*]" = (
+					"$(inherited)",
+					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios/debug",
+					"-ldreamwork_core",
+				);
+				"OTHER_LDFLAGS[sdk=iphonesimulator*]" = (
 					"$(inherited)",
 					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
 					"-ldreamwork_core",
