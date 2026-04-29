@@ -19,6 +19,11 @@ function profileIdFromName(name) {
   return n ? `profile-${n.replace(/[^a-z0-9]+/g, "-")}` : "profile-unknown";
 }
 
+function profileKeyField(profileName) {
+  const n = normalizeProfileName(profileName);
+  return n ? { profile_key: n } : {};
+}
+
 async function getStoredProfiles() {
   const { profiles, selectedProfileName } = await chrome.storage.local.get({
     profiles: ["wife", "daughter", "son"],
@@ -55,7 +60,7 @@ async function seedPerson(profileName) {
   const payload = {
     id: profileIdFromName(profileName),
     display_name: defaults.display_name || profileName,
-    fields: defaults
+    fields: { ...profileKeyField(profileName), ...defaults }
   };
   const response = await fetch("http://127.0.0.1:18081/manual-entry", {
     method: "POST",
@@ -83,7 +88,16 @@ async function loadPerson(profileName) {
   const displayName = person.display_name || defaults.display_name || profileName;
   const storedFields = person.fields || {};
   // Prefer stored core-api fields, then fall back to extension defaults.
-  return { ...defaults, ...storedFields, display_name: displayName };
+  const merged = { ...defaults, ...storedFields, display_name: displayName };
+
+  // Normalize DOB so forms consistently get MM/DD/YYYY under `date_of_birth`.
+  if (!merged.date_of_birth && merged.date_of_birth_mmddyyyy) {
+    merged.date_of_birth = merged.date_of_birth_mmddyyyy;
+  }
+  if (!merged.date_of_birth_mmddyyyy && merged.date_of_birth) {
+    merged.date_of_birth_mmddyyyy = merged.date_of_birth;
+  }
+  return merged;
 }
 
 function buildProfileDefaults(profileName) {
@@ -163,6 +177,8 @@ async function fillActiveTab(data) {
         guardian_name: ["parent", "guardian", "parent or guardian", "guardian name", "parent name"],
         guardian_email: ["guardian email", "parent email", "email", "e-mail"],
         guardian_phone: ["guardian phone", "parent phone", "phone", "mobile", "cell"],
+        height: ["height", "hgt", "ht"],
+        eye_color: ["eye color", "eyes", "eye"],
         address_line_1: ["address", "street", "street address", "address line 1"],
         city: ["city", "town"],
         state: ["state", "province"],
@@ -243,12 +259,85 @@ async function collectActiveTabFields() {
   return Array.isArray(result) ? result : [];
 }
 
+async function collectActiveTabValues() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id) throw new Error("No active tab.");
+
+  const [{ result }] = await chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    func: () => {
+      const normalize = (s) => (s || "").toString().trim();
+      const out = {};
+      const els = Array.from(document.querySelectorAll("input, textarea, select"));
+      for (const el of els) {
+        const id = normalize(el.id);
+        const name = normalize(el.getAttribute("name") || "");
+        const key = id || name;
+        if (!key) continue;
+
+        let value = "";
+        const tag = (el.tagName || "").toLowerCase();
+        if (tag === "select") {
+          value = normalize(el.value);
+        } else {
+          value = normalize(el.value);
+        }
+        if (!value) continue;
+        out[key] = value;
+      }
+      return out;
+    }
+  });
+
+  return (result && typeof result === "object") ? result : {};
+}
+
+async function savePersonFromForm(profileName) {
+  const fields = await collectActiveTabValues();
+  // Normalize common aliases into canonical keys used by the demo form + core-api.
+  // This makes "email"/"phone"/"mobile_phone" still persist into guardian_email/guardian_phone.
+  const normalized = { ...profileKeyField(profileName), ...fields };
+  const email = fields.guardian_email || fields.email || fields.guardianEmail;
+  const phone =
+    fields.guardian_phone ||
+    fields.phone ||
+    fields.mobile_phone ||
+    fields.mobilePhone ||
+    fields.guardianPhone;
+  if (!normalized.guardian_email && email) normalized.guardian_email = email;
+  if (!normalized.guardian_phone && phone) normalized.guardian_phone = phone;
+
+  const payload = {
+    id: profileIdFromName(profileName),
+    display_name: normalized.display_name || buildProfileDefaults(profileName).display_name || profileName,
+    fields: normalized
+  };
+  const response = await fetch("http://127.0.0.1:18081/manual-entry", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    throw new Error(`Save failed: HTTP ${response.status}`);
+  }
+}
+
 document.getElementById("seed").addEventListener("click", async () => {
   try {
     const profileName = await getSelectedProfileName();
-    setStatus(`Seeding profile "${profileName}" into core-api...`);
-    await seedPerson(profileName);
-    setStatus("Seed complete.");
+    // If the user has already typed into the active form, treat this as "save" so
+    // the UX matches expectations (seed/update the selected profile).
+    const existing = await collectActiveTabValues();
+    const hasAny = Object.values(existing).some((v) => String(v || "").trim().length > 0);
+    if (hasAny) {
+      setStatus(`Saving active form fields into "${profileName}"...`);
+      await savePersonFromForm(profileName);
+      setStatus("Saved to core-api.");
+    } else {
+      setStatus(`Seeding profile "${profileName}" into core-api...`);
+      await seedPerson(profileName);
+      setStatus("Seed complete.");
+    }
   } catch (error) {
     setStatus(`Seed error:\n${error.message}`);
   }
@@ -282,6 +371,17 @@ document.getElementById("fill").addEventListener("click", async () => {
     setStatus("Form filled on active tab.");
   } catch (error) {
     setStatus(`Fill error:\n${error.message}`);
+  }
+});
+
+document.getElementById("saveFromForm").addEventListener("click", async () => {
+  try {
+    const profileName = await getSelectedProfileName();
+    setStatus(`Saving active form fields into "${profileName}"...`);
+    await savePersonFromForm(profileName);
+    setStatus("Saved to core-api. Next Fill will use stored values.");
+  } catch (error) {
+    setStatus(`Save error:\n${error.message}`);
   }
 });
 

@@ -385,6 +385,7 @@ private struct ScannerFallbackView: View {
     @State private var downloadsItems: [RemoteItem] = []
     @State private var downloadsError: String?
 #endif
+    @State private var didAutoPresentPicker = false
 
     var body: some View {
         NavigationStack {
@@ -392,7 +393,7 @@ private struct ScannerFallbackView: View {
                 Text("Scan Document")
                     .font(.title2)
 
-                Text("Choose a document to scan (or drag & drop a file from your Mac).")
+                Text("Import a document to scan (or drag & drop a file from your Mac).")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
 
@@ -406,7 +407,7 @@ private struct ScannerFallbackView: View {
 #endif
                 } label: {
                     HStack {
-                        Text("Choose Document")
+                        Text("Browse Files")
                         Spacer()
                         Image(systemName: "doc")
                     }
@@ -446,6 +447,18 @@ private struct ScannerFallbackView: View {
             .padding()
             .navigationTitle("Scan")
             .navigationBarTitleDisplayMode(.inline)
+            .task {
+                // Streamlined UX: auto-open the picker so the user doesn't see an extra
+                // "Choose document" step before selecting a file.
+                if didAutoPresentPicker { return }
+                didAutoPresentPicker = true
+#if targetEnvironment(simulator)
+                isPresentingDownloadsPicker = true
+                await loadSimulatorDownloadsListing()
+#else
+                isPresentingFilePicker = true
+#endif
+            }
 #if targetEnvironment(simulator)
             .sheet(isPresented: $isPresentingDownloadsPicker) {
                 NavigationStack {

@@ -35,6 +35,8 @@ struct EditPersonProfileView: View {
     @State private var familyMembers: [FamilyMember]
     @State private var emergencyContacts: [EmergencyContact]
 
+    // GenAI extracted fields are synced/stored in background; keep UI clean.
+
     @State private var newFamilyName: String = ""
     @State private var newFamilyRelationship: String = ""
     @State private var newFamilyDob: String = ""
@@ -329,6 +331,11 @@ struct EditPersonProfileView: View {
                     }
                 }
             }
+            .task {
+                // Best-effort: pull browser-saved fields into the profile.
+                // Only fills blanks, so it won't clobber user's in-app edits.
+                await syncFromCoreAPI()
+            }
         }
     }
 
@@ -486,6 +493,52 @@ struct EditPersonProfileView: View {
             if Task.isCancelled { return }
             onSave(buildProfileFromCurrentValues())
         }
+    }
+
+    private func syncFromCoreAPI() async {
+        let nick = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let initialNick = initial.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = initial.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fn = firstName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let ln = lastName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let full = [fn, ln].filter { !$0.isEmpty }.joined(separator: " ")
+
+        let hints = [nick, initialNick, title, full].filter { !$0.isEmpty }
+        guard let fields = await CoreAPISync.pull(profileHints: hints), !fields.isEmpty else {
+            return
+        }
+
+        func get(_ keys: [String]) -> String? {
+            for k in keys {
+                if let v = fields[k]?.trimmingCharacters(in: .whitespacesAndNewlines), !v.isEmpty {
+                    return v
+                }
+            }
+            return nil
+        }
+
+        // For browser/demo-form fields, prefer core-api values when present (these are explicitly saved there).
+        if let v = get(["email", "guardian_email"]) { email = v }
+        if let v = get(["mobile_phone", "guardian_phone", "phone"]) { mobile = v }
+        if let v = get(["insurance_provider"]) { insuranceProvider = v }
+        if let v = get(["policy_number"]) { policyNumber = v }
+        if height.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            height = get(["height", "hgt"]) ?? height
+        }
+        if eyeColor.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            eyeColor = get(["eye_color", "eyes"]) ?? eyeColor
+        }
+
+        // Keep raw fields for reference by persisting via genAIFields (best-effort).
+        var p = buildProfileFromCurrentValues()
+        for (k, v) in fields {
+            let t = v.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !t.isEmpty {
+                p.genAIFields[k] = t
+            }
+        }
+        p.updatedAt = Date()
+        onSave(p)
     }
 
     private func buildProfileFromCurrentValues() -> PersonProfile {
