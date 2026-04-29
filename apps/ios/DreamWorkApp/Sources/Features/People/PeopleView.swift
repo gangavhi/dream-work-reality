@@ -4,7 +4,8 @@ struct PeopleView: View {
     @EnvironmentObject private var appState: AppState
     @State private var isPresentingNew = false
     @State private var isConfirmingDeleteAll = false
-    @State private var isPresentingScanNew = false
+    @State private var isPresentingScanPicker = false
+    @State private var scanTargetPerson: PersonProfile?
     @State private var scanBanner: String?
     @State private var isConfirmingDeletePerson = false
     @State private var pendingDeletePersonID: UUID?
@@ -82,7 +83,8 @@ struct PeopleView: View {
                         Button("Add") { isPresentingNew = true }
                     }
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Scan New") { isPresentingScanNew = true }
+                        Button("Scan") { isPresentingScanPicker = true }
+                            .disabled(appState.peopleStore.people.isEmpty)
                     }
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Delete All") { isConfirmingDeleteAll = true }
@@ -125,17 +127,43 @@ struct PeopleView: View {
             } message: {
                 Text(scanBanner ?? "")
             }
-            .sheet(isPresented: $isPresentingScanNew) {
+            .sheet(isPresented: $isPresentingScanPicker) {
+                NavigationStack {
+                    List {
+                        Section("Choose profile") {
+                            ForEach(appState.peopleStore.people) { person in
+                                Button {
+                                    scanTargetPerson = person
+                                    isPresentingScanPicker = false
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(person.displayTitle)
+                                        insuranceSummaryLine(for: person)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .navigationTitle("Scan for…")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") { isPresentingScanPicker = false }
+                        }
+                    }
+                }
+            }
+            .sheet(item: $scanTargetPerson) { person in
                 DriverLicenseScannerView { result in
                     switch result {
                     case .success(let scan):
-                        let created = buildProfile(from: scan)
-                        appState.peopleStore.upsert(created, select: true)
-                        scanBanner = "Created profile: \(created.displayTitle)"
+                        let updated = applyScan(scan, to: person)
+                        appState.peopleStore.upsert(updated, select: true)
+                        scanBanner = "Updated profile: \(updated.displayTitle)"
                     case .failure(let err):
                         scanBanner = "Scan failed: \(err.localizedDescription)"
                     }
-                    isPresentingScanNew = false
+                    scanTargetPerson = nil
                 }
                 .ignoresSafeArea()
             }
@@ -205,6 +233,60 @@ struct PeopleView: View {
         if let all = scan.genAIValues {
             p.genAIFields = all
         }
+        return p
+    }
+
+    private func applyScan(_ scan: DriverLicenseScanResult, to existing: PersonProfile) -> PersonProfile {
+        var p = existing
+
+        func trim(_ s: String?) -> String? {
+            let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+
+        p.firstName = trim(scan.firstName) ?? p.firstName
+        p.lastName = trim(scan.lastName) ?? p.lastName
+        if let dob = scan.dateOfBirth {
+            p.dateOfBirthMMDDYYYY = formatMMDDYYYY(dob)
+        }
+        p.height = trim(scan.height) ?? p.height
+        p.eyeColor = trim(scan.eyeColor) ?? p.eyeColor
+
+        p.addressLine1 = trim(scan.addressLine1) ?? p.addressLine1
+        p.city = trim(scan.city) ?? p.city
+        p.state = trim(scan.state) ?? p.state
+        p.postalCode = trim(scan.postalCode) ?? p.postalCode
+
+        let dl = DriverLicense(
+            number: trim(scan.documentNumber),
+            state: trim(scan.state),
+            issueMMDDYYYY: scan.issueDate.map(formatMMDDYYYY),
+            expiryMMDDYYYY: scan.expiryDate.map(formatMMDDYYYY),
+            isActive: true,
+            capturedAt: Date()
+        )
+        p.driverLicenses = p.driverLicenses.map { var x = $0; x.isActive = false; return x }
+        p.driverLicenses.insert(dl, at: 0)
+        p.driverLicenseNumber = dl.number
+        p.driverLicenseIssueMMDDYYYY = dl.issueMMDDYYYY
+        p.driverLicenseExpiryMMDDYYYY = dl.expiryMMDDYYYY
+        p.driverLicenseState = dl.state
+
+        let doc = ScannedDocument(
+            type: "driver_license",
+            number: dl.number,
+            issueMMDDYYYY: dl.issueMMDDYYYY,
+            expiryMMDDYYYY: dl.expiryMMDDYYYY,
+            rawText: scan.rawText,
+            capturedAt: dl.capturedAt
+        )
+        p.documents = [doc] + p.documents.filter { $0.type != "driver_license" }
+
+        if let all = scan.genAIValues {
+            p.genAIFields = all
+        }
+
+        p.updatedAt = Date()
         return p
     }
 

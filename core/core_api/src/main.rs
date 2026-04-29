@@ -7,14 +7,14 @@ use axum::{
 };
 use dreamwork_core::{
     ingestion::{ManualEntry, ManualField},
-    memory::{EntryRepository, InMemoryRepository},
+    memory::{EntryRepository, SqliteRepository},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone)]
 struct AppState {
-    repository: Arc<Mutex<InMemoryRepository>>,
+    repository: Arc<Mutex<Box<dyn EntryRepository + Send>>>,
 }
 
 #[derive(Deserialize)]
@@ -35,6 +35,12 @@ struct ManualEntryResponse {
     id: String,
     display_name: Option<String>,
     fields: std::collections::BTreeMap<String, String>,
+}
+
+#[derive(Serialize)]
+struct ProfileKeyRow {
+    entry_id: String,
+    profile_key: String,
 }
 
 #[derive(Serialize)]
@@ -70,14 +76,26 @@ struct ExtractDocumentResponse {
 
 #[tokio::main]
 async fn main() {
+    let db_path = sqlite_path_from_env_or_default();
+    if let Some(parent) = db_path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    let repo = SqliteRepository::open(&db_path).unwrap_or_else(|_| {
+        panic!(
+            "failed to open sqlite db at {}",
+            db_path.to_string_lossy()
+        )
+    });
+
     let state = AppState {
-        repository: Arc::new(Mutex::new(InMemoryRepository::default())),
+        repository: Arc::new(Mutex::new(Box::new(repo))),
     };
 
     let app = Router::new()
         .route("/healthz", get(healthz))
         .route("/manual-entry", post(save_manual_entry))
         .route("/manual-entry/{id}", get(read_manual_entry))
+        .route("/manual-entry/profile-keys", get(list_profile_keys))
         .route("/genai/map-fields", post(map_fields))
         .route("/genai/extract-document", post(extract_document))
         .with_state(state);
@@ -1298,6 +1316,8 @@ fn best_match<'a>(
         ("display_name", &["full name", "display name", "student full name"]),
         ("guardian_email", &["guardian email", "parent email"]),
         ("guardian_phone", &["guardian phone", "parent phone"]),
+        ("height", &["height", "hgt", "ht"]),
+        ("eye_color", &["eye color", "eyes", "eye"]),
         (
             "address_line_1",
             &["address", "street", "street address", "address line 1"],
@@ -1388,4 +1408,38 @@ async fn read_manual_entry(
         display_name,
         fields: fields_map,
     })
+}
+
+async fn list_profile_keys(State(state): State<AppState>) -> Json<Vec<ProfileKeyRow>> {
+    // Small helper for iOS clients to discover which manual-entry ids correspond to which
+    // browser/extension profile_key values.
+    let rows: Vec<ProfileKeyRow> = state
+        .repository
+        .lock()
+        .ok()
+        .map(|repo| {
+            repo.list_profile_keys()
+                .into_iter()
+                .map(|(entry_id, profile_key)| ProfileKeyRow {
+                    entry_id,
+                    profile_key,
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    Json(rows)
+}
+
+fn sqlite_path_from_env_or_default() -> std::path::PathBuf {
+    if let Ok(p) = std::env::var("DREAMWORK_SQLITE_PATH") {
+        let s = p.trim();
+        if !s.is_empty() {
+            return std::path::PathBuf::from(s);
+        }
+    }
+    let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+    std::path::PathBuf::from(home)
+        .join(".dreamwork")
+        .join("dreamwork.sqlite")
 }
