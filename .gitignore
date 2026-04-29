@@ -16,3 +16,6 @@ demo/*.mp4
 # Rust build artifacts
 core/target/
 
+# Accidental nested checkout / workspace artifacts
+dream-work-reality/
+
