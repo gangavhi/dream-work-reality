@@ -18,7 +18,7 @@ targets:
     resources:
       - path: DreamWorkApp/Resources
     preBuildScripts:
-      - name: Build Rust Core (Simulator)
+      - name: Build Rust Core
         script: |
           set -euo pipefail
           if [[ -f "$HOME/.cargo/env" ]]; then
@@ -31,13 +31,23 @@ targets:
             exit 0
           fi
 
+          # Build the Rust core for the active Xcode SDK.
+          # - iphoneos      -> aarch64-apple-ios
+          # - iphonesimulator (Apple Silicon) -> aarch64-apple-ios-sim
+          SDK_NAME="${SDK_NAME:-}"
+          if [[ "$SDK_NAME" == iphoneos* ]]; then
+            RUST_TARGET="aarch64-apple-ios"
+          else
+            RUST_TARGET="aarch64-apple-ios-sim"
+          fi
+
           if command -v rustup >/dev/null 2>&1; then
-            rustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true
+            rustup target add "$RUST_TARGET" >/dev/null 2>&1 || true
           fi
           export CARGO_TARGET_DIR="$SRCROOT/../../core/target"
           cargo build \
             --manifest-path "$SRCROOT/../../core/dreamwork_core/Cargo.toml" \
-            --target aarch64-apple-ios-sim
+            --target "$RUST_TARGET"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.kota.dreamworkapp
@@ -49,9 +59,13 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
-        OTHER_LDFLAGS:
+        OTHER_LDFLAGS[sdk=iphonesimulator*]:
           - $(inherited)
           - -L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug
+          - -ldreamwork_core
+        OTHER_LDFLAGS[sdk=iphoneos*]:
+          - $(inherited)
+          - -L$(SRCROOT)/../../core/target/aarch64-apple-ios/debug
           - -ldreamwork_core
     scheme:
       testTargets:
