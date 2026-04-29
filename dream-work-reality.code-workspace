@@ -1,11 +1,7 @@
 {
-  "folders": [
-    {
-      "path": "."
-    },
-    {
-      "path": "../Sreeni_Blog_Rewrite"
-    }
-  ],
-  "settings": {}
+    "folders": [
+        {
+            "path": ".."
+        }
+    ]
 }
