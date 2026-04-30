@@ -55,7 +55,7 @@
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
 		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
 		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
-		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -472,7 +472,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
@@ -506,7 +505,6 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads = YES;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Scan your driver license to autofill form fields.";
