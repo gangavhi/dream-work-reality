@@ -1,0 +1,167 @@
+//! Map raw OCR text to structured string fields using an OpenAI-compatible Chat Completions API.
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value;
+use std::collections::BTreeMap;
+
+#[derive(Serialize)]
+struct ChatRequest {
+    model: String,
+    messages: Vec<Message>,
+    temperature: f32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_format: Option<ResponseFormat>,
+}
+
+#[derive(Serialize)]
+struct ResponseFormat {
+    #[serde(rename = "type")]
+    typ: String,
+}
+
+#[derive(Serialize)]
+struct Message {
+    role: String,
+    content: String,
+}
+
+#[derive(Deserialize)]
+struct ChatResponse {
+    choices: Vec<Choice>,
+}
+
+#[derive(Deserialize)]
+struct Choice {
+    message: Msg,
+}
+
+#[derive(Deserialize)]
+struct Msg {
+    content: String,
+}
+
+/// Calls `POST {base_url}/chat/completions` and parses the assistant message as a JSON object
+/// of string fields suitable for `manual_fields` / form fill (same key names as `/genai/extract-document` where possible).
+pub async fn map_ocr_to_string_map(
+    api_key: &str,
+    base_url: &str,
+    model: &str,
+    raw_text: &str,
+    document_hint: Option<&str>,
+    use_json_object_mode: bool,
+) -> Result<BTreeMap<String, String>, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let url = format!("{}/chat/completions", base_url.trim_end_matches('/'));
+
+    let hint = document_hint.unwrap_or("unspecified document");
+    let system = r#"You map noisy OCR text from identity or administrative documents into flat JSON fields.
+
+Return one JSON object only. Omit keys you cannot infer (or use null). Values must be strings or null — no nested objects or arrays.
+
+Prefer these keys when they apply (aligns with this app's SQLite / form layer):
+first_name, last_name, full_name, display_name,
+date_of_birth_mmddyyyy (MM/DD/YYYY),
+address_line_1, city, state (USPS 2-letter for US), postal_code,
+document_number, issue_mmddyyyy, expiry_mmddyyyy, height, eye_color,
+profile_key (only if clearly a stable person label in the text).
+
+Fix obvious OCR typos when confident. Do not invent sensitive values."#;
+
+    let trimmed = raw_text.chars().take(24_000).collect::<String>();
+    let user = format!("Document hint: {hint}\n\nOCR text:\n{trimmed}");
+
+    let body = ChatRequest {
+        model: model.to_string(),
+        messages: vec![
+            Message {
+                role: "system".into(),
+                content: system.into(),
+            },
+            Message {
+                role: "user".into(),
+                content: user,
+            },
+        ],
+        temperature: 0.1,
+        response_format: use_json_object_mode.then(|| ResponseFormat {
+            typ: "json_object".into(),
+        }),
+    };
+
+    let res = client
+        .post(&url)
+        .header("Authorization", format!("Bearer {api_key}"))
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| e.to_string())?;
+
+    let status = res.status();
+    if !status.is_success() {
+        let t = res.text().await.unwrap_or_default();
+        return Err(format!(
+            "LLM HTTP error: {} — {}",
+            status,
+            t.chars().take(800).collect::<String>()
+        ));
+    }
+
+    let parsed: ChatResponse = res.json().await.map_err(|e| e.to_string())?;
+    let content = parsed
+        .choices
+        .first()
+        .ok_or_else(|| "LLM returned no choices".to_string())?
+        .message
+        .content
+        .trim()
+        .to_string();
+
+    let json_str = strip_markdown_json_fence(&content);
+    let v: Value = serde_json::from_str(&json_str).map_err(|e| format!("invalid JSON from model: {e}"))?;
+    let obj = v
+        .as_object()
+        .ok_or_else(|| "LLM JSON must be an object".to_string())?;
+
+    let mut out = BTreeMap::new();
+    for (k, val) in obj {
+        match val {
+            Value::String(s) => {
+                let t = s.trim();
+                if !t.is_empty() {
+                    out.insert(k.clone(), t.to_string());
+                }
+            }
+            Value::Number(n) => {
+                out.insert(k.clone(), n.to_string());
+            }
+            Value::Bool(b) => {
+                out.insert(k.clone(), b.to_string());
+            }
+            _ => {}
+        }
+    }
+    Ok(out)
+}
+
+fn strip_markdown_json_fence(s: &str) -> String {
+    let t = s.trim();
+    if let Some(rest) = t.strip_prefix("```json") {
+        return strip_trailing_fence(rest.trim_start());
+    }
+    if let Some(rest) = t.strip_prefix("```") {
+        return strip_trailing_fence(rest.trim_start());
+    }
+    t.to_string()
+}
+
+fn strip_trailing_fence(s: &str) -> String {
+    if let Some(i) = s.rfind("```") {
+        s[..i].trim().to_string()
+    } else {
+        s.to_string()
+    }
+}

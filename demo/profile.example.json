@@ -1,0 +1,14 @@
+{
+  "first_name": "Alex",
+  "last_name": "Lee",
+  "email": "you@example.com",
+  "phone": "+1 555-555-5555",
+  "address1": "123 Main St",
+  "address2": "",
+  "city": "Ridgewood",
+  "state": "TX",
+  "zip": "78701",
+  "country": "United States",
+  "linkedin": "https://www.linkedin.com/in/your-handle/",
+  "website": ""
+}
