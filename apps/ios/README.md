@@ -96,19 +96,64 @@ xcodebuild -project DreamWorkApp.xcodeproj \
 
 Then install/run via Xcode’s **Devices** window or stick to **⌘R** in Xcode for the simplest loop.
 
-## App Store checklist (operator steps)
+## Publish to the App Store (step-by-step)
 
-Apple review is manual; this repo wires technical prerequisites only.
+This repo cannot log into your Apple ID or press “Submit” for you. Follow these steps on **your Mac** with **Xcode that matches your shipping OS** (same major generation as device/SDK you archive against).
 
-1. **Apple Developer Program** — enroll and create an App ID matching `PRODUCT_BUNDLE_IDENTIFIER` (default `com.dreamwork.app`; change if you ship under your team).
-2. **Signing** — In Xcode: select your **Team**, enable automatic signing for Release, and archive with **Any iOS Device** / **DriverKit** destination off (generic **iOS Device**).
-3. **Archive uses Release** — The Run Script builds `cargo … --release` for Release; `RustCore.xcconfig` links `core/target/aarch64-apple-ios/release`.
-4. **Icons** — Replace `DreamWorkApp/Resources/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png` with branded artwork (same single-size catalog layout is fine for modern Xcode; validate with **Archive → Validate App**).
-5. **Privacy** — `PrivacyInfo.xcprivacy` declares no tracking and no collected types as shipped; update it if you add analytics, ads, or APIs that require “required reason” strings. Answer App Store Connect **Privacy Nutrition Labels** to match behavior.
-6. **Purpose strings** — Add usage descriptions (e.g. `NSCameraUsageDescription`) before shipping flows that use the camera, photo library, or microphone (Vision OCR on live camera will require these).
-7. **Encryption export** — `ITSAppUsesNonExemptEncryption` is set to **NO** for standard/TLS-only use; adjust if you ship custom non-exempt crypto.
-8. **Support URL & privacy policy URL** — Required or expected for review; host pages that match your data practices.
-9. **Third-party licenses** — Rust/SQLite and other deps: keep `cargo deny` / notices aligned with your legal review.
+### A. Apple Developer Program & identifiers
+
+1. Enroll in the **[Apple Developer Program](https://developer.apple.com/programs/)** (paid). Personal Team is **not** enough for App Store distribution.
+2. In **[Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)**:
+   - Create an **App ID** whose **Bundle ID** matches `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` (default **`com.dreamwork.app`**).  
+     If that ID is taken globally or by another team, change it in `project.yml`, run `xcodegen generate`, and register the **new** App ID.
+   - Enable only capabilities you actually use (none required for current OCR + SQLite + document picker).
+
+### B. App Store Connect app record
+
+1. Open **[App Store Connect](https://appstoreconnect.apple.com/) → My Apps → + → New App**.
+2. Set **Platforms** (iOS), **Name**, **Primary language**, **Bundle ID** (pick the identifier from step A), **SKU** (any unique string you choose).
+3. Later you will fill **description**, **keywords**, **support URL**, **privacy policy URL**, **screenshots**, **age rating**, and **App Privacy** (nutrition labels). URLs must be live and accurate.
+
+### C. Xcode — signing & versioning
+
+1. `cd apps/ios && xcodegen generate && open DreamWorkApp.xcodeproj`
+2. Target **DreamWorkApp → Signing & Capabilities**: **Automatically manage signing**, Team = **your paid team**, Release uses **Apple Distribution**.
+3. Bump ship numbers in `project.yml` when you submit updates:
+   - **`MARKETING_VERSION`** — user-facing version (e.g. `1.0.0`).
+   - **`CURRENT_PROJECT_VERSION`** — build number (monotonic integer per upload, e.g. `2`, `3`, …).
+   Then run `xcodegen generate` again.
+
+### D. Archive (Release → device slice)
+
+1. Scheme **DreamWorkApp**, destination **Any iOS Device** (or **Generic iOS Device**), **not** a simulator.
+2. **Product → Archive**. Wait for completion.
+3. **Release Rust note:** the Run Script runs `cargo … --release` for Release; `RustCore.xcconfig` links `aarch64-apple-ios/release`.
+
+### E. Upload build
+
+1. **Window → Organizer** → select the archive → **Distribute App**.
+2. Choose **App Store Connect** → **Upload** (defaults usually OK: strip bitcode off for current Xcode, include symbols if offered).
+3. When upload finishes, App Store Connect shows **Processing** (often 10–30+ minutes).
+
+### F. Complete the submission in App Store Connect
+
+1. Open your app → **TestFlight** (optional smoke test on devices) then **App Store** tab.
+2. Select the **build**, attach **screenshots** (required sizes per device class), **privacy** answers, **export compliance** (aligns with `ITSAppUsesNonExemptEncryption`).
+3. **Add for Review** → **Submit to App Review**.
+
+### Repo checklist (technical)
+
+| Item | Status in repo |
+|------|----------------|
+| Privacy manifest | `DreamWorkApp/Resources/PrivacyInfo.xcprivacy` |
+| App Icon | Replace placeholder `AppIcon-1024.png` before final branding |
+| Encryption | `ITSAppUsesNonExemptEncryption` = NO (adjust if you use non‑exempt crypto) |
+| Purpose strings | Add camera/photos strings **only** when you ship those flows |
+| CLI export (optional) | See `ExportOptions-app-store.plist.example` |
+
+### Third-party / legal
+
+Align **Rust / SQLite / other licenses** with your legal review; keep `cargo deny` / notices current if you distribute publicly.
 
 ## Simulator tests (CLI)
 
