@@ -30,7 +30,7 @@ targets:
           /bin/sh "${SRCROOT}/DreamWorkApp/Scripts/build_rust_core.sh"
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: "1.0.0"
@@ -61,7 +61,7 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev.tests
         GENERATE_INFOPLIST_FILE: YES
 
   DreamWorkAppUITests:
@@ -74,5 +74,5 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dreamwork.app.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev.uitests
         GENERATE_INFOPLIST_FILE: YES
