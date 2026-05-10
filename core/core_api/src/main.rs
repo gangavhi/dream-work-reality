@@ -2,6 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use axum::{
     extract::{Path, State},
+    http::StatusCode,
     routing::{get, post},
     Json, Router,
 };
@@ -11,6 +12,8 @@ use dreamwork_core::{
 };
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
+mod llm_ocr_map;
 
 #[derive(Clone)]
 struct AppState {
@@ -98,11 +101,15 @@ async fn main() {
         .route("/manual-entry/profile-keys", get(list_profile_keys))
         .route("/genai/map-fields", post(map_fields))
         .route("/genai/extract-document", post(extract_document))
+        .route("/genai/ocr-map-persist", post(ocr_map_persist))
         .with_state(state);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:8080")
+    let host = std::env::var("HOST").unwrap_or_else(|_| "0.0.0.0".to_string());
+    let port = std::env::var("PORT").unwrap_or_else(|_| "8080".to_string());
+    let bind_addr = format!("{host}:{port}");
+    let listener = tokio::net::TcpListener::bind(&bind_addr)
         .await
-        .expect("binds to port 8080");
+        .unwrap_or_else(|e| panic!("failed to bind {bind_addr}: {e}"));
     axum::serve(listener, app)
         .await
         .expect("server should stay alive");
@@ -1345,6 +1352,142 @@ fn best_match<'a>(
         }
     }
     None
+}
+
+#[derive(Deserialize)]
+struct OcrMapPersistRequest {
+    /// Same id used by `/manual-entry` (e.g. `profile-jane-doe`).
+    entry_id: String,
+    display_name: String,
+    raw_text: String,
+    #[serde(default)]
+    document_type: Option<String>,
+    /// When true (default), load existing manual entry and overlay LLM fields on top.
+    #[serde(default = "default_merge_true")]
+    merge: bool,
+}
+
+fn default_merge_true() -> bool {
+    true
+}
+
+#[derive(Serialize)]
+struct OcrMapPersistResponse {
+    saved: bool,
+    fields_updated: usize,
+}
+
+/// Maps OCR text through an OpenAI-compatible Chat Completions API, then upserts into SQLite (`manual_fields`).
+///
+/// Configuration (environment):
+/// - `OPENAI_API_KEY` — required
+/// - `OPENAI_BASE_URL` — default `https://api.openai.com/v1` (Ollama: `http://127.0.0.1:11434/v1`)
+/// - `OPENAI_MODEL` — default `gpt-4o-mini`
+/// - `OPENAI_RESPONSE_JSON_OBJECT=0` — disable `response_format: json_object` for gateways that reject it
+async fn ocr_map_persist(
+    State(state): State<AppState>,
+    Json(payload): Json<OcrMapPersistRequest>,
+) -> Result<Json<OcrMapPersistResponse>, (StatusCode, String)> {
+    if payload.entry_id.trim().is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "entry_id is required.".to_string()));
+    }
+
+    let api_key = std::env::var("OPENAI_API_KEY").map_err(|_| {
+        (
+            StatusCode::BAD_REQUEST,
+            "Set OPENAI_API_KEY (or use a local OpenAI-compatible server with a placeholder key).".to_string(),
+        )
+    })?;
+    let api_key = api_key.trim();
+    if api_key.is_empty() {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            "OPENAI_API_KEY is set but empty.".to_string(),
+        ));
+    }
+
+    let base = std::env::var("OPENAI_BASE_URL")
+        .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let json_object_mode = !matches!(
+        std::env::var("OPENAI_RESPONSE_JSON_OBJECT")
+            .map(|v| v == "0" || v.eq_ignore_ascii_case("false")),
+        Ok(true)
+    );
+
+    let mapped = llm_ocr_map::map_ocr_to_string_map(
+        api_key,
+        base.trim(),
+        model.trim(),
+        &payload.raw_text,
+        payload.document_type.as_deref(),
+        json_object_mode,
+    )
+    .await
+    .map_err(|e| (StatusCode::BAD_GATEWAY, e))?;
+
+    let mut combined: std::collections::BTreeMap<String, String> = std::collections::BTreeMap::new();
+    let dn = payload.display_name.trim();
+
+    if payload.merge {
+        let existing = state
+            .repository
+            .lock()
+            .ok()
+            .and_then(|repo| repo.get_manual_entry(&payload.entry_id).ok());
+        if let Some(entry) = existing {
+            for f in entry.fields {
+                let k = f.key.trim();
+                if k.is_empty() {
+                    continue;
+                }
+                let v = f.value.trim();
+                if v.is_empty() {
+                    continue;
+                }
+                combined.insert(k.to_string(), v.to_string());
+            }
+        }
+    }
+
+    let mut llm_keys = 0usize;
+    for (k, v) in mapped {
+        let k = k.trim();
+        if k.is_empty() {
+            continue;
+        }
+        let v = v.trim();
+        if v.is_empty() {
+            continue;
+        }
+        combined.insert(k.to_string(), v.to_string());
+        llm_keys += 1;
+    }
+
+    if !dn.is_empty() {
+        combined.insert("display_name".to_string(), dn.to_string());
+    }
+
+    let fields: Vec<ManualField> = combined
+        .into_iter()
+        .map(|(key, value)| ManualField { key, value })
+        .collect();
+
+    let entry = ManualEntry {
+        id: payload.entry_id.trim().to_string(),
+        fields,
+    };
+
+    let saved = state
+        .repository
+        .lock()
+        .map(|mut repo| repo.save_manual_entry(entry).is_ok())
+        .unwrap_or(false);
+
+    Ok(Json(OcrMapPersistResponse {
+        saved,
+        fields_updated: llm_keys,
+    }))
 }
 
 async fn save_manual_entry(

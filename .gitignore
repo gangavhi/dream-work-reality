@@ -19,3 +19,7 @@ core/target/
 # Accidental nested checkout / workspace artifacts
 dream-work-reality/
 
+# Local form-fill profiles / automation artifacts
+demo/profile.json
+scripts/.playwright/
+
