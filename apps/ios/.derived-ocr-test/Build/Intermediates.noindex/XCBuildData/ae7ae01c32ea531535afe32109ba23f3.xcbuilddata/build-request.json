@@ -1,0 +1,77 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildAndRun"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "d63cde17b3ae0df556d05c80fbe08621145a692b593f5649336c0655d02146b2"
+    },
+    {
+      "guid" : "d63cde17b3ae0df556d05c80fbe0862168c33759b69e915909d07e5409db7aea"
+    },
+    {
+      "guid" : "d63cde17b3ae0df556d05c80fbe086216f4ea19ee04d04c0967ac8c841cccf80"
+    }
+  ],
+  "containerPath" : "/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "arm64",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : false,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator18.4",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "arm64",
+        "x86_64"
+      ],
+      "targetArchitecture" : "arm64"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Products",
+      "derivedDataPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test",
+      "indexDataStoreFolderPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "CODE_SIGN_IDENTITY" : "",
+          "CODE_SIGNING_ALLOWED" : "NO",
+          "CODE_SIGNING_REQUIRED" : "NO"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ASSETCATALOG_FILTER_FOR_DEVICE_MODEL" : "iPhone17,1",
+          "ASSETCATALOG_FILTER_FOR_DEVICE_OS_VERSION" : "18.4",
+          "ASSETCATALOG_FILTER_FOR_THINNING_DEVICE_CONFIGURATION" : "iPhone17,1",
+          "BUILD_ACTIVE_RESOURCES_ONLY" : "YES",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES",
+          "TARGET_DEVICE_IDENTIFIER" : "82430F6C-E58A-443B-B067-80715E287F9B",
+          "TARGET_DEVICE_MODEL" : "iPhone17,1",
+          "TARGET_DEVICE_OS_VERSION" : "18.4",
+          "TARGET_DEVICE_PLATFORM_NAME" : "iphonesimulator"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "test",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

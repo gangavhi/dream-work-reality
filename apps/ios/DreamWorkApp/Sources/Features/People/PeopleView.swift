@@ -5,23 +5,56 @@ struct PeopleView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("People Screen")
-                    .font(.title2)
-                Text("Loaded person: \(appState.selectedPersonName)")
-                    .accessibilityIdentifier("peopleLoadedPersonName")
-                Text("Manual entries in Rust core: \(appState.manualEntryCount)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("peopleManualEntryCount")
-                Button("Save + Load Demo Person") {
-                    appState.saveAndLoadDemoPerson()
+            Group {
+                if appState.people.isEmpty {
+                    ContentUnavailableView(
+                        "No people yet",
+                        systemImage: "person.3",
+                        description: Text("Add sample entries stored in the Rust core, or save people from Home.")
+                    )
+                    .accessibilityIdentifier("peopleEmptyState")
+                } else {
+                    List {
+                        ForEach(appState.people) { person in
+                            NavigationLink {
+                                PersonDetailView(person: person)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(person.displayTitle)
+                                        .font(.headline)
+                                    Text(person.id)
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                .accessibilityElement(children: .combine)
+                                .accessibilityIdentifier("peopleRow_\(person.id)")
+                            }
+                        }
+                    }
+                    .accessibilityIdentifier("peopleList")
                 }
-                .buttonStyle(.borderedProminent)
-                .accessibilityIdentifier("peopleSaveLoadButton")
             }
             .navigationTitle("People")
-            .padding()
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Add samples") {
+                        appState.seedSamplePeople()
+                    }
+                    .accessibilityIdentifier("peopleAddSamplesButton")
+                }
+                ToolbarItem(placement: .automatic) {
+                    Button("Refresh") {
+                        appState.refreshPeopleList()
+                    }
+                    .accessibilityIdentifier("peopleRefreshButton")
+                }
+            }
+            .onAppear {
+                appState.refreshPeopleList()
+            }
+            .refreshable {
+                appState.refreshPeopleList()
+            }
         }
     }
 }

@@ -1,6 +1,13 @@
+pub mod crypto;
+pub mod db;
+pub mod extraction;
 pub mod ffi;
 pub mod form;
+pub mod inference;
 pub mod ingestion;
 pub mod memory;
+pub mod ocr;
 pub mod provenance;
+pub mod proximity;
+pub mod runtime;
 pub mod schema;

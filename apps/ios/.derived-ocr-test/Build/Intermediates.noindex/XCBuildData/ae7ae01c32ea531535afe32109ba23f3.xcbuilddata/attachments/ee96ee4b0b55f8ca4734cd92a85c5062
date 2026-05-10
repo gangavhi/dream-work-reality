@@ -1,0 +1,28 @@
+{
+  "" : {
+    "diagnostics" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests-master.dia",
+    "emit-module-dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests-master-emit-module.d",
+    "emit-module-diagnostics" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests-master-emit-module.dia",
+    "swift-dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests-master.swiftdeps"
+  },
+  "/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkAppTests/DreamWorkAppTests.swift" : {
+    "const-values" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.swiftconstvalues",
+    "dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.d",
+    "diagnostics" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.dia",
+    "index-unit-output-path" : "/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.o",
+    "llvm-bc" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.bc",
+    "object" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.o",
+    "swift-dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests.swiftdeps",
+    "swiftmodule" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/DreamWorkAppTests~partial.swiftmodule"
+  },
+  "/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkAppTests/OcrSQLiteIntegrationTests.swift" : {
+    "const-values" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.swiftconstvalues",
+    "dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.d",
+    "diagnostics" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.dia",
+    "index-unit-output-path" : "/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.o",
+    "llvm-bc" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.bc",
+    "object" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.o",
+    "swift-dependencies" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests.swiftdeps",
+    "swiftmodule" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-ocr-test/Build/Intermediates.noindex/DreamWorkApp.build/Debug-iphonesimulator/DreamWorkAppTests.build/Objects-normal/arm64/OcrSQLiteIntegrationTests~partial.swiftmodule"
+  }
+}

@@ -1,0 +1,6 @@
+Target dependency graph (3 targets)
+Target 'DreamWorkAppUITests' in project 'DreamWorkApp'
+➜ Explicit dependency on target 'DreamWorkApp' in project 'DreamWorkApp'
+Target 'DreamWorkAppTests' in project 'DreamWorkApp'
+➜ Explicit dependency on target 'DreamWorkApp' in project 'DreamWorkApp'
+Target 'DreamWorkApp' in project 'DreamWorkApp' (no dependencies)

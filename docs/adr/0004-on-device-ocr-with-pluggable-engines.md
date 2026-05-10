@@ -35,3 +35,4 @@ Define an internal **`OcrEngine` interface** and a normalized output model (`Doc
 **Follow-ups**
 
 - Golden-file regression suite per engine for representative document types.
+- **Language scope for v1:** English-only OCR and QA—see **ADR 0018**; multilingual expansion is explicit follow-on work.

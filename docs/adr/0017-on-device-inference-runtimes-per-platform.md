@@ -71,4 +71,4 @@ Model artifacts remain **versioned ONNX files** checked in or downloaded from a 
 **Follow-ups**
 
 - CI: **deterministic** CPU-only golden tests for ONNX graphs; **non-flaky** bounds for generative outputs where possible (grammar helps).
-- Document **minimum device** matrix once first models are frozen.
+- **`docs/device-matrix.md`** documents **minimum/recommended/QA** SKUs, **v1 model artifact IDs**, **pinned GGUF filenames** (Apache-2.0 Qwen2.5 Instruct stack), and **upgrade/switch process**; **primary mobile envelope** remains **ADR 0018** (latest flagship iPhone + Samsung).

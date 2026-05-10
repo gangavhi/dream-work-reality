@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MappingPlan {
     pub mappings: Vec<FieldMapping>,
@@ -41,9 +43,58 @@ impl MappingPlanValidator for DefaultMappingPlanValidator {
     }
 }
 
+/// Apply a validated mapping plan: read each `source_key` from `sources` and write `target_field`.
+///
+/// Missing sources become empty strings. Runs [`DefaultMappingPlanValidator::validate`] first.
+pub fn apply_mapping_plan(
+    plan: &MappingPlan,
+    sources: &HashMap<String, String>,
+) -> Result<HashMap<String, String>, ValidationError> {
+    DefaultMappingPlanValidator.validate(plan)?;
+    let mut out = HashMap::new();
+    for mapping in &plan.mappings {
+        let raw = sources
+            .get(&mapping.source_key)
+            .cloned()
+            .unwrap_or_default();
+        let value = match &mapping.op {
+            MappingOp::Copy => raw,
+            MappingOp::Trim => raw.trim().to_string(),
+            MappingOp::Unsupported(name) => {
+                return Err(ValidationError::UnsupportedOperation(name.clone()));
+            }
+        };
+        out.insert(mapping.target_field.clone(), value);
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn apply_mapping_plan_copy_and_trim() {
+        let mut src = HashMap::new();
+        src.insert("k1".into(), "  x  ".into());
+        let plan = MappingPlan {
+            mappings: vec![
+                FieldMapping {
+                    source_key: "k1".into(),
+                    target_field: "t1".into(),
+                    op: MappingOp::Copy,
+                },
+                FieldMapping {
+                    source_key: "k1".into(),
+                    target_field: "t2".into(),
+                    op: MappingOp::Trim,
+                },
+            ],
+        };
+        let out = apply_mapping_plan(&plan, &src).unwrap();
+        assert_eq!(out.get("t1").map(String::as_str), Some("  x  "));
+        assert_eq!(out.get("t2").map(String::as_str), Some("x"));
+    }
 
     #[test]
     fn mapping_plan_validator_rejects_unsupported_ops() {

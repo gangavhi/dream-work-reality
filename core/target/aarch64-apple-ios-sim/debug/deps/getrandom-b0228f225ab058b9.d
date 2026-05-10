@@ -1,0 +1,10 @@
+/Users/bigdreams/dream-work-reality/apps/ios/../../core/target/aarch64-apple-ios-sim/debug/deps/getrandom-b0228f225ab058b9.d: /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/lib.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/error.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/util.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/apple-other.rs
+
+/Users/bigdreams/dream-work-reality/apps/ios/../../core/target/aarch64-apple-ios-sim/debug/deps/libgetrandom-b0228f225ab058b9.rlib: /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/lib.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/error.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/util.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/apple-other.rs
+
+/Users/bigdreams/dream-work-reality/apps/ios/../../core/target/aarch64-apple-ios-sim/debug/deps/libgetrandom-b0228f225ab058b9.rmeta: /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/lib.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/error.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/util.rs /Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/apple-other.rs
+
+/Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/lib.rs:
+/Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/error.rs:
+/Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/util.rs:
+/Users/bigdreams/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/getrandom-0.2.17/src/apple-other.rs:

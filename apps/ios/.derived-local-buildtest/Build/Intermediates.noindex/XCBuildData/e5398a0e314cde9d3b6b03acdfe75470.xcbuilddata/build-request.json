@@ -1,0 +1,64 @@
+{
+  "buildCommand" : {
+    "command" : "build",
+    "skipDependencies" : false,
+    "style" : "buildOnly"
+  },
+  "configuredTargets" : [
+    {
+      "guid" : "d63cde17b3ae0df556d05c80fbe08621145a692b593f5649336c0655d02146b2"
+    }
+  ],
+  "containerPath" : "/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp.xcodeproj",
+  "continueBuildingAfterErrors" : false,
+  "dependencyScope" : "workspace",
+  "enableIndexBuildArena" : false,
+  "hideShellScriptEnvironment" : false,
+  "parameters" : {
+    "action" : "build",
+    "activeArchitecture" : "undefined_arch",
+    "activeRunDestination" : {
+      "disableOnlyActiveArch" : true,
+      "platform" : "iphonesimulator",
+      "sdk" : "iphonesimulator18.4",
+      "sdkVariant" : "iphonesimulator",
+      "supportedArchitectures" : [
+        "i386",
+        "x86_64"
+      ],
+      "targetArchitecture" : "undefined_arch"
+    },
+    "arenaInfo" : {
+      "buildIntermediatesPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest/Build/Intermediates.noindex",
+      "buildProductsPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest/Build/Products",
+      "derivedDataPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest",
+      "indexDataStoreFolderPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest/Index.noindex/DataStore",
+      "indexEnableDataStore" : true,
+      "indexPCHPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest/Index.noindex/PrecompiledHeaders",
+      "pchPath" : "/Users/bigdreams/dream-work-reality/apps/ios/.derived-local-buildtest/Build/Intermediates.noindex/PrecompiledHeaders"
+    },
+    "configurationName" : "Debug",
+    "overrides" : {
+      "commandLine" : {
+        "table" : {
+          "CODE_SIGN_IDENTITY" : "",
+          "CODE_SIGNING_ALLOWED" : "NO",
+          "CODE_SIGNING_REQUIRED" : "NO"
+        }
+      },
+      "synthesized" : {
+        "table" : {
+          "ACTION" : "build",
+          "ENABLE_PREVIEWS" : "NO",
+          "ENABLE_XOJIT_PREVIEWS" : "YES"
+        }
+      }
+    }
+  },
+  "schemeCommand" : "launch",
+  "showNonLoggedProgress" : true,
+  "useDryRun" : false,
+  "useImplicitDependencies" : true,
+  "useLegacyBuildLocations" : false,
+  "useParallelTargets" : true
+}

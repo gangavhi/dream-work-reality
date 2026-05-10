@@ -1,0 +1,41 @@
+# cargo-deny policy for the Rust workspace (see https://embarkstudios.github.io/cargo-deny/).
+# Run from `core/`: `cargo deny check --all-features`
+
+[graph]
+all-features = true
+
+[advisories]
+version = 2
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db.git"]
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "warn"
+
+[licenses]
+version = 2
+confidence-threshold = 0.85
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "CC0-1.0",
+    "Unicode-DFS-2016",
+    "Unicode-3.0",
+    "MPL-2.0",
+    "OpenSSL",
+    "BSL-1.0",
+    "0BSD",
+    "Unlicense",
+    "NCSA",
+    "CDLA-Permissive-2.0",
+]

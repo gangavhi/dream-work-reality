@@ -23,6 +23,9 @@ This folder records **significant, stable** architecture choices for the Dream W
 | [0015](0015-native-mobile-ui-with-shared-rust-core.md) | Native mobile UI (SwiftUI / Compose); Flutter deferred for v1 |
 | [0016](0016-extension-native-messaging-protocol-and-threat-model.md) | Extension ↔ host: framed JSON, session model, threat model |
 | [0017](0017-on-device-inference-runtimes-per-platform.md) | On-device inference: ONNX Runtime + llama.cpp-class LLM per platform |
+| [0018](0018-mobile-device-tier-and-english-only-ocr-v1.md) | Mobile tier: latest flagship iPhone & Samsung; OCR v1 English-only |
+
+Operational reference (non-ADR): **[device matrix & model IDs](../device-matrix.md)** · **[Rust core dev / CI](../core-development.md)** · **[Android ML Kit OCR adapter](../android/mlkit-ocr-adapter.md)**.
 
 **Status values:** `Proposed`, `Accepted`, `Superseded` (with pointer to replacement ADR).
 

@@ -8,14 +8,23 @@
 
 /* Begin PBXBuildFile section */
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
+		1A9F35A669F3F4847B1AC303 /* driver-license-first.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 506D2DD69B70720FF8E87591 /* driver-license-first.jpeg */; };
+		1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */; };
+		235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */; };
 		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
+		3CBAD7F628FA2BBE16FD1978 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = C94C37BB676E53C9F7F9F0C8 /* Assets.xcassets */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
 		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
+		807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B2D159967ED467A45E9D13 /* PersonDetailView.swift */; };
+		840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
 		8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD78F9BE0720055ACED01C93 /* FormsView.swift */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
+		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
+		B51A50CEA1644FA834EEC55A /* OcrSQLiteIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */; };
 		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
+		D97BAF47AF6317F79386191E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */; };
 		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
@@ -37,15 +46,25 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionOcrAdapter.swift; sourceTree = "<group>"; };
+		17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		30B2D159967ED467A45E9D13 /* PersonDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetailView.swift; sourceTree = "<group>"; };
+		43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrSQLiteIntegrationTests.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
+		4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
+		506D2DD69B70720FF8E87591 /* driver-license-first.jpeg */ = {isa = PBXFileReference; lastKnownFileType = image.jpeg; path = "driver-license-first.jpeg"; sourceTree = "<group>"; };
 		5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppTests.swift; sourceTree = "<group>"; };
+		5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RustCore.xcconfig; sourceTree = "<group>"; };
+		6310837B4F979A95D6F66923 /* PersonRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonRecord.swift; sourceTree = "<group>"; };
 		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
 		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
+		93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustRepositoryBootstrap.swift; sourceTree = "<group>"; };
+		C94C37BB676E53C9F7F9F0C8 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder; name = Assets.xcassets; path = DreamWorkApp/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT; };
 		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
@@ -57,6 +76,8 @@
 			isa = PBXGroup;
 			children = (
 				5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */,
+				43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */,
+				747291FACBD256FE7B825081 /* Fixtures */,
 			);
 			path = DreamWorkAppTests;
 			sourceTree = "<group>";
@@ -110,11 +131,22 @@
 		6DE7DDB4AA36B77ECAAE06DE = {
 			isa = PBXGroup;
 			children = (
+				C94C37BB676E53C9F7F9F0C8 /* Assets.xcassets */,
+				D17B909BF82DD520336C186A /* DreamWorkApp */,
 				1D384DDA370FF38C9A2B087B /* DreamWorkAppTests */,
 				764E50910C8672E17DB2C4D7 /* DreamWorkAppUITests */,
+				B19799A1D1F4DE7FB787BC56 /* Resources */,
 				7695540409861EF30EEB88B8 /* Sources */,
 				4E1640673B5559C27294F1E2 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		747291FACBD256FE7B825081 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				506D2DD69B70720FF8E87591 /* driver-license-first.jpeg */,
+			);
+			path = Fixtures;
 			sourceTree = "<group>";
 		};
 		764E50910C8672E17DB2C4D7 /* DreamWorkAppUITests */ = {
@@ -140,6 +172,7 @@
 			isa = PBXGroup;
 			children = (
 				67A881A247ED48F231120564 /* PeopleView.swift */,
+				30B2D159967ED467A45E9D13 /* PersonDetailView.swift */,
 			);
 			path = People;
 			sourceTree = "<group>";
@@ -149,8 +182,29 @@
 			children = (
 				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
 				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
+				4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */,
+				6310837B4F979A95D6F66923 /* PersonRecord.swift */,
+				93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */,
+				10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */,
 			);
 			path = Core;
+			sourceTree = "<group>";
+		};
+		B19799A1D1F4DE7FB787BC56 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */,
+			);
+			name = Resources;
+			path = DreamWorkApp/Resources;
+			sourceTree = "<group>";
+		};
+		D17B909BF82DD520336C186A /* DreamWorkApp */ = {
+			isa = PBXGroup;
+			children = (
+				5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */,
+			);
+			path = DreamWorkApp;
 			sourceTree = "<group>";
 		};
 		F6A63F3DAE826E55FCD15461 /* Home */ = {
@@ -169,6 +223,7 @@
 			buildConfigurationList = 46E1AC89ED0ADA9CF7AB2E60 /* Build configuration list for PBXNativeTarget "DreamWorkAppTests" */;
 			buildPhases = (
 				9A2547C7F13B1301238124A8 /* Sources */,
+				8C9FB5DE677AFD6AB498F382 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -186,8 +241,9 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = F6362B7E79206EA73E51FBF7 /* Build configuration list for PBXNativeTarget "DreamWorkApp" */;
 			buildPhases = (
-				6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */,
+				AF89445FFAE917E7348FD3B1 /* Build Rust Core (iOS) */,
 				46368A9D57F919165902FC25 /* Sources */,
+				F6AFC3C592607DFE05FA5657 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -227,6 +283,9 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					405FA494C2293CCC9779B065 = {
+						ProvisioningStyle = Automatic;
+					};
 					BB877019B9A5D1DC93CE573C = {
 						TestTargetID = 405FA494C2293CCC9779B065;
 					};
@@ -253,8 +312,28 @@
 		};
 /* End PBXProject section */
 
+/* Begin PBXResourcesBuildPhase section */
+		8C9FB5DE677AFD6AB498F382 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1A9F35A669F3F4847B1AC303 /* driver-license-first.jpeg in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F6AFC3C592607DFE05FA5657 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3CBAD7F628FA2BBE16FD1978 /* Assets.xcassets in Resources */,
+				D97BAF47AF6317F79386191E /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
 /* Begin PBXShellScriptBuildPhase section */
-		6A8ECCC912DE342803A1BBA5 /* Build Rust Core (Simulator) */ = {
+		AF89445FFAE917E7348FD3B1 /* Build Rust Core (iOS) */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -263,14 +342,14 @@
 			);
 			inputPaths = (
 			);
-			name = "Build Rust Core (Simulator)";
+			name = "Build Rust Core (iOS)";
 			outputFileListPaths = (
 			);
 			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nsource \"$HOME/.cargo/env\"\nrustup target add aarch64-apple-ios-sim >/dev/null 2>&1 || true\nexport CARGO_TARGET_DIR=\"$SRCROOT/../../core/target\"\ncargo build \\\n  --manifest-path \"$SRCROOT/../../core/dreamwork_core/Cargo.toml\" \\\n  --target aarch64-apple-ios-sim\n";
+			shellScript = "/bin/sh \"${SRCROOT}/DreamWorkApp/Scripts/build_rust_core.sh\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -289,12 +368,17 @@
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
+				235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
 				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
 				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
 				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
+				807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */,
+				A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */,
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
+				1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */,
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
+				840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -303,6 +387,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */,
+				B51A50CEA1644FA834EEC55A /* OcrSQLiteIntegrationTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +444,7 @@
 				DEBUG_INFORMATION_FORMAT = dwarf;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
@@ -381,7 +467,7 @@
 				SDKROOT = iphoneos;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.1;
+				SWIFT_VERSION = 5.10;
 			};
 			name = Debug;
 		};
@@ -440,6 +526,7 @@
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
@@ -455,16 +542,22 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.1;
+				SWIFT_VERSION = 5.10;
 			};
 			name = Release;
 		};
 		591A1B064461D4E78FFE90F8 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -473,11 +566,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
-					"-ldreamwork_core",
-				);
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app;
 				PRODUCT_NAME = DreamWorkApp;
 				SDKROOT = iphoneos;
@@ -487,10 +576,16 @@
 		};
 		81650927D7CB68787B427439 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -499,11 +594,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				OTHER_LDFLAGS = (
-					"$(inherited)",
-					"-L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/debug",
-					"-ldreamwork_core",
-				);
+				MARKETING_VERSION = 1.0.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.dreamwork.app;
 				PRODUCT_NAME = DreamWorkApp;
 				SDKROOT = iphoneos;

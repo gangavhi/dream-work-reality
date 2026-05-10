@@ -1,0 +1,128 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rust-core:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            core -> target
+
+      - name: cargo fmt
+        run: cargo fmt --all -- --check
+
+      - name: cargo clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: cargo test
+        run: cargo test --workspace --locked
+
+      - name: cargo test (dreamwork_core + ONNX Runtime)
+        run: cargo test -p dreamwork_core --features onnx --locked
+
+      - name: clippy (dreamwork_core + ONNX)
+        run: cargo clippy -p dreamwork_core --all-targets --features onnx -- -D warnings
+
+  rust-supply-chain:
+    name: Supply chain (cargo-deny + cargo-audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          manifest-path: core/Cargo.toml
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.21.2
+
+      - name: cargo audit
+        working-directory: core
+        run: cargo audit
+
+  ios-xcode:
+    name: iOS (XcodeGen + xcodebuild test)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios-sim,aarch64-apple-ios,x86_64-apple-ios
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            core -> target
+
+      - name: Cross-compile Rust core for iOS device (Release)
+        working-directory: core
+        run: cargo build -p dreamwork_core --target aarch64-apple-ios --locked --release
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project and run tests
+        working-directory: apps/ios
+        run: |
+          set -euo pipefail
+          xcodegen generate
+          UDID=$(python3 <<'PY'
+          import json
+          import subprocess
+          import sys
+
+          raw = subprocess.check_output(
+              ["xcrun", "simctl", "list", "devices", "available", "-j"]
+          )
+          data = json.loads(raw)
+          for runtime in sorted(data.get("devices", {})):
+              if "iOS" not in runtime:
+                  continue
+              for d in data["devices"][runtime]:
+                  if not d.get("isAvailable"):
+                      continue
+                  if "iPhone" in d.get("name", ""):
+                      print(d["udid"])
+                      sys.exit(0)
+          print("No available iPhone simulator", file=sys.stderr)
+          sys.exit(1)
+          PY
+          )
+          xcodebuild clean test \
+            -project DreamWorkApp.xcodeproj \
+            -scheme DreamWorkApp \
+            -destination "platform=iOS Simulator,id=${UDID}" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+  integration-protocol:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate extension protocol fixtures
+        run: python3 integration/validate_protocol.py
+
+      - name: Protocol unittest discovery
+        run: python3 -m unittest discover -s integration/tests -p "test_*.py"

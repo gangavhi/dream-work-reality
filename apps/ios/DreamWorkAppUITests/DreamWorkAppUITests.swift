@@ -13,11 +13,16 @@ final class DreamWorkAppUITests: XCTestCase {
         app.launch()
 
         app.tabBars.buttons["People"].tap()
-        let saveButton = app.buttons["peopleSaveLoadButton"]
-        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
-        saveButton.tap()
+        let addSamples = app.buttons["peopleAddSamplesButton"]
+        XCTAssertTrue(addSamples.waitForExistence(timeout: 5))
+        addSamples.tap()
 
-        XCTAssertTrue(app.staticTexts["peopleLoadedPersonName"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Loaded person: Alex Carter"].exists)
+        let list = app.tables["peopleList"]
+        XCTAssertTrue(list.waitForExistence(timeout: 5))
+        XCTAssertTrue(list.cells.staticTexts["Alex Carter"].waitForExistence(timeout: 5))
+        list.cells.staticTexts["Alex Carter"].firstMatch.tap()
+
+        XCTAssertTrue(app.staticTexts["personDetailDisplayName"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Alex Carter"].exists)
     }
 }

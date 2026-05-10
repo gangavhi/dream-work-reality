@@ -15,20 +15,29 @@ pub struct FormMatch {
 }
 
 pub trait FormMatcher {
-    fn match_field(&self, rules: &[Rule], extracted: &HashMap<String, String>) -> Option<FormMatch>;
+    fn match_field(&self, rules: &[Rule], extracted: &HashMap<String, String>)
+        -> Option<FormMatch>;
 }
 
 #[derive(Debug, Default)]
 pub struct RulesFirstMatcher;
 
 impl FormMatcher for RulesFirstMatcher {
-    fn match_field(&self, rules: &[Rule], extracted: &HashMap<String, String>) -> Option<FormMatch> {
+    fn match_field(
+        &self,
+        rules: &[Rule],
+        extracted: &HashMap<String, String>,
+    ) -> Option<FormMatch> {
         let mut candidates: Vec<&Rule> = rules
             .iter()
             .filter(|rule| extracted.contains_key(&rule.source_key))
             .collect();
 
-        candidates.sort_by(|a, b| a.tier.cmp(&b.tier).then_with(|| a.source_key.cmp(&b.source_key)));
+        candidates.sort_by(|a, b| {
+            a.tier
+                .cmp(&b.tier)
+                .then_with(|| a.source_key.cmp(&b.source_key))
+        });
 
         let selected = candidates.first()?;
         let value = extracted.get(&selected.source_key)?.clone();

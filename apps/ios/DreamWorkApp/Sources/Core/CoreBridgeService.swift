@@ -5,6 +5,10 @@ protocol CoreBridgeService {
     func saveManualEntry(id: String, displayName: String) -> Bool
     func readManualEntryName(id: String) -> String?
     func manualEntryCount() -> Int
+    func listPeople() -> [PersonRecord]
+    /// Persist normalized OCR JSON (`NormalizedDocument`) — appends `extraction_run` in SQLite.
+    func ingestNormalizedDocumentJSON(_ json: String) -> Bool
+    func extractionRunCount() -> Int
 }
 
 @_silgen_name("dreamwork_fetch_status")
@@ -25,7 +29,20 @@ private func dreamwork_read_manual_entry_name(_ id: UnsafePointer<CChar>?) -> Un
 @_silgen_name("dreamwork_manual_entry_count")
 private func dreamwork_manual_entry_count() -> UInt32
 
+@_silgen_name("dreamwork_manual_entries_json")
+private func dreamwork_manual_entries_json() -> UnsafeMutablePointer<CChar>?
+
+@_silgen_name("dreamwork_ocr_apply_normalized_json")
+private func dreamwork_ocr_apply_normalized_json(_ jsonUtf8: UnsafePointer<CChar>) -> Bool
+
+@_silgen_name("dreamwork_extraction_run_count")
+private func dreamwork_extraction_run_count() -> UInt32
+
 struct RustCoreBridgeService: CoreBridgeService {
+    init() {
+        RustRepositoryBootstrap.ensureConfiguredForRustCalls()
+    }
+
     func fetchStatus() -> String {
         guard let raw = dreamwork_fetch_status() else {
             return "Rust core unavailable"
@@ -55,6 +72,26 @@ struct RustCoreBridgeService: CoreBridgeService {
     func manualEntryCount() -> Int {
         Int(dreamwork_manual_entry_count())
     }
+
+    func listPeople() -> [PersonRecord] {
+        guard let raw = dreamwork_manual_entries_json() else {
+            return []
+        }
+        defer { dreamwork_string_free(raw) }
+        let string = String(cString: raw)
+        guard let data = string.data(using: .utf8) else {
+            return []
+        }
+        return (try? JSONDecoder().decode([PersonRecord].self, from: data)) ?? []
+    }
+
+    func ingestNormalizedDocumentJSON(_ json: String) -> Bool {
+        json.withCString { dreamwork_ocr_apply_normalized_json($0) }
+    }
+
+    func extractionRunCount() -> Int {
+        Int(dreamwork_extraction_run_count())
+    }
 }
 
 struct MockCoreBridgeService: CoreBridgeService {
@@ -72,5 +109,22 @@ struct MockCoreBridgeService: CoreBridgeService {
 
     func manualEntryCount() -> Int {
         1
+    }
+
+    func listPeople() -> [PersonRecord] {
+        [
+            PersonRecord(
+                id: "mock-person",
+                fields: [PersonRecord.Field(key: "display_name", value: "Mock Person")]
+            ),
+        ]
+    }
+
+    func ingestNormalizedDocumentJSON(_ json: String) -> Bool {
+        !json.isEmpty
+    }
+
+    func extractionRunCount() -> Int {
+        0
     }
 }

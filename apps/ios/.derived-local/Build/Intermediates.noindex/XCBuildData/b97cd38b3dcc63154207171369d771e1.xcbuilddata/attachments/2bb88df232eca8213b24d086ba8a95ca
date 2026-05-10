@@ -1,0 +1,12 @@
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Core/AppState.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Core/CoreBridgeService.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/App/DreamWorkAppApp.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Features/Forms/FormsView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Features/Home/HomeView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Features/People/PeopleView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Features/People/PersonDetailView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Core/PersonRecord.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/App/RootTabView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Core/RustRepositoryBootstrap.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Features/Settings/SettingsView.swift
+/Users/bigdreams/dream-work-reality/apps/ios/DreamWorkApp/Sources/Core/VisionOcrAdapter.swift

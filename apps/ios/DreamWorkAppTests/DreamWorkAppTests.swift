@@ -9,6 +9,8 @@ final class DreamWorkAppTests: XCTestCase {
         appState.refreshStatus()
 
         XCTAssertEqual(appState.statusText, "Mock core bridge connected")
+        XCTAssertEqual(appState.people.count, 1)
+        XCTAssertEqual(appState.people.first?.displayTitle, "Mock Person")
     }
 
     func testRustCoreBridgeReturnsStatus() {
@@ -24,5 +26,6 @@ final class DreamWorkAppTests: XCTestCase {
 
         XCTAssertEqual(appState.selectedPersonName, "Alex Carter")
         XCTAssertGreaterThanOrEqual(appState.manualEntryCount, 1)
+        XCTAssertTrue(appState.people.contains { $0.id == "person-1" && $0.displayTitle == "Alex Carter" })
     }
 }

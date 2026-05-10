@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>logFormatVersion</key>
+	<integer>11</integer>
+	<key>logs</key>
+	<dict>
+		<key>0F8CC2F7-AA9F-40F3-A7BA-86823E854BB1</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>0F8CC2F7-AA9F-40F3-A7BA-86823E854BB1.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>W</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>3</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>DreamWorkApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>DreamWorkApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project DreamWorkApp with scheme DreamWorkApp and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>800048324.77714801</real>
+			<key>timeStoppedRecording</key>
+			<real>800048343.11790705</real>
+			<key>title</key>
+			<string>Building project DreamWorkApp with scheme DreamWorkApp and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>0F8CC2F7-AA9F-40F3-A7BA-86823E854BB1</string>
+		</dict>
+		<key>8079A359-B533-45F6-B063-A534E7880BB6</key>
+		<dict>
+			<key>className</key>
+			<string>IDECommandLineBuildLog</string>
+			<key>documentTypeString</key>
+			<string>&lt;nil&gt;</string>
+			<key>domainType</key>
+			<string>Xcode.IDEActivityLogDomainType.BuildLog</string>
+			<key>fileName</key>
+			<string>8079A359-B533-45F6-B063-A534E7880BB6.xcactivitylog</string>
+			<key>hasPrimaryLog</key>
+			<true/>
+			<key>primaryObservable</key>
+			<dict>
+				<key>highLevelStatus</key>
+				<string>W</string>
+				<key>totalNumberOfAnalyzerIssues</key>
+				<integer>0</integer>
+				<key>totalNumberOfErrors</key>
+				<integer>0</integer>
+				<key>totalNumberOfTestFailures</key>
+				<integer>0</integer>
+				<key>totalNumberOfWarnings</key>
+				<integer>3</integer>
+			</dict>
+			<key>schemeIdentifier-containerName</key>
+			<string>DreamWorkApp project</string>
+			<key>schemeIdentifier-schemeName</key>
+			<string>DreamWorkApp</string>
+			<key>schemeIdentifier-sharedScheme</key>
+			<integer>1</integer>
+			<key>signature</key>
+			<string>Building project DreamWorkApp with scheme DreamWorkApp and configuration Debug</string>
+			<key>timeStartedRecording</key>
+			<real>800048640.75488102</real>
+			<key>timeStoppedRecording</key>
+			<real>800048643.76394904</real>
+			<key>title</key>
+			<string>Building project DreamWorkApp with scheme DreamWorkApp and configuration Debug</string>
+			<key>uniqueIdentifier</key>
+			<string>8079A359-B533-45F6-B063-A534E7880BB6</string>
+		</dict>
+	</dict>
+</dict>
+</plist>

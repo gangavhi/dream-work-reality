@@ -1,0 +1,17 @@
+Traceback (most recent call last):
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/runpy.py", line 197, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/::ffff:127.0.0.1 - - [24/Apr/2026 09:50:31] "GET /demo/form/demo-form.html HTTP/1.1" 304 -
+::ffff:127.0.0.1 - - [24/Apr/2026 09:54:58] "GET /demo/form/demo-form.html HTTP/1.1" 304 -
+::ffff:192.168.1.254 - - [09/May/2026 09:21:36] "GET / HTTP/1.1" 200 -
+::ffff:192.168.1.254 - - [09/May/2026 09:21:36] code 404, message File not found
+::ffff:192.168.1.254 - - [09/May/2026 09:21:36] "GET /%24%7Bjndi%24%7Blower%3A%3A%7Ddns%3A%2F%2F192.168.1.254%3A57592%2FnozKpqZnjivaZGmZkvsbSYnaYHrWrpSW%7D HTTP/1.1" 404 -
+::ffff:192.168.1.254 - - [09/May/2026 09:21:46] code 501, message Unsupported method ('POST')
+::ffff:192.168.1.254 - - [09/May/2026 09:21:46] "POST / HTTP/1.1" 501 -
+er/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/server.py", line 1295, in server_bind
+    return super().server_bind()
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/http/server.py", line 138, in server_bind
+    socketserver.TCPServer.server_bind(self)
+  File "/Applications/Xcode.app/Contents/Developer/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/socketserver.py", line 466, in server_bind
+    self.socket.bind(self.server_address)
+OSError: [Errno 48] Address already in use

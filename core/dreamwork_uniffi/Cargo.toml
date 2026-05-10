@@ -1,0 +1,15 @@
+[package]
+name = "dreamwork_uniffi"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.74"
+license = "Apache-2.0 OR MIT"
+
+[lib]
+crate-type = ["lib", "cdylib", "staticlib"]
+name = "dreamwork_uniffi"
+
+[dependencies]
+dreamwork_core = { path = "../dreamwork_core" }
+serde_json = "1"
+uniffi = "0.31"

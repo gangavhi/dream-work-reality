@@ -245,6 +245,9 @@ flowchart TB
 ## 6. Related documents
 
 - ADR index: [`docs/adr/README.md`](adr/README.md)
+- Rust core dev / CI: [`core-development.md`](core-development.md)
+- Android ML Kit OCR bridge notes: [`android/mlkit-ocr-adapter.md`](android/mlkit-ocr-adapter.md)
+- Device tiers + on-device model IDs: [`device-matrix.md`](device-matrix.md)
 - Product features: [`../features-list.md`](../features-list.md)
 - Brainstorm: [`../idea-brainstorming.md`](../idea-brainstorming.md)
 
