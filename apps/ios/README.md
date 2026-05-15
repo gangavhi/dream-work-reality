@@ -96,6 +96,34 @@ xcodebuild -project DreamWorkApp.xcodeproj \
 
 Then install/run via Xcode’s **Devices** window or stick to **⌘R** in Xcode for the simplest loop.
 
+## TestFlight (install on a real iPhone)
+
+TestFlight is how you distribute **beta builds** from App Store Connect to your device (including camera / document flows). It is **not** the public App Store listing until you submit a version for review.
+
+**Prerequisites**
+
+1. **Paid** [Apple Developer Program](https://developer.apple.com/programs/) membership.
+2. In [App Store Connect](https://appstoreconnect.apple.com/) → **My Apps**, an app whose **Bundle ID** matches `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` (see that file for the current value).
+3. On your Mac: Xcode signed in (**Xcode → Settings → Accounts**) with a user on that team.
+4. Rust device target: `rustup target add aarch64-apple-ios`.
+
+**Upload a build**
+
+- **Xcode (typical):** `xcodegen generate` → open `DreamWorkApp.xcodeproj` → **Signing & Capabilities** → select your **Team** → destination **Any iOS Device** → **Product → Archive** → **Organizer** → **Distribute App** → **App Store Connect** → **Upload**.
+- **CLI + Transporter:** from `apps/ios`, run `./scripts/archive-for-testflight.sh YOUR_TEAM_ID` (Team ID: [Membership](https://developer.apple.com/account) page). Then open **Transporter** (Mac App Store), sign in, and deliver `build/ipa-export/DreamWorkApp.ipa`.
+
+**Install on your iPhone**
+
+1. Wait for the build to finish **Processing** in App Store Connect → **TestFlight**.
+2. **TestFlight** tab → **Internal Testing** (up to 100 App Store Connect users) → create a group, add the build, add testers.
+3. On the iPhone: install **TestFlight** from the App Store → accept the email invite (or open the public link if you use external testing) → install your app.
+
+**If `exportArchive` fails with “No profiles for … were found”**
+
+The exported `.ipa` needs an **App Store** distribution profile. With **Automatically manage signing**, archive using **Release** and a **generic iOS device** destination (the script does this). Ensure an **Apple Distribution** certificate exists (**Xcode → Settings → Accounts →** your team → **Manage Certificates…**) and that your **App ID** is registered. If export still fails, use **Xcode → Product → Archive** then **Organizer → Distribute App** once so Xcode refreshes provisioning, then try the script again.
+
+For **internal** testers, each person must be invited in **Users and Access** in App Store Connect (or already be on the team). The first **external** TestFlight group may require a short **Beta App Review**.
+
 ## Publish to the App Store (step-by-step)
 
 This repo cannot log into your Apple ID or press “Submit” for you. Follow these steps on **your Mac** with **Xcode that matches your shipping OS** (same major generation as device/SDK you archive against).
@@ -104,7 +132,7 @@ This repo cannot log into your Apple ID or press “Submit” for you. Follow th
 
 1. Enroll in the **[Apple Developer Program](https://developer.apple.com/programs/)** (paid). Personal Team is **not** enough for App Store distribution.
 2. In **[Certificates, Identifiers & Profiles](https://developer.apple.com/account/resources/identifiers/list)**:
-   - Create an **App ID** whose **Bundle ID** matches `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` (default **`com.dreamwork.app`**).  
+   - Create an **App ID** whose **Bundle ID** matches `PRODUCT_BUNDLE_IDENTIFIER` in `project.yml` (check that file—e.g. **`com.dream.nestledger.dev`**).  
      If that ID is taken globally or by another team, change it in `project.yml`, run `xcodegen generate`, and register the **new** App ID.
    - Enable only capabilities you actually use (none required for current OCR + SQLite + document picker).
 
@@ -146,10 +174,10 @@ This repo cannot log into your Apple ID or press “Submit” for you. Follow th
 | Item | Status in repo |
 |------|----------------|
 | Privacy manifest | `DreamWorkApp/Resources/PrivacyInfo.xcprivacy` |
-| App Icon | Replace placeholder `AppIcon-1024.png` before final branding |
+| App Icon | `BundleAppIcons/` PNGs (incl. **120×120** `AppIcon60x60@2x.png`) in **Copy Bundle Resources** + **post-build `actool`** for `Assets.car`. Before upload: `./scripts/verify-ipa-icons.sh build/ipa-export/DreamWorkApp.ipa` |
 | Encryption | `ITSAppUsesNonExemptEncryption` = NO (adjust if you use non‑exempt crypto) |
 | Purpose strings | Add camera/photos strings **only** when you ship those flows |
-| CLI export (optional) | See `ExportOptions-app-store.plist.example` |
+| CLI export (optional) | `scripts/archive-for-testflight.sh`, `ExportOptions-ipa.plist`, `ExportOptions-app-store.plist.example` |
 
 ### Third-party / legal
 
