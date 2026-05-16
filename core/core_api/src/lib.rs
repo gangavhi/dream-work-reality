@@ -29,6 +29,11 @@ pub struct SaveManualEntryResponse {
     pub saved: bool,
 }
 
+#[derive(Serialize, Deserialize)]
+pub struct DeleteManualEntryResponse {
+    pub deleted: bool,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ManualEntryResponse {
     pub id: String,
@@ -50,7 +55,10 @@ pub fn build_router(repository: Arc<Mutex<RepositoryBackend>>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/manual-entry", post(save_manual_entry))
-        .route("/manual-entry/{id}", get(read_manual_entry))
+        .route(
+            "/manual-entry/{id}",
+            get(read_manual_entry).delete(delete_manual_entry),
+        )
         .route("/extraction-runs/count", get(extraction_run_count))
         .with_state(state)
 }
@@ -98,6 +106,18 @@ async fn read_manual_entry(
         });
 
     Json(ManualEntryResponse { id, display_name })
+}
+
+async fn delete_manual_entry(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Json<DeleteManualEntryResponse> {
+    let deleted = state
+        .repository
+        .lock()
+        .map(|mut repo| repo.delete_manual_entry(&id).is_ok())
+        .unwrap_or(false);
+    Json(DeleteManualEntryResponse { deleted })
 }
 
 async fn extraction_run_count(State(state): State<AppState>) -> Json<ExtractionRunCountResponse> {
@@ -170,6 +190,43 @@ mod tests {
         let parsed: ManualEntryResponse = serde_json::from_slice(&body).unwrap();
         assert_eq!(parsed.id, "api-1");
         assert_eq!(parsed.display_name.as_deref(), Some("River"));
+    }
+
+    #[tokio::test]
+    async fn manual_entry_delete_returns_deleted_true() {
+        let app = build_router(sample_repo());
+        let save = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/manual-entry")
+                    .header(axum::http::header::CONTENT_TYPE, "application/json")
+                    .body(Body::from(
+                        json!({"id":"api-del-1","display_name":"Temp"}).to_string(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(save.status(), axum::http::StatusCode::OK);
+
+        let del = app
+            .oneshot(
+                Request::builder()
+                    .method("DELETE")
+                    .uri("/manual-entry/api-del-1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(del.status(), axum::http::StatusCode::OK);
+        let body = axum::body::to_bytes(del.into_body(), usize::MAX)
+            .await
+            .unwrap();
+        let parsed: DeleteManualEntryResponse = serde_json::from_slice(&body).unwrap();
+        assert!(parsed.deleted);
     }
 
     #[tokio::test]

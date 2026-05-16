@@ -141,6 +141,21 @@ impl EntryRepository for SqliteEntryRepository {
         })
     }
 
+    fn delete_manual_entry(&mut self, id: &str) -> Result<(), RepositoryError> {
+        let tx = self.conn.transaction().map_err(map_sqlite)?;
+        tx.execute("DELETE FROM manual_field WHERE entry_id = ?", params![id])
+            .map_err(map_sqlite)?;
+        let deleted = tx
+            .execute("DELETE FROM manual_entry WHERE id = ?", params![id])
+            .map_err(map_sqlite)?;
+        tx.commit().map_err(map_sqlite)?;
+        if deleted == 0 {
+            Err(RepositoryError::NotFound)
+        } else {
+            Ok(())
+        }
+    }
+
     fn manual_entry_count(&self) -> usize {
         self.conn
             .query_row("SELECT COUNT(*) FROM manual_entry", [], |row| {

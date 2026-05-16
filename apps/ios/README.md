@@ -100,6 +100,12 @@ Then install/run via Xcode’s **Devices** window or stick to **⌘R** in Xcode 
 
 TestFlight is how you distribute **beta builds** from App Store Connect to your device (including camera / document flows). It is **not** the public App Store listing until you submit a version for review.
 
+**Where to run commands**
+
+- Repo layout: `…/dream-work-reality/apps/ios` (this folder contains `project.yml` and `DreamWorkApp.xcodeproj` after `xcodegen generate`).
+- If your shell is already in `dream-work-reality`, use `cd apps/ios` — **not** `cd dream-work-reality/apps/ios` (that path is only correct from the parent `Dream_Projects` folder).
+- `xcodegen` must be run from `apps/ios` (the directory that contains `project.yml`).
+
 **Prerequisites**
 
 1. **Paid** [Apple Developer Program](https://developer.apple.com/programs/) membership.
@@ -110,7 +116,7 @@ TestFlight is how you distribute **beta builds** from App Store Connect to your 
 **Upload a build**
 
 - **Xcode (typical):** `xcodegen generate` → open `DreamWorkApp.xcodeproj` → **Signing & Capabilities** → select your **Team** → destination **Any iOS Device** → **Product → Archive** → **Organizer** → **Distribute App** → **App Store Connect** → **Upload**.
-- **CLI + Transporter:** from `apps/ios`, run `./scripts/archive-for-testflight.sh YOUR_TEAM_ID` (Team ID: [Membership](https://developer.apple.com/account) page). Then open **Transporter** (Mac App Store), sign in, and deliver `build/ipa-export/DreamWorkApp.ipa`.
+- **CLI + Transporter:** from `apps/ios`, run `./scripts/archive-for-testflight.sh ABCDE12345` substituting your real **10-character Team ID** from [Membership](https://developer.apple.com/account) (not the literal text `YOUR_TEAM_ID`). Then open **Transporter** (Mac App Store), sign in, and deliver `build/ipa-export/DreamWorkApp.ipa`.
 
 **Install on your iPhone**
 
@@ -118,9 +124,14 @@ TestFlight is how you distribute **beta builds** from App Store Connect to your 
 2. **TestFlight** tab → **Internal Testing** (up to 100 App Store Connect users) → create a group, add the build, add testers.
 3. On the iPhone: install **TestFlight** from the App Store → accept the email invite (or open the public link if you use external testing) → install your app.
 
-**If `exportArchive` fails with “No profiles for … were found”**
+**If `exportArchive` fails with “No Account for Team …” or “No profiles for … were found”**
 
-The exported `.ipa` needs an **App Store** distribution profile. With **Automatically manage signing**, archive using **Release** and a **generic iOS device** destination (the script does this). Ensure an **Apple Distribution** certificate exists (**Xcode → Settings → Accounts →** your team → **Manage Certificates…**) and that your **App ID** is registered. If export still fails, use **Xcode → Product → Archive** then **Organizer → Distribute App** once so Xcode refreshes provisioning, then try the script again.
+- **Wrong Team ID:** `No Account for Team "YOUR_TEAM_ID"` means the script was given a placeholder, not your real Team ID. Use the 10-character ID from [Membership](https://developer.apple.com/account) (same value as **Signing & Capabilities → Team** in Xcode when the popup shows `Team Name (ABCDE12345)` — use the part in parentheses).
+- **Provisioning:** The exported `.ipa` needs an **App Store** distribution profile. With **Automatically manage signing**, archive using **Release** and a **generic iOS device** destination (the script does this). Ensure an **Apple Distribution** certificate exists (**Xcode → Settings → Accounts →** your team → **Manage Certificates…**) and that your **App ID** is registered. If export still fails, use **Xcode → Product → Archive** then **Organizer → Distribute App** once so Xcode refreshes provisioning, then try the script again.
+
+**If `verify-ipa-icons.sh` says the 120×120 icon is missing**
+
+That check only applies **after** a successful export. If export failed, there is no `.ipa` file yet—fix Team ID / signing first, then re-run the archive script, then `./scripts/verify-ipa-icons.sh build/ipa-export/DreamWorkApp.ipa` (use the real path from `ls build/ipa-export/*.ipa` if the name differs).
 
 For **internal** testers, each person must be invited in **Users and Access** in App Store Connect (or already be on the team). The first **external** TestFlight group may require a short **Beta App Review**.
 
@@ -174,7 +185,7 @@ This repo cannot log into your Apple ID or press “Submit” for you. Follow th
 | Item | Status in repo |
 |------|----------------|
 | Privacy manifest | `DreamWorkApp/Resources/PrivacyInfo.xcprivacy` |
-| App Icon | `BundleAppIcons/` PNGs (incl. **120×120** `AppIcon60x60@2x.png`) in **Copy Bundle Resources** + **post-build `actool`** for `Assets.car`. Before upload: `./scripts/verify-ipa-icons.sh build/ipa-export/DreamWorkApp.ipa` |
+| App Icon | `BundleAppIcons/` PNGs (incl. **120×120** `AppIcon60x60@2x.png`) in **Copy Bundle Resources** + **post-build `actool`** for `Assets.car`. **Info.plist** lists loose icons via `CFBundleIcons` (merged from `DreamWorkApp/Resources/CFBundleIcons-loose-pngs.plist` in the build script) for App Store validation. Before upload: `./scripts/verify-ipa-icons.sh build/ipa-export/DreamWorkApp.ipa` |
 | Encryption | `ITSAppUsesNonExemptEncryption` = NO (adjust if you use non‑exempt crypto) |
 | Purpose strings | Add camera/photos strings **only** when you ship those flows |
 | CLI export (optional) | `scripts/archive-for-testflight.sh`, `ExportOptions-ipa.plist`, `ExportOptions-app-store.plist.example` |

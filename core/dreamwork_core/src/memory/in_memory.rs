@@ -23,6 +23,15 @@ impl EntryRepository for InMemoryRepository {
             .ok_or(RepositoryError::NotFound)
     }
 
+    fn delete_manual_entry(&mut self, id: &str) -> Result<(), RepositoryError> {
+        let removed = self.manual_entries.remove(id);
+        if removed.is_some() {
+            Ok(())
+        } else {
+            Err(RepositoryError::NotFound)
+        }
+    }
+
     fn manual_entry_count(&self) -> usize {
         self.manual_entries.len()
     }

@@ -44,8 +44,11 @@ targets:
           ASSETCAT="${SRCROOT}/DreamWorkApp/Resources/Assets.xcassets"
           APP="${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}"
           PART="${DERIVED_FILE_DIR}/assetcatalog_generated_info.plist"
+          ICON_PLIST="${SRCROOT}/DreamWorkApp/Resources/CFBundleIcons-loose-pngs.plist"
           MIN_VER="${IPHONEOS_DEPLOYMENT_TARGET:-17.0}"
+          mkdir -p "${DERIVED_FILE_DIR}"
           rm -f "${PART}"
+          plutil -create xml1 "${PART}"
           if [[ "${PLATFORM_NAME}" != "iphoneos" && "${PLATFORM_NAME}" != "iphonesimulator" ]]; then
             echo "Skipping actool (unsupported PLATFORM_NAME=${PLATFORM_NAME})"
             exit 0
@@ -60,8 +63,32 @@ targets:
             --app-icon AppIcon \
             --enable-on-demand-resources NO \
             --output-partial-info-plist "${PART}"
+          # Xcode may pre-create empty CFBundleIcons / CFBundleIcons~ipad in generated Info.plist.
+          # PlistBuddy Merge skips duplicate keys, so our CFBundleIconFiles would never apply → App Store 409.
+          if [[ -f "${APP}/Info.plist" ]]; then
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons" "${APP}/Info.plist" 2>/dev/null || true
+            /usr/libexec/PlistBuddy -c "Delete :CFBundleIcons~ipad" "${APP}/Info.plist" 2>/dev/null || true
+          fi
+          # Merge actool partial plist only (includes CFBundleIconName + CFBundleIconFiles). Do not merge
+          # CFBundleIcons-loose-pngs.plist first — PlistBuddy skips duplicate CFBundleIcons and drops actool keys.
           if [[ -f "${PART}" && -f "${APP}/Info.plist" ]]; then
-            /usr/libexec/PlistBuddy -c "Merge ${PART}:" "${APP}/Info.plist" || true
+            /usr/libexec/PlistBuddy -c "Merge ${PART} :" "${APP}/Info.plist"
+          fi
+          if [[ -f "${APP}/Info.plist" ]]; then
+            if ! /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0" "${APP}/Info.plist" >/dev/null 2>&1; then
+              echo "error: Info.plist missing CFBundleIcons → CFBundlePrimaryIcon → CFBundleIconFiles (App Store 409)." >&2
+              exit 1
+            fi
+            if ! /usr/libexec/PlistBuddy -c "Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName" "${APP}/Info.plist" >/dev/null 2>&1; then
+              echo "error: Info.plist missing CFBundleIcons → CFBundlePrimaryIcon → CFBundleIconName (App Store 409)." >&2
+              exit 1
+            fi
+          fi
+          # App Store / Transporter 409: bundle must contain a literal 120×120 PNG (60pt @2x), not only Assets.car.
+          ICON_120="${APP}/AppIcon60x60@2x.png"
+          if [[ ! -f "${ICON_120}" ]]; then
+            echo "error: ${ICON_120} missing after actool — upload will fail with missing 120×120 icon. Ensure BundleAppIcons is in Copy Bundle Resources and the post-build actool phase runs." >&2
+            exit 1
           fi
     settings:
       base:
@@ -69,13 +96,23 @@ targets:
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
         MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "6"
+        CURRENT_PROJECT_VERSION: "9"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
+        INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.
+        # Required for App Store / Transporter when icons live in Assets.car (iOS 11+ SDK).
+        INFOPLIST_KEY_CFBundleIconName: AppIcon
+        # Universal app + iPad multitasking: Apple rejects empty/missing orientation keys (409).
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: UIInterfaceOrientationPortrait
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
         INFOPLIST_KEY_LSRequiresIPhoneOS: YES
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
         INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
         INFOPLIST_KEY_UILaunchScreen_Generation: YES
         INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        # Custom post-build actool compiles AppIcon; leaving this YES makes Xcode merge
+        # assetcatalog_generated_info.plist before our script runs → "Error Opening File" on archive.
+        INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"

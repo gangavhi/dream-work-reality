@@ -71,16 +71,44 @@ pub fn manual_entries_json() -> Option<String> {
 }
 
 pub fn save_manual_display_name(id: String, display_name: String) -> bool {
-    let entry = ManualEntry {
-        id,
-        fields: vec![ManualField {
+    let mut fields = repository()
+        .lock()
+        .ok()
+        .and_then(|r| r.get_manual_entry(&id).ok())
+        .map(|e| e.fields)
+        .unwrap_or_default();
+
+    if let Some(slot) = fields.iter_mut().find(|f| f.key == "display_name") {
+        slot.value = display_name;
+    } else {
+        fields.push(ManualField {
             key: "display_name".to_string(),
             value: display_name,
-        }],
-    };
+        });
+    }
+
+    save_manual_entry(ManualEntry { id, fields })
+}
+
+/// Replace or insert a full manual entry from JSON (`ManualEntry`).
+pub fn save_manual_entry(entry: ManualEntry) -> bool {
     repository()
         .lock()
         .map(|mut r| r.save_manual_entry(entry).is_ok())
+        .unwrap_or(false)
+}
+
+pub fn save_manual_entry_json(json: &str) -> bool {
+    match serde_json::from_str::<ManualEntry>(json) {
+        Ok(entry) if !entry.id.trim().is_empty() => save_manual_entry(entry),
+        _ => false,
+    }
+}
+
+pub fn delete_manual_entry(id: &str) -> bool {
+    repository()
+        .lock()
+        .map(|mut r| r.delete_manual_entry(id).is_ok())
         .unwrap_or(false)
 }
 

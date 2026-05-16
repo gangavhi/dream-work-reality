@@ -7,26 +7,36 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		0420903AB8966E5A5DBA2512 /* ScanReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689684727C021F217725E4CC /* ScanReviewView.swift */; };
+		07F7281AD4645586831A0692 /* PersonEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */; };
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
 		1A9F35A669F3F4847B1AC303 /* driver-license-first.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 506D2DD69B70720FF8E87591 /* driver-license-first.jpeg */; };
 		1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */; };
 		235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */; };
 		30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */; };
+		4856EE74E3A1AB75AD2FC534 /* DocumentCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
+		554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */; };
+		58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68738A430A8101DCF0386A0C /* FormTemplates.swift */; };
 		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
 		6A37A7537776442050A43C5C /* AppIcon60x60@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */; };
+		72A8D4EADB20327581B48291 /* OcrFieldSuggester.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D75491C4FB2239300C558 /* OcrFieldSuggester.swift */; };
 		807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B2D159967ED467A45E9D13 /* PersonDetailView.swift */; };
 		840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
 		8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD78F9BE0720055ACED01C93 /* FormsView.swift */; };
+		9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */; };
 		93564147F535BDDC6C0115E4 /* AppIcon76x76@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
 		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
 		B009912CFF0F9586A3D8A869 /* AppIcon60x60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */; };
 		B51A50CEA1644FA834EEC55A /* OcrSQLiteIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */; };
+		C5021D714806FCD15EB8467A /* FormSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DA705007AF92BA7E5401E9 /* FormSessionView.swift */; };
 		D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */; };
+		D86FA871CCB1FDB9E0574883 /* FormCategoryDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED2D1BDD1C05A4DB0A675E58 /* FormCategoryDetailView.swift */; };
 		D97BAF47AF6317F79386191E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */; };
+		E6A9B23C9C3FE87AAD81860E /* ProfileSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */; };
 		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
 /* End PBXBuildFile section */
 
@@ -55,6 +65,7 @@
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		30B2D159967ED467A45E9D13 /* PersonDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetailView.swift; sourceTree = "<group>"; };
 		43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrSQLiteIntegrationTests.swift; sourceTree = "<group>"; };
+		46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelper.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
 		4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
@@ -65,14 +76,23 @@
 		63A18E1C7BF57A01D3FFF82C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
+		68738A430A8101DCF0386A0C /* FormTemplates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormTemplates.swift; sourceTree = "<group>"; };
+		689684727C021F217725E4CC /* ScanReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewView.swift; sourceTree = "<group>"; };
+		704D75491C4FB2239300C558 /* OcrFieldSuggester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrFieldSuggester.swift; sourceTree = "<group>"; };
 		745E4C56058DAA99A6F82FC0 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentCameraView.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
 		852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@3x.png"; sourceTree = "<group>"; };
+		8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonEditorView.swift; sourceTree = "<group>"; };
 		93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustRepositoryBootstrap.swift; sourceTree = "<group>"; };
 		9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@2x.png"; sourceTree = "<group>"; };
+		D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSchema.swift; sourceTree = "<group>"; };
 		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		ED2D1BDD1C05A4DB0A675E58 /* FormCategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormCategoryDetailView.swift; sourceTree = "<group>"; };
+		ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewPayload.swift; sourceTree = "<group>"; };
+		F4DA705007AF92BA7E5401E9 /* FormSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSessionView.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,6 +118,8 @@
 		21C6ADEFFD32EB7ED236B9DE /* Forms */ = {
 			isa = PBXGroup;
 			children = (
+				ED2D1BDD1C05A4DB0A675E58 /* FormCategoryDetailView.swift */,
+				F4DA705007AF92BA7E5401E9 /* FormSessionView.swift */,
 				DD78F9BE0720055ACED01C93 /* FormsView.swift */,
 			);
 			path = Forms;
@@ -118,6 +140,7 @@
 				21C6ADEFFD32EB7ED236B9DE /* Forms */,
 				F6A63F3DAE826E55FCD15461 /* Home */,
 				9924A9F463E15B3405C1FD38 /* People */,
+				EFB473B49B1CEA57293ADA32 /* Scan */,
 				1DCB59DAA93A8BE819A8AB5E /* Settings */,
 			);
 			path = Features;
@@ -189,6 +212,7 @@
 			children = (
 				67A881A247ED48F231120564 /* PeopleView.swift */,
 				30B2D159967ED467A45E9D13 /* PersonDetailView.swift */,
+				8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */,
 			);
 			path = People;
 			sourceTree = "<group>";
@@ -198,9 +222,14 @@
 			children = (
 				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
 				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
+				46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */,
 				4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */,
+				68738A430A8101DCF0386A0C /* FormTemplates.swift */,
+				704D75491C4FB2239300C558 /* OcrFieldSuggester.swift */,
 				6310837B4F979A95D6F66923 /* PersonRecord.swift */,
+				D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */,
 				93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */,
+				ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */,
 				10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */,
 			);
 			path = Core;
@@ -222,6 +251,15 @@
 				5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */,
 			);
 			path = DreamWorkApp;
+			sourceTree = "<group>";
+		};
+		EFB473B49B1CEA57293ADA32 /* Scan */ = {
+			isa = PBXGroup;
+			children = (
+				7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */,
+				689684727C021F217725E4CC /* ScanReviewView.swift */,
+			);
+			path = Scan;
 			sourceTree = "<group>";
 		};
 		F6A63F3DAE826E55FCD15461 /* Home */ = {
@@ -370,7 +408,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nACTOOL=\"${DEVELOPER_DIR}/usr/bin/actool\"\nASSETCAT=\"${SRCROOT}/DreamWorkApp/Resources/Assets.xcassets\"\nAPP=\"${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}\"\nPART=\"${DERIVED_FILE_DIR}/assetcatalog_generated_info.plist\"\nMIN_VER=\"${IPHONEOS_DEPLOYMENT_TARGET:-17.0}\"\nrm -f \"${PART}\"\nif [[ \"${PLATFORM_NAME}\" != \"iphoneos\" && \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]]; then\n  echo \"Skipping actool (unsupported PLATFORM_NAME=${PLATFORM_NAME})\"\n  exit 0\nfi\nif [[ ! -d \"${APP}\" ]]; then\n  echo \"error: app bundle not found at ${APP}\" >&2\n  exit 1\nfi\n\"${ACTOOL}\" \"${ASSETCAT}\" --compile \"${APP}\" \\\n  --platform \"${PLATFORM_NAME}\" \\\n  --minimum-deployment-target \"${MIN_VER}\" \\\n  --app-icon AppIcon \\\n  --enable-on-demand-resources NO \\\n  --output-partial-info-plist \"${PART}\"\nif [[ -f \"${PART}\" && -f \"${APP}/Info.plist\" ]]; then\n  /usr/libexec/PlistBuddy -c \"Merge ${PART}:\" \"${APP}/Info.plist\" || true\nfi\n";
+			shellScript = "set -euo pipefail\nACTOOL=\"${DEVELOPER_DIR}/usr/bin/actool\"\nASSETCAT=\"${SRCROOT}/DreamWorkApp/Resources/Assets.xcassets\"\nAPP=\"${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}\"\nPART=\"${DERIVED_FILE_DIR}/assetcatalog_generated_info.plist\"\nICON_PLIST=\"${SRCROOT}/DreamWorkApp/Resources/CFBundleIcons-loose-pngs.plist\"\nMIN_VER=\"${IPHONEOS_DEPLOYMENT_TARGET:-17.0}\"\nmkdir -p \"${DERIVED_FILE_DIR}\"\nrm -f \"${PART}\"\nplutil -create xml1 \"${PART}\"\nif [[ \"${PLATFORM_NAME}\" != \"iphoneos\" && \"${PLATFORM_NAME}\" != \"iphonesimulator\" ]]; then\n  echo \"Skipping actool (unsupported PLATFORM_NAME=${PLATFORM_NAME})\"\n  exit 0\nfi\nif [[ ! -d \"${APP}\" ]]; then\n  echo \"error: app bundle not found at ${APP}\" >&2\n  exit 1\nfi\n\"${ACTOOL}\" \"${ASSETCAT}\" --compile \"${APP}\" \\\n  --platform \"${PLATFORM_NAME}\" \\\n  --minimum-deployment-target \"${MIN_VER}\" \\\n  --app-icon AppIcon \\\n  --enable-on-demand-resources NO \\\n  --output-partial-info-plist \"${PART}\"\n# Xcode may pre-create empty CFBundleIcons / CFBundleIcons~ipad in generated Info.plist.\n# PlistBuddy Merge skips duplicate keys, so our CFBundleIconFiles would never apply → App Store 409.\nif [[ -f \"${APP}/Info.plist\" ]]; then\n  /usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons\" \"${APP}/Info.plist\" 2>/dev/null || true\n  /usr/libexec/PlistBuddy -c \"Delete :CFBundleIcons~ipad\" \"${APP}/Info.plist\" 2>/dev/null || true\nfi\n# Merge actool partial plist only (includes CFBundleIconName + CFBundleIconFiles). Do not merge\n# CFBundleIcons-loose-pngs.plist first — PlistBuddy skips duplicate CFBundleIcons and drops actool keys.\nif [[ -f \"${PART}\" && -f \"${APP}/Info.plist\" ]]; then\n  /usr/libexec/PlistBuddy -c \"Merge ${PART} :\" \"${APP}/Info.plist\"\nfi\nif [[ -f \"${APP}/Info.plist\" ]]; then\n  if ! /usr/libexec/PlistBuddy -c \"Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconFiles:0\" \"${APP}/Info.plist\" >/dev/null 2>&1; then\n    echo \"error: Info.plist missing CFBundleIcons → CFBundlePrimaryIcon → CFBundleIconFiles (App Store 409).\" >&2\n    exit 1\n  fi\n  if ! /usr/libexec/PlistBuddy -c \"Print :CFBundleIcons:CFBundlePrimaryIcon:CFBundleIconName\" \"${APP}/Info.plist\" >/dev/null 2>&1; then\n    echo \"error: Info.plist missing CFBundleIcons → CFBundlePrimaryIcon → CFBundleIconName (App Store 409).\" >&2\n    exit 1\n  fi\nfi\n# App Store / Transporter 409: bundle must contain a literal 120×120 PNG (60pt @2x), not only Assets.car.\nICON_120=\"${APP}/AppIcon60x60@2x.png\"\nif [[ ! -f \"${ICON_120}\" ]]; then\n  echo \"error: ${ICON_120} missing after actool — upload will fail with missing 120×120 icon. Ensure BundleAppIcons is in Copy Bundle Resources and the post-build actool phase runs.\" >&2\n  exit 1\nfi\n";
 		};
 		AF89445FFAE917E7348FD3B1 /* Build Rust Core (iOS) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -407,15 +445,25 @@
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
+				4856EE74E3A1AB75AD2FC534 /* DocumentCameraView.swift in Sources */,
+				554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */,
 				235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
+				D86FA871CCB1FDB9E0574883 /* FormCategoryDetailView.swift in Sources */,
+				C5021D714806FCD15EB8467A /* FormSessionView.swift in Sources */,
+				58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */,
 				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
 				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
+				72A8D4EADB20327581B48291 /* OcrFieldSuggester.swift in Sources */,
 				939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */,
 				807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */,
+				07F7281AD4645586831A0692 /* PersonEditorView.swift in Sources */,
 				A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */,
+				E6A9B23C9C3FE87AAD81860E /* ProfileSchema.swift in Sources */,
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
 				1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */,
+				9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */,
+				0420903AB8966E5A5DBA2512 /* ScanReviewView.swift in Sources */,
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
 				840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */,
 			);
@@ -592,14 +640,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 9;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan driver's licenses, passports, and other documents to extract profile fields on your device.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Import document photos to extract profile fields on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -620,14 +674,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 6;
+				CURRENT_PROJECT_VERSION = 9;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSRequiresIPhoneOS = YES;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Scan driver's licenses, passports, and other documents to extract profile fields on your device.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Import document photos to extract profile fields on your device.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

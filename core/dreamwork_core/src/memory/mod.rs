@@ -33,6 +33,7 @@ impl std::error::Error for RepositoryError {}
 pub trait EntryRepository {
     fn save_manual_entry(&mut self, entry: ManualEntry) -> Result<(), RepositoryError>;
     fn get_manual_entry(&self, id: &str) -> Result<ManualEntry, RepositoryError>;
+    fn delete_manual_entry(&mut self, id: &str) -> Result<(), RepositoryError>;
     fn manual_entry_count(&self) -> usize;
     fn list_manual_entries(&self) -> Result<Vec<ManualEntry>, RepositoryError>;
 }
@@ -109,6 +110,13 @@ impl EntryRepository for RepositoryBackend {
         match self {
             RepositoryBackend::Memory(r) => r.get_manual_entry(id),
             RepositoryBackend::Sqlite(r) => r.get_manual_entry(id),
+        }
+    }
+
+    fn delete_manual_entry(&mut self, id: &str) -> Result<(), RepositoryError> {
+        match self {
+            RepositoryBackend::Memory(r) => r.delete_manual_entry(id),
+            RepositoryBackend::Sqlite(r) => r.delete_manual_entry(id),
         }
     }
 

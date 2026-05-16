@@ -2,16 +2,21 @@ import SwiftUI
 
 struct PeopleView: View {
     @EnvironmentObject private var appState: AppState
+    @State private var showAddPerson = false
 
     var body: some View {
         NavigationStack {
             Group {
                 if appState.people.isEmpty {
-                    ContentUnavailableView(
-                        "No people yet",
-                        systemImage: "person.3",
-                        description: Text("Add sample entries stored in the Rust core, or save people from Home.")
-                    )
+                    ContentUnavailableView {
+                        Label("No profiles yet", systemImage: "person.3")
+                    } description: {
+                        Text("Add household members manually or save fields from a document scan on Home.")
+                    } actions: {
+                        Button("Add person") { showAddPerson = true }
+                        Button("Load samples") { appState.seedSamplePeople() }
+                            .accessibilityIdentifier("peopleLoadSamplesButton")
+                    }
                     .accessibilityIdentifier("peopleEmptyState")
                 } else {
                     List {
@@ -22,14 +27,17 @@ struct PeopleView: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(person.displayTitle)
                                         .font(.headline)
-                                    Text(person.id)
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                                    let role = person.value(for: ProfileFieldKey.relationship)
+                                    if !role.isEmpty {
+                                        Text(role)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
                                 }
-                                .accessibilityElement(children: .combine)
                                 .accessibilityIdentifier("peopleRow_\(person.id)")
                             }
                         }
+                        .onDelete(perform: deletePeople)
                     }
                     .accessibilityIdentifier("peopleList")
                 }
@@ -37,16 +45,17 @@ struct PeopleView: View {
             .navigationTitle("People")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button("Add samples") {
-                        appState.seedSamplePeople()
+                    Button {
+                        showAddPerson = true
+                    } label: {
+                        Image(systemName: "plus")
                     }
-                    .accessibilityIdentifier("peopleAddSamplesButton")
+                    .accessibilityIdentifier("peopleAddButton")
                 }
                 ToolbarItem(placement: .automatic) {
                     Button("Refresh") {
                         appState.refreshPeopleList()
                     }
-                    .accessibilityIdentifier("peopleRefreshButton")
                 }
             }
             .onAppear {
@@ -55,6 +64,18 @@ struct PeopleView: View {
             .refreshable {
                 appState.refreshPeopleList()
             }
+            .sheet(isPresented: $showAddPerson) {
+                NavigationStack {
+                    PersonEditorView(person: .empty(), isNew: true)
+                }
+            }
+        }
+    }
+
+    private func deletePeople(at offsets: IndexSet) {
+        for index in offsets {
+            let id = appState.people[index].id
+            _ = appState.deletePerson(id: id)
         }
     }
 }

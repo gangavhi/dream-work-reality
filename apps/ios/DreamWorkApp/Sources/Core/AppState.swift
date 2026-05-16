@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 enum AppTab: Hashable {
     case home
@@ -17,6 +18,10 @@ final class AppState: ObservableObject {
     @Published private(set) var extractionRunCount: Int = 0
     @Published private(set) var isImportingDocument = false
     @Published var documentImportMessage: String?
+    @Published var scanReviewPayload: ScanReviewPayload?
+    @Published var showDocumentScanner = false
+    @Published var showFileImporter = false
+    @Published var pendingScanDocumentType: ScannedDocumentType = .driversLicense
 
     private let coreService: CoreBridgeService
 
@@ -35,29 +40,76 @@ final class AppState: ObservableObject {
         refreshPeopleList()
     }
 
-    func importDocument(from url: URL) async {
+    func savePerson(_ person: PersonRecord) -> Bool {
+        guard coreService.savePerson(person) else { return false }
+        refreshStatus()
+        return true
+    }
+
+    func deletePerson(id: String) -> Bool {
+        guard coreService.deletePerson(id: id) else { return false }
+        refreshStatus()
+        return true
+    }
+
+    func importDocument(from url: URL, documentType: ScannedDocumentType) async {
         documentImportMessage = nil
         isImportingDocument = true
-        defer { isImportingDocument = false }
 
-        let accessing = url.startAccessingSecurityScopedResource()
+        let localURL: URL
+        do {
+            // Picker URLs (especially from Mac → Simulator) must be copied while access is valid.
+            localURL = try DocumentImportHelper.makeLocalCopy(of: url)
+        } catch {
+            isImportingDocument = false
+            documentImportMessage = error.localizedDescription
+            return
+        }
+
         defer {
-            if accessing {
-                url.stopAccessingSecurityScopedResource()
-            }
+            isImportingDocument = false
+            try? FileManager.default.removeItem(at: localURL)
         }
 
         let bridge = coreService
         do {
-            let summary = try await DocumentTextExtractor.extractAndPersist(from: url) { json in
+            let result = try await DocumentTextExtractor.extractAndPersist(from: localURL) { json in
                 bridge.ingestNormalizedDocumentJSON(json)
             }
             refreshStatus()
-            documentImportMessage =
-                "Imported \(summary.pageCount) page(s), \(summary.blockCount) text region(s). SQLite extraction_run total: \(extractionRunCount)."
+            if result.blockCount == 0 {
+                documentImportMessage =
+                    "No text was detected in this file. Try a clearer photo or PDF, or enter details manually under People."
+                return
+            }
+            presentScanReview(
+                documentType: documentType,
+                pageCount: result.pageCount,
+                blockCount: result.blockCount
+            )
         } catch {
             documentImportMessage = error.localizedDescription
         }
+    }
+
+    func presentScanReview(documentType: ScannedDocumentType, pageCount: Int, blockCount: Int) {
+        guard let json = coreService.peekLastNormalizedDocumentJSON(),
+              let data = json.data(using: .utf8),
+              let document = try? JSONDecoder().decode(VisionOcrAdapter.NormalizedDocument.self, from: data)
+        else {
+            documentImportMessage = "OCR finished but review data was unavailable."
+            return
+        }
+
+        let fullText = OcrFieldSuggester.fullText(from: document)
+        let suggestions = OcrFieldSuggester.suggest(from: fullText, documentType: documentType)
+        scanReviewPayload = ScanReviewPayload(
+            documentType: documentType,
+            fullText: fullText,
+            ocrBlockCount: blockCount,
+            pageCount: pageCount,
+            suggestions: suggestions
+        )
     }
 
     func saveAndLoadDemoPerson() {
@@ -72,8 +124,16 @@ final class AppState: ObservableObject {
     }
 
     func seedSamplePeople() {
-        _ = coreService.saveManualEntry(id: "person-1", displayName: "Alex Carter")
-        _ = coreService.saveManualEntry(id: "person-2", displayName: "Sam Rivera")
+        _ = savePerson(
+            PersonRecord.empty(id: "person-1")
+                .withValue("Alex Carter", for: ProfileFieldKey.displayName)
+                .withValue(HouseholdRelationship.selfMember.rawValue, for: ProfileFieldKey.relationship)
+        )
+        _ = savePerson(
+            PersonRecord.empty(id: "person-2")
+                .withValue("Sam Rivera", for: ProfileFieldKey.displayName)
+                .withValue(HouseholdRelationship.child.rawValue, for: ProfileFieldKey.relationship)
+        )
         refreshStatus()
     }
 }

@@ -55,6 +55,26 @@ pub extern "C" fn dreamwork_save_manual_entry(
 }
 
 #[no_mangle]
+pub extern "C" fn dreamwork_save_manual_entry_json(ptr: *const c_char) -> bool {
+    if ptr.is_null() {
+        return false;
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    runtime::save_manual_entry_json(&s)
+}
+
+#[no_mangle]
+pub extern "C" fn dreamwork_delete_manual_entry(id_ptr: *const c_char) -> bool {
+    if id_ptr.is_null() {
+        return false;
+    }
+    let id = unsafe { CStr::from_ptr(id_ptr) }
+        .to_string_lossy()
+        .to_string();
+    runtime::delete_manual_entry(&id)
+}
+
+#[no_mangle]
 pub extern "C" fn dreamwork_read_manual_entry_name(id_ptr: *const c_char) -> *mut c_char {
     if id_ptr.is_null() {
         return std::ptr::null_mut();
@@ -143,10 +163,9 @@ mod tests {
 
     #[test]
     fn ffi_round_trip_manual_entry() {
-        let id = CString::new("ffi-person").unwrap();
+        let id = CString::new("ffi-person-round-trip").unwrap();
         let name = CString::new("Jordan").unwrap();
         assert!(dreamwork_save_manual_entry(id.as_ptr(), name.as_ptr()));
-        assert_eq!(dreamwork_manual_entry_count(), 1);
         let read = dreamwork_read_manual_entry_name(id.as_ptr());
         assert!(!read.is_null());
         let s = unsafe { CStr::from_ptr(read) }
@@ -154,6 +173,21 @@ mod tests {
             .into_owned();
         assert_eq!(s, "Jordan");
         dreamwork_string_free(read);
+    }
+
+    #[test]
+    fn ffi_manual_entry_json_round_trip() {
+        let json = CString::new(
+            r#"{"id":"json-person","fields":[{"key":"display_name","value":"Taylor"},{"key":"email","value":"t@example.com"}]}"#,
+        )
+        .unwrap();
+        assert!(dreamwork_save_manual_entry_json(json.as_ptr()));
+        let out = dreamwork_manual_entries_json();
+        assert!(!out.is_null());
+        let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
+        assert!(s.contains("json-person"));
+        assert!(s.contains("t@example.com"));
+        dreamwork_string_free(out);
     }
 
     #[test]

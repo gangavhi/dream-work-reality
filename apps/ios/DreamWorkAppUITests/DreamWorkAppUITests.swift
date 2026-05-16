@@ -5,7 +5,8 @@ final class DreamWorkAppUITests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        XCTAssertTrue(app.staticTexts["homeScreenTitle"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["homeUploadDocumentButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.navigationBars["Home"].waitForExistence(timeout: 5))
     }
 
     func testPeopleScreenShowsLiveRustDataAfterSave() {
@@ -13,16 +14,16 @@ final class DreamWorkAppUITests: XCTestCase {
         app.launch()
 
         app.tabBars.buttons["People"].tap()
-        let addSamples = app.buttons["peopleAddSamplesButton"]
-        XCTAssertTrue(addSamples.waitForExistence(timeout: 5))
-        addSamples.tap()
+        let loadSamples = app.buttons["peopleLoadSamplesButton"]
+        XCTAssertTrue(loadSamples.waitForExistence(timeout: 5))
+        loadSamples.tap()
 
         let list = app.tables["peopleList"]
         XCTAssertTrue(list.waitForExistence(timeout: 5))
         XCTAssertTrue(list.cells.staticTexts["Alex Carter"].waitForExistence(timeout: 5))
         list.cells.staticTexts["Alex Carter"].firstMatch.tap()
 
-        XCTAssertTrue(app.staticTexts["personDetailDisplayName"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Alex Carter"].exists)
+        XCTAssertTrue(app.navigationBars["Alex Carter"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5))
     }
 }

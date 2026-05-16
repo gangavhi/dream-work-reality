@@ -9,8 +9,8 @@
 #
 # Usage:
 #   cd apps/ios
-#   ./scripts/archive-for-testflight.sh YOUR_10_CHAR_TEAM_ID
-#   # or: DEVELOPMENT_TEAM=YOUR_10_CHAR_TEAM_ID ./scripts/archive-for-testflight.sh
+#   ./scripts/archive-for-testflight.sh ABCDE12345   # your real 10-char Team ID from developer.apple.com
+#   # or: DEVELOPMENT_TEAM=ABCDE12345 ./scripts/archive-for-testflight.sh
 #
 # Team ID: https://developer.apple.com/account → Membership details → Team ID
 #
@@ -31,6 +31,15 @@ if [[ -z "${TEAM}" ]]; then
   echo "Missing Development Team ID."
   echo "Usage: DEVELOPMENT_TEAM=XXXXXXXXXX ${0}   OR   ${0} XXXXXXXXXX"
   exit 1
+fi
+if [[ "${TEAM}" == "YOUR_TEAM_ID" || "${TEAM}" == "YOUR_10_CHAR_TEAM_ID" ]]; then
+  echo "error: Replace the placeholder with your real Apple Developer Team ID (10 characters)." >&2
+  echo "  Example: ${0} ABCDE12345" >&2
+  echo "  Find it: https://developer.apple.com/account → Membership details → Team ID" >&2
+  exit 1
+fi
+if [[ "${#TEAM}" -ne 10 ]]; then
+  echo "warning: Team ID is usually exactly 10 characters; got length ${#TEAM}: ${TEAM}" >&2
 fi
 
 if ! command -v xcodegen >/dev/null 2>&1; then
@@ -75,13 +84,22 @@ xcodebuild -exportArchive \
   -allowProvisioningUpdates
 
 IPA="$(ls "${EXPORT}"/*.ipa 2>/dev/null | head -1 || true)"
+if [[ -z "${IPA}" ]]; then
+  echo "error: export produced no .ipa in ${EXPORT}" >&2
+  exit 1
+fi
+
+# Single canonical artifact: remove xcarchive, export logs, and duplicate paths.
+FINAL_IPA="${IOS_DIR}/build/DreamWorkApp.ipa"
+mv -f "${IPA}" "${FINAL_IPA}"
+rm -rf "${ARCHIVE}" "${EXPORT}" "${EXPORT_PLIST}"
+
 echo ""
 echo "Done."
-if [[ -n "${IPA}" ]]; then
-  echo "  IPA: ${IPA}"
-else
-  echo "  Export folder: ${EXPORT}"
-fi
+echo "  IPA (upload this file only): ${FINAL_IPA}"
 echo ""
-echo "Next: Open Transporter (Mac), sign in, and deliver the .ipa."
+echo "Verify before upload:"
+echo "  ${SCRIPT_DIR}/verify-ipa-icons.sh ${FINAL_IPA}"
+echo ""
+echo "Next: Open Transporter (Mac), sign in, and deliver the .ipa above."
 echo "Then App Store Connect → TestFlight → Internal Testing → add testers."

@@ -3,69 +3,103 @@ import UniformTypeIdentifiers
 
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
-    @State private var showDocumentImporter = false
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 16) {
-                Text("Home Screen")
-                    .font(.title2)
-                    .accessibilityIdentifier("homeScreenTitle")
-
-                Text(appState.statusText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("homeStatusText")
-
-                Text("Manual entries: \(appState.manualEntryCount)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("homeManualEntryCount")
-
-                Text("OCR extraction runs (SQLite): \(appState.extractionRunCount)")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                    .accessibilityIdentifier("homeExtractionRunCount")
-
-                if appState.isImportingDocument {
-                    ProgressView("Extracting text…")
-                        .accessibilityIdentifier("homeImportProgress")
+            List {
+                Section {
+                    Text("TrustNest keeps household profiles on this device. Scan IDs, review extracted fields, then use Forms to copy values into medical, tax, school, or other paperwork.")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                 }
 
-                Button("Refresh Core Status") {
-                    appState.refreshStatus()
+                Section("Vault status") {
+                    LabeledContent("Core", value: appState.statusText)
+                    LabeledContent("Profiles", value: "\(appState.manualEntryCount)")
+                    LabeledContent("OCR runs", value: "\(appState.extractionRunCount)")
                 }
-                .buttonStyle(.borderedProminent)
 
-                Button("Upload document (PDF or image)") {
-                    showDocumentImporter = true
+                Section {
+                    Text("Simulator tip: drag a PDF or image from your Mac onto the Simulator window, then use Upload and pick it from Photos/Files. On a real iPhone, use Scan or Upload normally.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.borderedProminent)
-                .disabled(appState.isImportingDocument)
-                .accessibilityIdentifier("homeUploadDocumentButton")
 
-                Button("Save + Load Demo Person") {
-                    appState.saveAndLoadDemoPerson()
+                Section("Capture document") {
+                    Picker("Document type", selection: $appState.pendingScanDocumentType) {
+                        ForEach(ScannedDocumentType.allCases) { type in
+                            Label(type.rawValue, systemImage: type.iconName).tag(type)
+                        }
+                    }
+
+                    Button {
+                        appState.showDocumentScanner = true
+                    } label: {
+                        Label("Scan with camera", systemImage: "camera.viewfinder")
+                    }
+                    .disabled(appState.isImportingDocument)
+
+                    Button {
+                        appState.showFileImporter = true
+                    } label: {
+                        Label("Upload PDF or image", systemImage: "doc.badge.plus")
+                    }
+                    .disabled(appState.isImportingDocument)
+                    .accessibilityIdentifier("homeUploadDocumentButton")
+
+                    if appState.isImportingDocument {
+                        HStack {
+                            ProgressView()
+                            Text("Extracting text…")
+                        }
+                    }
                 }
-                .buttonStyle(.bordered)
-                .accessibilityIdentifier("saveLoadPersonButton")
+
+                Section("Quick actions") {
+                    Button("Refresh status") {
+                        appState.refreshStatus()
+                    }
+
+                    Button("Open People") {
+                        appState.selectedTab = .people
+                    }
+
+                    Button("Open Forms") {
+                        appState.selectedTab = .forms
+                    }
+                }
             }
-            .padding()
             .navigationTitle("Home")
+            .sheet(isPresented: $appState.showDocumentScanner) {
+                DocumentCameraView { url in
+                    Task {
+                        await appState.importDocument(
+                            from: url,
+                            documentType: appState.pendingScanDocumentType
+                        )
+                    }
+                }
+            }
             .fileImporter(
-                isPresented: $showDocumentImporter,
-                allowedContentTypes: [.pdf, .image],
+                isPresented: $appState.showFileImporter,
+                allowedContentTypes: DocumentImportHelper.allowedContentTypes,
                 allowsMultipleSelection: false
             ) { result in
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first else { return }
                     Task {
-                        await appState.importDocument(from: url)
+                        await appState.importDocument(
+                            from: url,
+                            documentType: appState.pendingScanDocumentType
+                        )
                     }
                 case .failure(let error):
                     appState.documentImportMessage = error.localizedDescription
                 }
+            }
+            .sheet(item: $appState.scanReviewPayload) { payload in
+                ScanReviewView(payload: payload)
             }
             .alert(
                 "Document import",
@@ -78,7 +112,9 @@ struct HomeView: View {
                     appState.documentImportMessage = nil
                 }
             } message: {
-                Text(appState.documentImportMessage ?? "")
+                if let message = appState.documentImportMessage {
+                    Text(message)
+                }
             }
             .onAppear {
                 appState.refreshStatus()
