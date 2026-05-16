@@ -1,5 +1,6 @@
 //! Axum HTTP surface for demos and extension bridging (ADR 0016 companion paths).
 
+use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
 use axum::{
@@ -12,6 +13,7 @@ use dreamwork_core::{
     memory::{EntryRepository, ExtractionRepository, RepositoryBackend},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -22,6 +24,8 @@ pub struct AppState {
 pub struct SaveManualEntryRequest {
     pub id: String,
     pub display_name: String,
+    #[serde(default)]
+    pub fields: BTreeMap<String, String>,
 }
 
 #[derive(Serialize)]
@@ -38,6 +42,26 @@ pub struct DeleteManualEntryResponse {
 pub struct ManualEntryResponse {
     pub id: String,
     pub display_name: Option<String>,
+    #[serde(default)]
+    pub fields: BTreeMap<String, String>,
+}
+
+#[derive(Serialize)]
+pub struct ProfileKeyRow {
+    pub entry_id: String,
+    pub profile_key: String,
+}
+
+#[derive(Deserialize)]
+pub struct MapFieldsRequest {
+    pub profile_name: String,
+    #[serde(default)]
+    pub fields: Vec<Value>,
+}
+
+#[derive(Serialize)]
+pub struct MapFieldsResponse {
+    pub values: serde_json::Map<String, Value>,
 }
 
 #[derive(Serialize)]
@@ -55,10 +79,12 @@ pub fn build_router(repository: Arc<Mutex<RepositoryBackend>>) -> Router {
     Router::new()
         .route("/healthz", get(healthz))
         .route("/manual-entry", post(save_manual_entry))
+        .route("/manual-entry/profile-keys", get(list_profile_keys))
         .route(
             "/manual-entry/{id}",
             get(read_manual_entry).delete(delete_manual_entry),
         )
+        .route("/genai/map-fields", post(map_fields))
         .route("/extraction-runs/count", get(extraction_run_count))
         .with_state(state)
 }
@@ -71,12 +97,20 @@ async fn save_manual_entry(
     State(state): State<AppState>,
     Json(payload): Json<SaveManualEntryRequest>,
 ) -> Json<SaveManualEntryResponse> {
+    let mut fields: Vec<ManualField> = vec![ManualField {
+        key: "display_name".to_string(),
+        value: payload.display_name,
+    }];
+    for (k, v) in payload.fields {
+        if k.trim().is_empty() || v.trim().is_empty() {
+            continue;
+        }
+        fields.push(ManualField { key: k, value: v });
+    }
+
     let entry = ManualEntry {
         id: payload.id,
-        fields: vec![ManualField {
-            key: "display_name".to_string(),
-            value: payload.display_name,
-        }],
+        fields,
     };
 
     let saved = state
@@ -92,20 +126,26 @@ async fn read_manual_entry(
     State(state): State<AppState>,
     Path(id): Path<String>,
 ) -> Json<ManualEntryResponse> {
-    let display_name = state
-        .repository
-        .lock()
-        .ok()
-        .and_then(|repo| repo.get_manual_entry(&id).ok())
-        .and_then(|entry| {
-            entry
-                .fields
-                .into_iter()
-                .find(|f| f.key == "display_name")
-                .map(|f| f.value)
-        });
+    let mut fields_map = BTreeMap::new();
+    let mut display_name = None;
 
-    Json(ManualEntryResponse { id, display_name })
+    if let Ok(guard) = state.repository.lock() {
+        if let Ok(entry) = guard.get_manual_entry(&id) {
+        for f in entry.fields {
+            if f.key == "display_name" && !f.value.trim().is_empty() {
+                display_name = Some(f.value.clone());
+            } else if !f.key.trim().is_empty() && !f.value.trim().is_empty() {
+                fields_map.insert(f.key, f.value);
+            }
+        }
+        }
+    }
+
+    Json(ManualEntryResponse {
+        id,
+        display_name,
+        fields: fields_map,
+    })
 }
 
 async fn delete_manual_entry(
@@ -120,6 +160,61 @@ async fn delete_manual_entry(
     Json(DeleteManualEntryResponse { deleted })
 }
 
+async fn list_profile_keys(State(state): State<AppState>) -> Json<Vec<ProfileKeyRow>> {
+    let rows = state
+        .repository
+        .lock()
+        .ok()
+        .and_then(|repo| repo.list_manual_entries().ok())
+        .map(|entries| {
+            entries
+                .into_iter()
+                .filter_map(|entry| {
+                    let profile_key = entry
+                        .fields
+                        .iter()
+                        .find(|f| f.key == "profile_key")
+                        .map(|f| f.value.clone())
+                        .or_else(|| {
+                            entry
+                                .fields
+                                .iter()
+                                .find(|f| f.key == "display_name")
+                                .map(|f| f.value.to_lowercase())
+                        })?;
+                    Some(ProfileKeyRow {
+                        entry_id: entry.id,
+                        profile_key,
+                    })
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+
+    Json(rows)
+}
+
+async fn map_fields(
+    State(state): State<AppState>,
+    Json(payload): Json<MapFieldsRequest>,
+) -> Json<MapFieldsResponse> {
+    let mut values = serde_json::Map::new();
+    let pid = profile_id_from_name(&payload.profile_name);
+
+    if let Ok(guard) = state.repository.lock() {
+        if let Ok(entry) = guard.get_manual_entry(&pid) {
+        for f in entry.fields {
+            if f.key.trim().is_empty() || f.value.trim().is_empty() {
+                continue;
+            }
+            values.insert(f.key, Value::String(f.value));
+        }
+        }
+    }
+
+    Json(MapFieldsResponse { values })
+}
+
 async fn extraction_run_count(State(state): State<AppState>) -> Json<ExtractionRunCountResponse> {
     let count = state
         .repository
@@ -127,6 +222,27 @@ async fn extraction_run_count(State(state): State<AppState>) -> Json<ExtractionR
         .map(|repo| repo.extraction_run_count() as u64)
         .unwrap_or(0);
     Json(ExtractionRunCountResponse { count })
+}
+
+fn profile_id_from_name(name: &str) -> String {
+    let n = name
+        .trim()
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ")
+        .to_lowercase();
+    if n.is_empty() {
+        return "profile-unknown".to_string();
+    }
+    let slug = n
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
+        .collect::<String>()
+        .split('-')
+        .filter(|p| !p.is_empty())
+        .collect::<Vec<_>>()
+        .join("-");
+    format!("profile-{slug}")
 }
 
 #[cfg(test)]
