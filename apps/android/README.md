@@ -37,7 +37,7 @@ Then boot an Android emulator and install the debug APK:
 ```bash
 cd apps/android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
-adb shell am start -n com.dreamwork.app/.MainActivity
+adb shell am start -n com.dream.nestledger.dev/com.dreamwork.app.MainActivity
 ```
 
 The app uses `http://10.0.2.2:8080` so an emulator can reach the host
