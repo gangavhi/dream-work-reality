@@ -1,4 +1,6 @@
 build/
+.derived*/
 *.ipa
 *.xcarchive
 export-run.log
+xcuserdata/

@@ -19,6 +19,19 @@ async function seedPerson() {
   }
 }
 
+async function deletePerson(id) {
+  const response = await fetch(`http://127.0.0.1:18081/manual-entry/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+  if (!response.ok) {
+    throw new Error(`Delete failed: HTTP ${response.status}`);
+  }
+  const body = await response.json().catch(() => ({}));
+  if (!body.deleted) {
+    throw new Error("Profile not deleted (not found?)");
+  }
+}
+
 async function loadPerson() {
   const response = await fetch("http://127.0.0.1:18081/manual-entry/person-42");
   if (!response.ok) {
@@ -70,6 +83,16 @@ document.getElementById("seed").addEventListener("click", async () => {
     setStatus("Seed complete.");
   } catch (error) {
     setStatus(`Seed error:\n${error.message}`);
+  }
+});
+
+document.getElementById("remove").addEventListener("click", async () => {
+  try {
+    setStatus("Removing profile from core-api...");
+    await deletePerson("person-42");
+    setStatus("Removed person-42.");
+  } catch (error) {
+    setStatus(`Remove error:\n${error.message}`);
   }
 });
 
