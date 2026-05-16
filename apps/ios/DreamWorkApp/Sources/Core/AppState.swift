@@ -52,14 +52,26 @@ final class AppState: ObservableObject {
         return true
     }
 
-    func importDocument(from url: URL, documentType: ScannedDocumentType) async {
+    /// Imports a document from a URL. When `urlIsTemporaryCopy` is true, the file is deleted after processing.
+    func importDocument(
+        from url: URL,
+        documentType: ScannedDocumentType,
+        urlIsTemporaryCopy: Bool = false
+    ) async {
         documentImportMessage = nil
         isImportingDocument = true
 
         let localURL: URL
+        let shouldDeleteLocalCopy: Bool
         do {
-            // Picker URLs (especially from Mac → Simulator) must be copied while access is valid.
-            localURL = try DocumentImportHelper.makeLocalCopy(of: url)
+            if urlIsTemporaryCopy {
+                localURL = url
+                shouldDeleteLocalCopy = true
+            } else {
+                // Picker URLs must be copied while security-scoped access is still valid.
+                localURL = try DocumentImportHelper.makeLocalCopy(of: url)
+                shouldDeleteLocalCopy = true
+            }
         } catch {
             isImportingDocument = false
             documentImportMessage = error.localizedDescription
@@ -68,7 +80,9 @@ final class AppState: ObservableObject {
 
         defer {
             isImportingDocument = false
-            try? FileManager.default.removeItem(at: localURL)
+            if shouldDeleteLocalCopy {
+                try? FileManager.default.removeItem(at: localURL)
+            }
         }
 
         let bridge = coreService
@@ -77,12 +91,17 @@ final class AppState: ObservableObject {
                 bridge.ingestNormalizedDocumentJSON(json)
             }
             refreshStatus()
-            if result.blockCount == 0 {
+
+            let fullText = OcrFieldSuggester.fullText(from: result.document)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if fullText.isEmpty {
                 documentImportMessage =
                     "No text was detected in this file. Try a clearer photo or PDF, or enter details manually under People."
                 return
             }
+
             presentScanReview(
+                document: result.document,
                 documentType: documentType,
                 pageCount: result.pageCount,
                 blockCount: result.blockCount
@@ -92,15 +111,12 @@ final class AppState: ObservableObject {
         }
     }
 
-    func presentScanReview(documentType: ScannedDocumentType, pageCount: Int, blockCount: Int) {
-        guard let json = coreService.peekLastNormalizedDocumentJSON(),
-              let data = json.data(using: .utf8),
-              let document = try? JSONDecoder().decode(VisionOcrAdapter.NormalizedDocument.self, from: data)
-        else {
-            documentImportMessage = "OCR finished but review data was unavailable."
-            return
-        }
-
+    func presentScanReview(
+        document: VisionOcrAdapter.NormalizedDocument,
+        documentType: ScannedDocumentType,
+        pageCount: Int,
+        blockCount: Int
+    ) {
         let fullText = OcrFieldSuggester.fullText(from: document)
         let suggestions = OcrFieldSuggester.suggest(from: fullText, documentType: documentType)
         scanReviewPayload = ScanReviewPayload(

@@ -1,7 +1,13 @@
 import Foundation
+import UIKit
 import UniformTypeIdentifiers
 
 enum DocumentImportHelper {
+    enum ContentKind {
+        case pdf
+        case raster
+    }
+
     enum ImportError: LocalizedError {
         case emptyFile
         case couldNotRead(String)
@@ -22,6 +28,37 @@ enum DocumentImportHelper {
             types.append(webp)
         }
         return types
+    }
+
+    /// Classifies a local file for the OCR pipeline (extension and/or magic bytes).
+    static func contentKind(for url: URL) -> ContentKind? {
+        if isPDF(url) { return .pdf }
+        if isRaster(url) { return .raster }
+        return nil
+    }
+
+    static func isPDF(_ url: URL) -> Bool {
+        if url.pathExtension.lowercased() == "pdf" { return true }
+        return filePrefix(url, matches: Data("%PDF-".utf8))
+    }
+
+    static func isRaster(_ url: URL) -> Bool {
+        let ext = url.pathExtension.lowercased()
+        let rasterExtensions: Set<String> = ["jpg", "jpeg", "png", "heic", "heif", "gif", "bmp", "tif", "tiff", "webp"]
+        if rasterExtensions.contains(ext) { return true }
+        if UIImage(contentsOfFile: url.path) != nil { return true }
+        return filePrefix(url, matches: Data([0xFF, 0xD8, 0xFF])) // JPEG
+            || filePrefix(url, matches: Data([0x89, 0x50, 0x4E, 0x47])) // PNG
+            || filePrefix(url, matches: Data("GIF8".utf8))
+    }
+
+    private static func filePrefix(_ url: URL, matches prefix: Data) -> Bool {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return false }
+        defer { try? handle.close() }
+        guard let head = try? handle.read(upToCount: prefix.count), head.count == prefix.count else {
+            return false
+        }
+        return head == prefix
     }
 
     /// Copies a security-scoped / iCloud picker URL into a temp file the app can read during async OCR.

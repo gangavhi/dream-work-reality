@@ -6,6 +6,7 @@ import Vision
 /// Runs on-device Vision OCR on PDF pages or raster images, then persists normalized JSON via the injected ingest closure (Rust → SQLite `extraction_run`).
 enum DocumentTextExtractor {
     struct Summary {
+        let document: VisionOcrAdapter.NormalizedDocument
         let pageCount: Int
         let blockCount: Int
     }
@@ -43,13 +44,16 @@ enum DocumentTextExtractor {
 
     /// - Parameter ingest: Returns whether SQLite ingest succeeded (`dreamwork_ocr_apply_normalized_json`).
     static func extractAndPersist(from url: URL, ingest: (String) -> Bool) async throws -> Summary {
-        let pages: [VisionOcrAdapter.Page]
-        if url.pathExtension.lowercased() == "pdf" {
-            pages = try await extractPdfPages(url: url)
-        } else if isLikelyRaster(url: url) {
-            pages = try await extractRasterPages(url: url)
-        } else {
+        guard let kind = DocumentImportHelper.contentKind(for: url) else {
             throw ExtractError.unsupportedFile
+        }
+
+        let pages: [VisionOcrAdapter.Page]
+        switch kind {
+        case .pdf:
+            pages = try await extractPdfPages(url: url)
+        case .raster:
+            pages = try await extractRasterPages(url: url)
         }
 
         guard !pages.isEmpty else {
@@ -62,13 +66,7 @@ enum DocumentTextExtractor {
         }
 
         let blocks = pages.reduce(0) { $0 + $1.blocks.count }
-        return Summary(pageCount: pages.count, blockCount: blocks)
-    }
-
-    private static func isLikelyRaster(url: URL) -> Bool {
-        let ext = url.pathExtension.lowercased()
-        let rasterExtensions: Set<String> = ["jpg", "jpeg", "png", "heic", "heif", "gif", "bmp", "tif", "tiff", "webp"]
-        return rasterExtensions.contains(ext) || ext.isEmpty
+        return Summary(document: doc, pageCount: pages.count, blockCount: blocks)
     }
 
     private static func extractRasterPages(url: URL) async throws -> [VisionOcrAdapter.Page] {
@@ -98,7 +96,12 @@ enum DocumentTextExtractor {
             let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
             let thumbnail = pdfPage.thumbnail(of: size, for: .mediaBox)
             guard let cgImage = thumbnail.cgImage else { continue }
-            let page = try await recognizePage(cgImage: cgImage)
+            var page = try await recognizePage(cgImage: cgImage)
+            if page.blocks.isEmpty, let embedded = pdfPage.string?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !embedded.isEmpty
+            {
+                page = textPage(from: embedded)
+            }
             pages.append(page)
         }
 
@@ -106,6 +109,16 @@ enum DocumentTextExtractor {
             throw ExtractError.noTextLayersFound
         }
         return pages
+    }
+
+    private static func textPage(from text: String) -> VisionOcrAdapter.Page {
+        VisionOcrAdapter.Page(blocks: [
+            VisionOcrAdapter.TextBlock(
+                text: text,
+                confidence: 1.0,
+                bounds: VisionOcrAdapter.NormRect(x: 0, y: 0, width: 1, height: 0.1)
+            ),
+        ])
     }
 
     private static func recognizePage(cgImage: CGImage) async throws -> VisionOcrAdapter.Page {

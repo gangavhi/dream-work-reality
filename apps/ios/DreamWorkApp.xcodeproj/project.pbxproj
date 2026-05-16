@@ -35,6 +35,7 @@
 		9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */; };
 		93564147F535BDDC6C0115E4 /* AppIcon76x76@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
+		A19D8B150783B727BC8BB25D /* DocumentImportHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */; };
 		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
 		B009912CFF0F9586A3D8A869 /* AppIcon60x60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */; };
 		B51A50CEA1644FA834EEC55A /* OcrSQLiteIntegrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */; };
@@ -93,6 +94,7 @@
 		78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleSQLiteStore.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
 		852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@3x.png"; sourceTree = "<group>"; };
+		8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelperTests.swift; sourceTree = "<group>"; };
 		8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonEditorView.swift; sourceTree = "<group>"; };
 		93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustRepositoryBootstrap.swift; sourceTree = "<group>"; };
 		9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@2x.png"; sourceTree = "<group>"; };
@@ -112,6 +114,7 @@
 		1D384DDA370FF38C9A2B087B /* DreamWorkAppTests */ = {
 			isa = PBXGroup;
 			children = (
+				8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */,
 				5D6C66FE9A027E25FEC4901C /* DreamWorkAppTests.swift */,
 				43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */,
 				747291FACBD256FE7B825081 /* Fixtures */,
@@ -497,6 +500,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A19D8B150783B727BC8BB25D /* DocumentImportHelperTests.swift in Sources */,
 				D737ACBD54B9116A174B30B8 /* DreamWorkAppTests.swift in Sources */,
 				B51A50CEA1644FA834EEC55A /* OcrSQLiteIntegrationTests.swift in Sources */,
 			);

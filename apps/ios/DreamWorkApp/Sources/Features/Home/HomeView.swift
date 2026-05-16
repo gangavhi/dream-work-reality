@@ -88,11 +88,18 @@ struct HomeView: View {
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first else { return }
-                    Task {
-                        await appState.importDocument(
-                            from: url,
-                            documentType: appState.pendingScanDocumentType
-                        )
+                    // Copy synchronously while the picker grant is active; OCR runs afterward on the temp file.
+                    do {
+                        let localURL = try DocumentImportHelper.makeLocalCopy(of: url)
+                        Task {
+                            await appState.importDocument(
+                                from: localURL,
+                                documentType: appState.pendingScanDocumentType,
+                                urlIsTemporaryCopy: true
+                            )
+                        }
+                    } catch {
+                        appState.documentImportMessage = error.localizedDescription
                     }
                 case .failure(let error):
                     appState.documentImportMessage = error.localizedDescription
