@@ -14,6 +14,85 @@ protocol CoreBridgeService {
     func peekLastNormalizedDocumentJSON() -> String?
 }
 
+extension CoreBridgeService {
+    /// Stage 1 (GenAI direct, then optional core-api HTTP) + Stage 2/3 (Rust FFI).
+    func enrichScanReview(
+        ocrText: String,
+        userDocumentType: ScannedDocumentType,
+        fallbackSuggestions: [OcrFieldSuggestion],
+        driverLicenseScan: DriverLicenseScanResult? = nil
+    ) async -> ScanReviewEnrichment {
+        let people = listPeople()
+        let schemaKeys = ProfileSchema.allFields.map(\.key)
+        var understanding: DocumentUnderstandingResult?
+        var trusted: [OcrFieldSuggestion] = []
+
+        if let dl = driverLicenseScan {
+            trusted = DriverLicenseFieldMapper.suggestions(from: dl)
+        } else if userDocumentType == .driversLicense {
+            trusted = OcrFieldSuggester.suggest(from: ocrText, documentType: .driversLicense)
+        }
+
+        if let apiKey = DevAPIKeyStore.openAIAPIKey {
+            if let genAI = await GenAIFieldMapper.mapFields(
+                ocrText: ocrText,
+                documentType: userDocumentType,
+                profileSchemaKeys: schemaKeys,
+                apiKey: apiKey
+            ) {
+                trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: genAI, supplemental: trusted)
+                understanding = DocumentUnderstandingResult(
+                    documentType: userDocumentType == .driversLicense ? "drivers_license" : "other",
+                    documentTypeConfidence: 0.9,
+                    issuerRegion: trusted.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
+                    displayNameHint: trusted.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
+                    usedAI: true
+                )
+            } else {
+                switch await CoreIngestHTTPClient.understandDocument(
+                    ocrText: ocrText,
+                    documentTypeHint: userDocumentType.rawValue,
+                    profileSchemaKeys: schemaKeys,
+                    apiKey: apiKey
+                ) {
+                case .success(let aiUnderstanding, let aiFields):
+                    understanding = aiUnderstanding
+                    trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: aiFields, supplemental: trusted)
+                case .failure:
+                    break
+                }
+            }
+        }
+
+        let supplemental = ScanFieldValidator.filter(fallbackSuggestions, documentType: userDocumentType)
+        var merged = CoreIngestHTTPClient.mergeSuggestions(trusted: trusted, supplemental: supplemental)
+        merged = GenAIFieldMapper.finalizeSuggestions(merged, documentType: userDocumentType)
+
+        let fieldMap = CoreIngestHTTPClient.fieldMap(from: merged)
+        let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
+
+        let planPersonID: String? = {
+            guard let resolution = personResolution,
+                  resolution.resolution == .matchExisting,
+                  let id = resolution.personID
+            else { return nil }
+            return id
+        }()
+        let storagePlan = CoreIngestFFI.planStorage(
+            fields: fieldMap,
+            personID: planPersonID,
+            profileSchemaKeys: schemaKeys
+        )
+
+        return ScanReviewEnrichment(
+            understanding: understanding,
+            personResolution: personResolution,
+            storagePlan: storagePlan,
+            suggestions: merged
+        )
+    }
+}
+
 @_silgen_name("dreamwork_fetch_status")
 private func dreamwork_fetch_status() -> UnsafeMutablePointer<CChar>?
 

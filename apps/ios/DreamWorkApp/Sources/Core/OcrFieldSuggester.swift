@@ -14,6 +14,23 @@ enum OcrFieldSuggester {
         let text = fullText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return [] }
 
+        let raw: [OcrFieldSuggestion]
+        switch documentType {
+        case .driversLicense:
+            raw = suggestDriversLicense(from: text)
+        default:
+            raw = suggestGeneric(from: text, documentType: documentType)
+        }
+        return ScanFieldValidator.filter(raw, documentType: documentType)
+    }
+
+    /// Uses the dedicated DL parser (labels, LAST/FIRST, address, dates) — not naive line guessing.
+    private static func suggestDriversLicense(from text: String) -> [OcrFieldSuggestion] {
+        let parsed = DriverLicenseParser.parse(text)
+        return DriverLicenseFieldMapper.suggestions(from: parsed)
+    }
+
+    private static func suggestGeneric(from text: String, documentType: ScannedDocumentType) -> [OcrFieldSuggestion] {
         var out: [OcrFieldSuggestion] = []
         func add(_ key: String, _ label: String, _ value: String, _ confidence: String) {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -25,7 +42,7 @@ enum OcrFieldSuggester {
             add(ProfileFieldKey.email, "Email", email, "High")
         }
 
-        if let phone = firstMatch(in: text, pattern: #"(?:\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}"#) {
+        if let phone = firstMatch(in: text, pattern: #"\(?\d{3}\)?[-.\s]\d{3}[-.\s]\d{4}"#) {
             add(ProfileFieldKey.phoneMobile, "Mobile phone", phone, "Medium")
         }
 
@@ -39,56 +56,25 @@ enum OcrFieldSuggester {
             }
         }
 
-        if let zip = firstMatch(in: text, pattern: #"\b\d{5}(?:-\d{4})?\b"#) {
+        if let zip = firstMatch(in: text, pattern: #"\b(\d{5}(?:-\d{4})?)\b"#) {
             add(ProfileFieldKey.postalCode, "ZIP / postal code", zip, "Medium")
         }
 
-        if let state = firstMatch(in: text, pattern: #"\b([A-Z]{2})\b"#) {
-            add(ProfileFieldKey.driversLicenseState, "State", state, "Low")
-        }
-
         switch documentType {
-        case .driversLicense:
-            if let dl = firstMatch(
-                in: text,
-                pattern: #"(?:DL|LIC|LICENSE)[#:\s]*([A-Z0-9]{5,15})"#,
-                options: [.caseInsensitive]
-            ) {
-                add(ProfileFieldKey.driversLicenseNumber, "Driver license number", dl, "Medium")
-            } else if let dl = firstMatch(in: text, pattern: #"\b[A-Z]\d{7,12}\b"#) {
-                add(ProfileFieldKey.driversLicenseNumber, "Driver license number", dl, "Low")
-            }
         case .passport:
-            if let passport = firstMatch(in: text, pattern: #"\b[A-Z]{1,2}\d{6,9}\b"#) {
+            if let passport = firstMatch(in: text, pattern: #"\b([A-Z]{1,2}\d{6,9})\b"#) {
                 add(ProfileFieldKey.passportNumber, "Passport number", passport, "Medium")
-            }
-            if let mrz = text.split(separator: "\n").first(where: { $0.contains("P<") || $0.count >= 40 }) {
-                add(ProfileFieldKey.passportNumber, "Passport MRZ line", String(mrz.prefix(44)), "Low")
             }
         case .insuranceCard:
             if let member = firstMatch(
                 in: text,
                 pattern: #"(?:MEMBER|ID|SUBSCRIBER)[#:\s]*([A-Z0-9]{6,20})"#,
                 options: [.caseInsensitive]
-            ) {
+            ), member.rangeOfCharacter(from: .decimalDigits) != nil {
                 add(ProfileFieldKey.insuranceMemberId, "Insurance member ID", member, "Medium")
             }
-        case .other:
+        default:
             break
-        }
-
-        let lines = text
-            .split(separator: "\n")
-            .map { $0.trimmingCharacters(in: .whitespaces) }
-            .filter { $0.count >= 3 && $0.count <= 48 }
-
-        if let nameLine = lines.first(where: { !$0.contains("@") && !$0.contains(where: \.isNumber) }) {
-            add(ProfileFieldKey.displayName, "Display name", nameLine, "Low")
-            let parts = nameLine.split(separator: " ").map(String.init)
-            if parts.count >= 2 {
-                add(ProfileFieldKey.legalFirstName, "Legal first name", parts[0], "Low")
-                add(ProfileFieldKey.legalLastName, "Legal last name", parts[parts.count - 1], "Low")
-            }
         }
 
         var seen = Set<String>()
