@@ -123,6 +123,10 @@ final class AppState: ObservableObject {
         refreshStatus()
     }
 
+    func openPeople() {
+        selectedTab = .people
+    }
+
     func seedSamplePeople() {
         _ = savePerson(
             PersonRecord.empty(id: "person-1")
