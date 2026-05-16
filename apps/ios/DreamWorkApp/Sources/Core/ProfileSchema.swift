@@ -21,6 +21,7 @@ enum ProfileFieldKey {
     static let filingStatus = "filing_status"
     static let driversLicenseNumber = "drivers_license_number"
     static let driversLicenseState = "drivers_license_state"
+    static let driversLicenseIssueDate = "drivers_license_issue_date"
     static let driversLicenseExpiry = "drivers_license_expiry"
     static let passportNumber = "passport_number"
     static let passportCountry = "passport_country"
@@ -100,6 +101,7 @@ enum ProfileSchema {
         ProfileFieldDefinition(key: ProfileFieldKey.filingStatus, label: "Filing status", section: .tax, isSensitive: false),
         ProfileFieldDefinition(key: ProfileFieldKey.driversLicenseNumber, label: "Driver license number", section: .governmentIds, isSensitive: true),
         ProfileFieldDefinition(key: ProfileFieldKey.driversLicenseState, label: "Driver license state", section: .governmentIds, isSensitive: false),
+        ProfileFieldDefinition(key: ProfileFieldKey.driversLicenseIssueDate, label: "Driver license issue date", section: .governmentIds, isSensitive: false),
         ProfileFieldDefinition(key: ProfileFieldKey.driversLicenseExpiry, label: "Driver license expiry", section: .governmentIds, isSensitive: false),
         ProfileFieldDefinition(key: ProfileFieldKey.passportNumber, label: "Passport number", section: .governmentIds, isSensitive: true),
         ProfileFieldDefinition(key: ProfileFieldKey.passportCountry, label: "Passport country", section: .governmentIds, isSensitive: false),

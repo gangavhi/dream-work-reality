@@ -1,13 +1,17 @@
 pub mod crypto;
 pub mod db;
+pub mod entity_resolution;
 pub mod extraction;
 pub mod ffi;
 pub mod form;
 pub mod inference;
+pub mod ingest;
 pub mod ingestion;
 pub mod memory;
 pub mod ocr;
+pub mod profile_keys;
 pub mod provenance;
 pub mod proximity;
 pub mod runtime;
 pub mod schema;
+pub mod storage_routing;

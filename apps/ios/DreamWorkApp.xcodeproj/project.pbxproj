@@ -7,10 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00761DC25539FB34D8B02003 /* ScanReviewEnrichment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3D07F077145419407CDFEEE8 /* ScanReviewEnrichment.swift */; };
 		0420903AB8966E5A5DBA2512 /* ScanReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 689684727C021F217725E4CC /* ScanReviewView.swift */; };
 		07F7281AD4645586831A0692 /* PersonEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */; };
 		0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */; };
 		1A9F35A669F3F4847B1AC303 /* driver-license-first.jpeg in Resources */ = {isa = PBXBuildFile; fileRef = 506D2DD69B70720FF8E87591 /* driver-license-first.jpeg */; };
+		1CB097BC0445DE50FD369ED2 /* GenAIFieldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 841B632897BA9C6CF6A4A0FD /* GenAIFieldMapper.swift */; };
 		1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */ = {isa = PBXBuildFile; fileRef = 93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */; };
 		231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2101157B480B4669EEDF2CB /* PersonProfile.swift */; };
 		235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */; };
@@ -18,14 +20,17 @@
 		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
 		4856EE74E3A1AB75AD2FC534 /* DocumentCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */; };
 		4EBFD01A53AA0D9AB6E54107 /* DreamWorkAppUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */; };
+		521877F9B450AF08D49D60B0 /* StoragePlanTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B01E01D238FC76E96A96D6 /* StoragePlanTypes.swift */; };
 		554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */; };
 		58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68738A430A8101DCF0386A0C /* FormTemplates.swift */; };
 		5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */; };
+		66B7B61FC78993DAFC54979D /* CoreIngestHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7452A73BBD7D7AE36CA270 /* CoreIngestHTTPClient.swift */; };
 		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
 		6A37A7537776442050A43C5C /* AppIcon60x60@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */; };
 		72A8D4EADB20327581B48291 /* OcrFieldSuggester.swift in Sources */ = {isa = PBXBuildFile; fileRef = 704D75491C4FB2239300C558 /* OcrFieldSuggester.swift */; };
 		7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D855109CD3830514DE12083 /* EditPersonProfileView.swift */; };
+		80420EDB7A4A4105CD6DC4DE /* CoreIngestFFI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B7FA325FEA96498AAC93E21 /* CoreIngestFFI.swift */; };
 		807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B2D159967ED467A45E9D13 /* PersonDetailView.swift */; };
 		840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */; };
 		84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */; };
@@ -35,6 +40,8 @@
 		9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */; };
 		93564147F535BDDC6C0115E4 /* AppIcon76x76@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
+		9B149836A05451275FB2A18F /* ScanFieldValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08FEF0ADC1FB4DFD38597DF5 /* ScanFieldValidator.swift */; };
+		9B6DC90C145CF471C4BE9962 /* DevAPIKeyStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF87A7AE9F661AC2D7EA2CC7 /* DevAPIKeyStore.swift */; };
 		A19D8B150783B727BC8BB25D /* DocumentImportHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */; };
 		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
 		B009912CFF0F9586A3D8A869 /* AppIcon60x60@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = 852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */; };
@@ -45,6 +52,7 @@
 		D97BAF47AF6317F79386191E /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */; };
 		E6A9B23C9C3FE87AAD81860E /* ProfileSchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */; };
 		E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ADD90D86BC1BDB410EB1E10 /* AppState.swift */; };
+		F0903E31F714F35A2F42741E /* DriverLicenseFieldMapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7DF95B3280ECA3992716879 /* DriverLicenseFieldMapper.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,12 +74,15 @@
 
 /* Begin PBXFileReference section */
 		0804738C377E55F4B4F30C4A /* SQLiteDB.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SQLiteDB.swift; sourceTree = "<group>"; };
+		08FEF0ADC1FB4DFD38597DF5 /* ScanFieldValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanFieldValidator.swift; sourceTree = "<group>"; };
 		10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionOcrAdapter.swift; sourceTree = "<group>"; };
-		17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon76x76@2x~ipad.png"; sourceTree = "<group>"; };
+		1B7FA325FEA96498AAC93E21 /* CoreIngestFFI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreIngestFFI.swift; sourceTree = "<group>"; };
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		30B2D159967ED467A45E9D13 /* PersonDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonDetailView.swift; sourceTree = "<group>"; };
+		3D07F077145419407CDFEEE8 /* ScanReviewEnrichment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewEnrichment.swift; sourceTree = "<group>"; };
 		3F76F816AF4532D86AF5CE27 /* DriverLicenseScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseScanner.swift; sourceTree = "<group>"; };
 		43FCA3466B51E9814324BDB1 /* OcrSQLiteIntegrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrSQLiteIntegrationTests.swift; sourceTree = "<group>"; };
 		46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelper.swift; sourceTree = "<group>"; };
@@ -84,6 +95,7 @@
 		5E3743B61313FFA54C5AE4A9 /* RustCore.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = RustCore.xcconfig; sourceTree = "<group>"; };
 		6310837B4F979A95D6F66923 /* PersonRecord.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonRecord.swift; sourceTree = "<group>"; };
 		63A18E1C7BF57A01D3FFF82C /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		66B01E01D238FC76E96A96D6 /* StoragePlanTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StoragePlanTypes.swift; sourceTree = "<group>"; };
 		66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		67A881A247ED48F231120564 /* PeopleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleView.swift; sourceTree = "<group>"; };
 		68738A430A8101DCF0386A0C /* FormTemplates.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormTemplates.swift; sourceTree = "<group>"; };
@@ -93,19 +105,23 @@
 		7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentCameraView.swift; sourceTree = "<group>"; };
 		78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleSQLiteStore.swift; sourceTree = "<group>"; };
 		7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreBridgeService.swift; sourceTree = "<group>"; };
+		841B632897BA9C6CF6A4A0FD /* GenAIFieldMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenAIFieldMapper.swift; sourceTree = "<group>"; };
 		852986316F18EF40E400EC59 /* AppIcon60x60@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@3x.png"; sourceTree = "<group>"; };
 		8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelperTests.swift; sourceTree = "<group>"; };
 		8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonEditorView.swift; sourceTree = "<group>"; };
 		93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RustRepositoryBootstrap.swift; sourceTree = "<group>"; };
 		9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@2x.png"; sourceTree = "<group>"; };
 		AA1517A683073C7D0CF48458 /* PeopleStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PeopleStore.swift; sourceTree = "<group>"; };
+		C7DF95B3280ECA3992716879 /* DriverLicenseFieldMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseFieldMapper.swift; sourceTree = "<group>"; };
 		D2101157B480B4669EEDF2CB /* PersonProfile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfile.swift; sourceTree = "<group>"; };
 		D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSchema.swift; sourceTree = "<group>"; };
-		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D9F306D3680BF484F3C9B151 /* DreamWorkApp.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = DreamWorkApp.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		DD78F9BE0720055ACED01C93 /* FormsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormsView.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		EB7452A73BBD7D7AE36CA270 /* CoreIngestHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreIngestHTTPClient.swift; sourceTree = "<group>"; };
 		ED2D1BDD1C05A4DB0A675E58 /* FormCategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormCategoryDetailView.swift; sourceTree = "<group>"; };
 		ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewPayload.swift; sourceTree = "<group>"; };
+		EF87A7AE9F661AC2D7EA2CC7 /* DevAPIKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevAPIKeyStore.swift; sourceTree = "<group>"; };
 		F4DA705007AF92BA7E5401E9 /* FormSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormSessionView.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -242,15 +258,23 @@
 			children = (
 				4ADD90D86BC1BDB410EB1E10 /* AppState.swift */,
 				7FC565358A9BEB36C431E78B /* CoreBridgeService.swift */,
+				1B7FA325FEA96498AAC93E21 /* CoreIngestFFI.swift */,
+				EB7452A73BBD7D7AE36CA270 /* CoreIngestHTTPClient.swift */,
+				EF87A7AE9F661AC2D7EA2CC7 /* DevAPIKeyStore.swift */,
 				46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */,
 				4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */,
+				C7DF95B3280ECA3992716879 /* DriverLicenseFieldMapper.swift */,
 				68738A430A8101DCF0386A0C /* FormTemplates.swift */,
+				841B632897BA9C6CF6A4A0FD /* GenAIFieldMapper.swift */,
 				704D75491C4FB2239300C558 /* OcrFieldSuggester.swift */,
 				6310837B4F979A95D6F66923 /* PersonRecord.swift */,
 				D9BCBD8206E1F81C11354BE8 /* ProfileSchema.swift */,
 				93CE8E1E050408614BDD2127 /* RustRepositoryBootstrap.swift */,
+				08FEF0ADC1FB4DFD38597DF5 /* ScanFieldValidator.swift */,
+				3D07F077145419407CDFEEE8 /* ScanReviewEnrichment.swift */,
 				ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */,
 				0804738C377E55F4B4F30C4A /* SQLiteDB.swift */,
+				66B01E01D238FC76E96A96D6 /* StoragePlanTypes.swift */,
 				10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */,
 			);
 			path = Core;
@@ -466,16 +490,21 @@
 			files = (
 				E9463BA93ADEE3B4C0A74116 /* AppState.swift in Sources */,
 				84A3C60FEEB25F0A51C940CB /* CoreBridgeService.swift in Sources */,
+				80420EDB7A4A4105CD6DC4DE /* CoreIngestFFI.swift in Sources */,
+				66B7B61FC78993DAFC54979D /* CoreIngestHTTPClient.swift in Sources */,
+				9B6DC90C145CF471C4BE9962 /* DevAPIKeyStore.swift in Sources */,
 				4856EE74E3A1AB75AD2FC534 /* DocumentCameraView.swift in Sources */,
 				554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */,
 				235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */,
 				0CB37E28B87146548917D250 /* DreamWorkAppApp.swift in Sources */,
+				F0903E31F714F35A2F42741E /* DriverLicenseFieldMapper.swift in Sources */,
 				8989F894C12AF5DCB3229CF4 /* DriverLicenseScanner.swift in Sources */,
 				7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */,
 				D86FA871CCB1FDB9E0574883 /* FormCategoryDetailView.swift in Sources */,
 				C5021D714806FCD15EB8467A /* FormSessionView.swift in Sources */,
 				58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */,
 				8BFEA4FFC51B052290F419E5 /* FormsView.swift in Sources */,
+				1CB097BC0445DE50FD369ED2 /* GenAIFieldMapper.swift in Sources */,
 				68842BBE8A6344D121C97418 /* HomeView.swift in Sources */,
 				72A8D4EADB20327581B48291 /* OcrFieldSuggester.swift in Sources */,
 				5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */,
@@ -489,9 +518,12 @@
 				30EBD673E82FD950D0F98F2E /* RootTabView.swift in Sources */,
 				1F794397958F04636112ECD8 /* RustRepositoryBootstrap.swift in Sources */,
 				90D48A78984AE4010E6EDDFF /* SQLiteDB.swift in Sources */,
+				9B149836A05451275FB2A18F /* ScanFieldValidator.swift in Sources */,
+				00761DC25539FB34D8B02003 /* ScanReviewEnrichment.swift in Sources */,
 				9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */,
 				0420903AB8966E5A5DBA2512 /* ScanReviewView.swift in Sources */,
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
+				521877F9B450AF08D49D60B0 /* StoragePlanTypes.swift in Sources */,
 				840DC86E773EF12259F0F61D /* VisionOcrAdapter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -668,7 +700,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;
@@ -702,7 +735,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 10;
+				CURRENT_PROJECT_VERSION = 14;
+				DEVELOPMENT_TEAM = RNBNZW828G;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_KEY_CFBundleDisplayName = DreamWork;

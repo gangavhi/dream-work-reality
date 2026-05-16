@@ -5,6 +5,7 @@
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
+use crate::entity_resolution::{ExistingPerson, manual_entry_to_fields};
 use crate::extraction::{default_import_meta, ExtractionRunRecord};
 use crate::ingestion::{ManualEntry, ManualField};
 use crate::memory::{EntryRepository, ExtractionRepository, RepositoryBackend};
@@ -68,6 +69,24 @@ pub fn manual_entries_json() -> Option<String> {
         .ok()
         .and_then(|r| r.list_manual_entries().ok())?;
     serde_json::to_string(&entries).ok()
+}
+
+/// Persons loaded from the active repository for Stage 3 resolution.
+pub fn list_existing_persons_for_resolution() -> Vec<ExistingPerson> {
+    repository()
+        .lock()
+        .ok()
+        .and_then(|r| r.list_manual_entries().ok())
+        .map(|entries| {
+            entries
+                .into_iter()
+                .map(|entry| ExistingPerson {
+                    person_id: entry.id.clone(),
+                    fields: manual_entry_to_fields(&entry),
+                })
+                .collect()
+        })
+        .unwrap_or_default()
 }
 
 pub fn save_manual_display_name(id: String, display_name: String) -> bool {

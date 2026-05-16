@@ -86,6 +86,11 @@ final class AppState: ObservableObject {
         }
 
         let bridge = coreService
+        var driverLicenseScan: DriverLicenseScanResult?
+        if documentType == .driversLicense {
+            driverLicenseScan = try? await DriverLicenseScannerPipeline.scan(fileURL: localURL)
+        }
+
         do {
             let result = try await DocumentTextExtractor.extractAndPersist(from: localURL) { json in
                 bridge.ingestNormalizedDocumentJSON(json)
@@ -94,17 +99,18 @@ final class AppState: ObservableObject {
 
             let fullText = OcrFieldSuggester.fullText(from: result.document)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if fullText.isEmpty {
+            if fullText.isEmpty, driverLicenseScan == nil {
                 documentImportMessage =
                     "No text was detected in this file. Try a clearer photo or PDF, or enter details manually under People."
                 return
             }
 
-            presentScanReview(
+            await presentScanReview(
                 document: result.document,
                 documentType: documentType,
                 pageCount: result.pageCount,
-                blockCount: result.blockCount
+                blockCount: result.blockCount,
+                driverLicenseScan: driverLicenseScan
             )
         } catch {
             documentImportMessage = error.localizedDescription
@@ -115,16 +121,33 @@ final class AppState: ObservableObject {
         document: VisionOcrAdapter.NormalizedDocument,
         documentType: ScannedDocumentType,
         pageCount: Int,
-        blockCount: Int
-    ) {
-        let fullText = OcrFieldSuggester.fullText(from: document)
-        let suggestions = OcrFieldSuggester.suggest(from: fullText, documentType: documentType)
+        blockCount: Int,
+        driverLicenseScan: DriverLicenseScanResult? = nil
+    ) async {
+        let fullText: String = {
+            let fromDoc = OcrFieldSuggester.fullText(from: document)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            if !fromDoc.isEmpty { return fromDoc }
+            return driverLicenseScan?.rawText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }()
+        let heuristic = OcrFieldSuggester.suggest(from: fullText, documentType: documentType)
+        let enrichment = await coreService.enrichScanReview(
+            ocrText: fullText,
+            userDocumentType: documentType,
+            fallbackSuggestions: heuristic,
+            driverLicenseScan: driverLicenseScan
+        )
+        let prefilled = driverLicenseScan.map { DriverLicenseFieldMapper.personRecord(from: $0) }
         scanReviewPayload = ScanReviewPayload(
-            documentType: documentType,
+            userDocumentType: documentType,
             fullText: fullText,
             ocrBlockCount: blockCount,
             pageCount: pageCount,
-            suggestions: suggestions
+            suggestions: enrichment.suggestions,
+            understanding: enrichment.understanding,
+            personResolution: enrichment.personResolution,
+            storagePlan: enrichment.storagePlan,
+            prefilledPerson: prefilled
         )
     }
 

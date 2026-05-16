@@ -10,6 +10,7 @@ import CoreImage.CIFilterBuiltins
 struct DriverLicenseScanResult: Sendable {
     var fullName: String?
     var firstName: String?
+    var middleName: String?
     var lastName: String?
     var dateOfBirth: Date?
     var documentNumber: String?
@@ -26,7 +27,7 @@ struct DriverLicenseScanResult: Sendable {
 }
 
 @MainActor
-private enum DriverLicenseScannerPipeline {
+enum DriverLicenseScannerPipeline {
     static func scan(images: [CGImage]) async throws -> DriverLicenseScanResult {
         // Prefer PDF417 (AAMVA) barcode payload when available; it is much more reliable than OCR.
         guard !images.isEmpty else {
@@ -50,12 +51,19 @@ private enum DriverLicenseScannerPipeline {
 
         // Build the profile primarily from GenAI-extracted fields when available.
         // This ensures profile creation uses the best/most-robust mapping.
-        let base = genAIParsed ?? barcodeParsed ?? ocrParsed
-        var merged = base
-        if let barcodeParsed {
-            merged = DriverLicenseParser.merge(primary: merged, fallback: barcodeParsed)
+        var merged = barcodeParsed ?? DriverLicenseScanResult(rawText: rawText)
+        if let genAIParsed {
+            merged = DriverLicenseParser.merge(primary: genAIParsed, fallback: merged)
         }
         merged = DriverLicenseParser.merge(primary: merged, fallback: ocrParsed)
+        if !ScanFieldValidator.isPlausiblePersonName(merged.fullName ?? "") {
+            merged.fullName = barcodeParsed?.fullName ?? (ScanFieldValidator.isPlausiblePersonName(ocrParsed.fullName ?? "") ? ocrParsed.fullName : nil)
+            if let full = merged.fullName {
+                let split = DriverLicenseParser.splitNameForMerge(full)
+                merged.firstName = split.first
+                merged.lastName = split.last
+            }
+        }
 
         if !barcodePayloads.isEmpty {
             merged.rawText = "BARCODE:\n\(barcodePayloads.joined(separator: "\n---\n"))\n\nOCR:\n\(rawText)"
@@ -222,6 +230,12 @@ private enum GenAI {
     }
 
     static func extractDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
+        if let apiKey = DevAPIKeyStore.openAIAPIKey,
+           let mapped = await GenAIFieldMapper.mapDriverLicense(from: rawText, apiKey: apiKey)
+        {
+            return mapped
+        }
+
         guard let url = URL(string: "http://127.0.0.1:18081/genai/extract-document") else { return nil }
         let body = ExtractRequest(document_type: "driver_license", raw_text: rawText)
         guard let payload = try? JSONEncoder().encode(body) else { return nil }
@@ -230,7 +244,7 @@ private enum GenAI {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "content-type")
         request.httpBody = payload
-        request.timeoutInterval = 1.5
+        request.timeoutInterval = 45
 
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
@@ -238,68 +252,10 @@ private enum GenAI {
             guard (200..<300).contains(status) else { return nil }
             let decoded = try JSONDecoder().decode(ExtractResponse.self, from: data)
             guard let v = decoded.values, !v.isEmpty else { return nil }
-
-            func pick(_ keys: [String]) -> String? {
-                for k in keys {
-                    if let val = v[k]?.trimmingCharacters(in: .whitespacesAndNewlines), !val.isEmpty {
-                        return val
-                    }
-                }
-                return nil
-            }
-
-            // Map canonical keys to DriverLicenseScanResult.
-            let r = DriverLicenseScanResult(
-                fullName: pick(["full_name", "display_name", "full"]),
-                firstName: pick(["first_name", "first"]),
-                lastName: pick(["last_name", "last"]),
-                dateOfBirth: parseDateMMDDYYYY(pick(["date_of_birth_mmddyyyy", "dob"])),
-                documentNumber: pick(["document_number", "dl"]),
-                issueDate: parseDateMMDDYYYY(pick(["issue_mmddyyyy", "issue"])),
-                expiryDate: parseDateMMDDYYYY(pick(["expiry_mmddyyyy", "expiry"])),
-                addressLine1: pick(["address_line_1", "addr"]),
-                city: pick(["city", "city_name"]),
-                state: pick(["state", "state_code"]),
-                postalCode: pick(["postal_code", "zip"]),
-                height: pick(["height", "hgt"]),
-                eyeColor: pick(["eye_color", "eyes"]),
-                genAIValues: v,
-                rawText: rawText
-            )
-            return r
+            return GenAIFieldMapper.driverLicenseResult(from: v, rawText: rawText)
         } catch {
             return nil
         }
-    }
-
-    private static func parseDateMMDDYYYY(_ s: String?) -> Date? {
-        guard let s else { return nil }
-        let trimmed = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-
-        // Accept MM/dd/yyyy and also yyyy-mm-dd.
-        let df1 = DateFormatter()
-        df1.locale = Locale(identifier: "en_US_POSIX")
-        df1.timeZone = TimeZone(secondsFromGMT: 0)
-        df1.dateFormat = "MM/dd/yyyy"
-        if let d = df1.date(from: trimmed) { return d }
-
-        let df2 = DateFormatter()
-        df2.locale = Locale(identifier: "en_US_POSIX")
-        df2.timeZone = TimeZone(secondsFromGMT: 0)
-        df2.dateFormat = "yyyy-MM-dd"
-        if let d = df2.date(from: trimmed) { return d }
-
-        // Accept yyyymmdd.
-        let digits = trimmed.filter(\.isNumber)
-        if digits.count == 8 {
-            let yyyy = String(digits.prefix(4))
-            let mm = String(digits.dropFirst(4).prefix(2))
-            let dd = String(digits.dropFirst(6).prefix(2))
-            return df1.date(from: "\(mm)/\(dd)/\(yyyy)")
-        }
-
-        return nil
     }
 }
 
@@ -866,24 +822,38 @@ enum DriverLicenseParser {
             result.dateOfBirth = firstDate(in: joined)
         }
 
-        // Name heuristics:
-        // - Prefer explicit "Name:" lines, but avoid "Driver License" / "License" header lines.
-        if let nameLine = normalized.first(where: {
-            let l = $0.lowercased()
-            return l.hasPrefix("name") && !l.contains("license")
-        }) {
+        // Name heuristics: LAST, FIRST (common on US licenses).
+        for line in normalized {
+            if let match = line.range(
+                of: #"^([A-Za-z][A-Za-z\-']+)\s*,\s*([A-Za-z][A-Za-z\-'\s]+)$"#,
+                options: .regularExpression
+            ) {
+                let candidate = String(line[match]).trimmingCharacters(in: .whitespacesAndNewlines)
+                if ScanFieldValidator.isPlausiblePersonName(candidate) {
+                    result.fullName = candidate
+                    break
+                }
+            }
+        }
+
+        // Explicit "Name:" lines.
+        if result.fullName == nil,
+           let nameLine = normalized.first(where: {
+               let l = $0.lowercased()
+               return (l.hasPrefix("name") || l.hasPrefix("1 ")) && !l.contains("license")
+           })
+        {
             let cleaned = nameLine
+                .replacingOccurrences(of: #"^\d+\s*"#, with: "", options: .regularExpression)
                 .replacingOccurrences(of: "Name", with: "", options: [.caseInsensitive])
                 .replacingOccurrences(of: ":", with: "")
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !cleaned.isEmpty {
+            if ScanFieldValidator.isPlausiblePersonName(cleaned) {
                 result.fullName = cleaned
             }
         }
 
         if result.fullName == nil {
-            // Fallback: pick the first line that looks like a person name (letters/spaces, 2+ words)
-            // but exclude common non-name headers.
             result.fullName = normalized.first(where: looksLikeName)
         }
 
@@ -891,6 +861,14 @@ enum DriverLicenseParser {
             let split = splitName(full)
             result.firstName = split.first
             result.lastName = split.last
+        }
+
+        if result.documentNumber == nil {
+            result.documentNumber = extractDocumentNumber(from: normalized)
+        }
+
+        if result.state == nil {
+            result.state = extractStateCode(from: normalized)
         }
 
         // Address heuristics: find a line containing a street number.
@@ -979,12 +957,14 @@ enum DriverLicenseParser {
 
         var out = DriverLicenseScanResult(rawText: payload)
         out.firstName = first
+        out.middleName = middle
         out.lastName = last
         out.documentNumber = docNumber
         if let first, let last {
-            out.fullName = [first, middle, last].compactMap { $0?.isEmpty == false ? $0 : nil }.joined(separator: " ")
-        } else if let last, let first {
-            out.fullName = "\(first) \(last)"
+            out.fullName = [first, middle, last]
+                .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: " ")
         }
 
         if let dobRaw {
@@ -1016,6 +996,10 @@ enum DriverLicenseParser {
         return df.date(from: digits)
     }
 
+    static func splitNameForMerge(_ fullName: String) -> (first: String?, last: String?) {
+        splitName(fullName)
+    }
+
     private static func splitName(_ fullName: String) -> (first: String?, last: String?) {
         let cleaned = fullName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return (nil, nil) }
@@ -1037,17 +1021,52 @@ enum DriverLicenseParser {
     }
 
     private static func looksLikeName(_ line: String) -> Bool {
-        let l = line.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if l.contains("driver license") || l == "driver license" || l.contains("license") {
-            return false
+        ScanFieldValidator.isPlausiblePersonName(line)
+    }
+
+    private static func extractDocumentNumber(from lines: [String]) -> String? {
+        let patterns = [
+            #"(?i)(?:DL|LIC|ID|LICENSE|DOC)\s*#?\s*:?\s*([A-Z0-9\-]{4,20})"#,
+            #"(?i)(?:NO|NUM|NUMBER)\.?\s*#?\s*([A-Z0-9\-]{4,20})"#,
+            #"(?i)^4d\.?\s*([A-Z0-9\-]{4,20})"#,
+        ]
+        for line in lines {
+            for pattern in patterns {
+                if let regex = try? NSRegularExpression(pattern: pattern),
+                   let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+                   match.numberOfRanges > 1,
+                   let range = Range(match.range(at: 1), in: line)
+                {
+                    let candidate = String(line[range]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    if ScanFieldValidator.isPlausibleDriversLicenseNumber(candidate) {
+                        return candidate
+                    }
+                }
+            }
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.range(of: #"^[A-Z0-9\-]{5,15}$"#, options: .regularExpression) != nil,
+               trimmed.rangeOfCharacter(from: .decimalDigits) != nil,
+               ScanFieldValidator.isPlausibleDriversLicenseNumber(trimmed)
+            {
+                return trimmed
+            }
         }
-        if l.contains("identification") || l.contains("id card") {
-            return false
+        return nil
+    }
+
+    private static func extractStateCode(from lines: [String]) -> String? {
+        for line in lines {
+            if let csz = parseCityStateZip(line), ScanFieldValidator.isPlausibleUSState(csz.state) {
+                return csz.state
+            }
         }
-        let words = line.split(separator: " ")
-        guard words.count >= 2 else { return false }
-        guard line.range(of: #"^[A-Za-z][A-Za-z\-\.\s]+$"#, options: .regularExpression) != nil else { return false }
-        return true
+        for line in lines {
+            let upper = line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            if upper.count == 2, ScanFieldValidator.isPlausibleUSState(upper) {
+                return upper
+            }
+        }
+        return nil
     }
 
     private static func looksLikeStreetAddress(_ line: String) -> Bool {
@@ -1253,6 +1272,9 @@ struct ScanView: View {
         }
         if let value = profile.driverLicenseState?.nilIfEmpty {
             record = record.withValue(value, for: ProfileFieldKey.driversLicenseState)
+        }
+        if let value = profile.driverLicenseIssueMMDDYYYY?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.driversLicenseIssueDate)
         }
         if let value = profile.driverLicenseExpiryMMDDYYYY?.nilIfEmpty {
             record = record.withValue(value, for: ProfileFieldKey.driversLicenseExpiry)

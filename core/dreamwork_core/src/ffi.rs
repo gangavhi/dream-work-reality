@@ -144,6 +144,45 @@ pub extern "C" fn dreamwork_ocr_apply_normalized_json(ptr: *const c_char) -> boo
     }
 }
 
+/// Stage 3: rules-only person resolution. Request JSON: `{ "fields": {...}, "existing_persons"?: [...] }`.
+/// When `existing_persons` is omitted, loads from the configured repository. Returns result JSON or null.
+#[no_mangle]
+pub extern "C" fn dreamwork_resolve_person_json(ptr: *const c_char) -> *mut c_char {
+    if ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    match crate::ingest::resolve_person_from_json(&s) {
+        Ok(result) => match crate::ingest::resolve_person_result_to_json(&result) {
+            Some(j) => match CString::new(j) {
+                Ok(c) => c.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            },
+            None => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Stage 2: storage routing plan. Request JSON: `{ "fields": {...}, "person_id"?: "...", "profile_schema_keys"?: [...] }`.
+#[no_mangle]
+pub extern "C" fn dreamwork_plan_storage_json(ptr: *const c_char) -> *mut c_char {
+    if ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    match crate::ingest::plan_storage_from_json(&s) {
+        Ok(plan) => match crate::ingest::storage_plan_to_json(&plan) {
+            Some(j) => match CString::new(j) {
+                Ok(c) => c.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            },
+            None => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Returns heap-owned JSON for the last OCR payload (or null). Free with [`dreamwork_string_free`].
 #[no_mangle]
 pub extern "C" fn dreamwork_ocr_last_document_json() -> *mut c_char {
@@ -187,6 +226,36 @@ mod tests {
         let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
         assert!(s.contains("json-person"));
         assert!(s.contains("t@example.com"));
+        dreamwork_string_free(out);
+    }
+
+    #[test]
+    fn ffi_resolve_person_json() {
+        let json = CString::new(
+            r#"{"id":"ffi-resolve-person","fields":[{"key":"display_name","value":"Casey"},{"key":"drivers_license_number","value":"DL-FFI-1"}]}"#,
+        )
+        .unwrap();
+        assert!(dreamwork_save_manual_entry_json(json.as_ptr()));
+
+        let req = CString::new(
+            r#"{"fields":{"drivers_license_number":"DL-FFI-1"}}"#,
+        )
+        .unwrap();
+        let out = dreamwork_resolve_person_json(req.as_ptr());
+        assert!(!out.is_null());
+        let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
+        assert!(s.contains("match_existing"));
+        dreamwork_string_free(out);
+    }
+
+    #[test]
+    fn ffi_plan_storage_json() {
+        let req = CString::new(r#"{"fields":{"email":"a@b.com","barcode":"x"}}"#).unwrap();
+        let out = dreamwork_plan_storage_json(req.as_ptr());
+        assert!(!out.is_null());
+        let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
+        assert!(s.contains("upsert_manual_field"));
+        assert!(s.contains("upsert_extension_field"));
         dreamwork_string_free(out);
     }
 
