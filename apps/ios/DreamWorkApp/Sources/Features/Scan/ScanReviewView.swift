@@ -26,9 +26,18 @@ struct ScanReviewView: View {
                             .foregroundStyle(.secondary)
                     } else {
                         Picker("Person", selection: $selectedPersonID) {
+                            Text("Select a person…").tag("")
                             ForEach(appState.people) { person in
                                 Text(person.displayTitle).tag(person.id)
                             }
+                        }
+
+                        if selectedPersonID.isEmpty, !payload.suggestions.isEmpty {
+                            Text(
+                                "The scan name does not match an existing profile. Create a new person from the scan, or pick someone to update manually."
+                            )
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         }
                     }
 
@@ -82,7 +91,7 @@ struct ScanReviewView: View {
             }
             .onAppear {
                 if selectedPersonID.isEmpty {
-                    selectedPersonID = appState.people.first?.id ?? ""
+                    selectedPersonID = defaultPersonID()
                 }
                 appliedKeys = Set(payload.suggestions.map(\.profileKey))
             }
@@ -118,6 +127,26 @@ struct ScanReviewView: View {
 
     private var canSave: Bool {
         !selectedPersonID.isEmpty && !appliedKeys.isEmpty
+    }
+
+    /// Prefer a profile whose name matches OCR; avoid silently merging into unrelated demo/sample rows.
+    private func defaultPersonID() -> String {
+        guard let scannedName = payload.suggestions
+            .first(where: { $0.profileKey == ProfileFieldKey.displayName })?
+            .value
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !scannedName.isEmpty
+        else {
+            return appState.people.first?.id ?? ""
+        }
+
+        let normalized = scannedName.lowercased()
+        if let match = appState.people.first(where: {
+            $0.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalized
+        }) {
+            return match.id
+        }
+        return ""
     }
 
     private func binding(for key: String) -> Binding<Bool> {

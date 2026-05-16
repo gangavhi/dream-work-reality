@@ -14,7 +14,7 @@ struct PeopleView: View {
                         Text("Add household members manually or save fields from a document scan on Home.")
                     } actions: {
                         Button("Add person") { showAddPerson = true }
-                        Button("Load samples") { appState.seedSamplePeople() }
+                        Button("Load demo profiles (Alex Carter, …)") { appState.seedSamplePeople() }
                             .accessibilityIdentifier("peopleLoadSamplesButton")
                     }
                     .accessibilityIdentifier("peopleEmptyState")
