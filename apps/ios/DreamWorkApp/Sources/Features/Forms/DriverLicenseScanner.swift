@@ -1157,9 +1157,13 @@ struct ScanView: View {
                 switch result {
                 case .success(let scan):
                     let profile = buildProfile(from: scan)
-                    appState.peopleStore.upsert(profile, select: true)
-                    banner = "Saved profile: \(profile.displayTitle)"
-                    appState.openPeople()
+                    let record = personRecord(from: profile)
+                    if appState.savePerson(record) {
+                        banner = "Saved profile: \(profile.displayTitle)"
+                        appState.openPeople()
+                    } else {
+                        banner = "Scan succeeded but saving the profile failed."
+                    }
                 case .failure(let err):
                     banner = "Scan failed: \(err.localizedDescription)"
                 }
@@ -1218,6 +1222,45 @@ struct ScanView: View {
 
         p.updatedAt = Date()
         return p
+    }
+
+    private func personRecord(from profile: PersonProfile) -> PersonRecord {
+        var record = PersonRecord.empty()
+        record = record.withValue(profile.displayTitle, for: ProfileFieldKey.displayName)
+        if let value = profile.firstName?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.legalFirstName)
+        }
+        if let value = profile.lastName?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.legalLastName)
+        }
+        if let value = profile.dateOfBirthMMDDYYYY?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.dateOfBirth)
+        }
+        if let value = profile.addressLine1?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.addressLine1)
+        }
+        if let value = profile.city?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.city)
+        }
+        if let value = profile.state?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.state)
+        }
+        if let value = profile.postalCode?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.postalCode)
+        }
+        if let value = profile.driverLicenseNumber?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.driversLicenseNumber)
+        }
+        if let value = profile.driverLicenseState?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.driversLicenseState)
+        }
+        if let value = profile.driverLicenseExpiryMMDDYYYY?.nilIfEmpty {
+            record = record.withValue(value, for: ProfileFieldKey.driversLicenseExpiry)
+        }
+        for (key, value) in profile.genAIFields where !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            record = record.withValue(value, for: key)
+        }
+        return record
     }
 
     private func formatMMDDYYYY(_ date: Date) -> String {
