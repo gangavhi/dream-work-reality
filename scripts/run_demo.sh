@@ -36,11 +36,20 @@ cd "$ROOT_DIR"
 nohup python3 -m http.server 8000 > "$PID_DIR/form-server.log" 2>&1 &
 echo $! > "$PID_DIR/form-server.pid"
 
-echo "==> Launching iOS Simulator app"
-xcodegen generate --spec "$ROOT_DIR/apps/ios/project.yml" >/dev/null
-xcrun simctl boot "iPhone 16" >/dev/null 2>&1 || true
-open -a Simulator
-xcrun simctl launch booted com.dreamwork.app >/dev/null
+echo "==> Starting background Mac Downloads server for iOS import (8009)"
+pkill -f "python3 -m http.server 8009" >/dev/null 2>&1 || true
+nohup bash "$ROOT_DIR/scripts/serve_downloads.sh" 8009 > "$PID_DIR/downloads-server.log" 2>&1 &
+echo $! > "$PID_DIR/downloads-server.pid"
+
+echo "==> Launching iOS Simulator app (optional)"
+if command -v xcodegen >/dev/null 2>&1 && command -v xcrun >/dev/null 2>&1 && open -Ra Simulator >/dev/null 2>&1; then
+  xcodegen generate --spec "$ROOT_DIR/apps/ios/project.yml" >/dev/null
+  xcrun simctl boot "iPhone 16" >/dev/null 2>&1 || true
+  open -a Simulator
+  xcrun simctl launch booted com.dreamwork.app >/dev/null
+else
+  echo "Skipping iOS Simulator launch (Xcode/Simulator not installed)."
+fi
 
 cat <<EOF
 
@@ -49,9 +58,13 @@ Demo environment is ready.
 Open these:
 - Demo form: http://127.0.0.1:8000/demo/form/demo-form.html
 - Core API health: http://127.0.0.1:18081/healthz
+- Mac Downloads server: http://127.0.0.1:8009/
 
 Load Chrome extension from:
 - $ROOT_DIR/apps/extension-demo
+  - Open chrome://extensions
+  - Enable Developer mode
+  - Load unpacked → select that folder
 
 To stop demo background services:
 - $ROOT_DIR/scripts/stop_demo.sh

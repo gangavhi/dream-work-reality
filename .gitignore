@@ -1,0 +1,9 @@
+.DS_Store
+**/.DS_Store
+core/target/
+apps/ios/.derived*/
+apps/ios/build/
+apps/ios/*.ipa
+apps/ios/*.xcarchive
+*.xcuserstate
+xcuserdata/
