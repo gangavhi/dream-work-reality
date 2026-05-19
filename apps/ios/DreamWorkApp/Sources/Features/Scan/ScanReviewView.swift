@@ -7,190 +7,54 @@ struct ScanReviewView: View {
     let payload: ScanReviewPayload
 
     @State private var selectedPersonID: String = ""
-    @State private var appliedKeys: Set<String> = []
-    @State private var showCreatePerson = false
+    @State private var editedValues: [String: String] = [:]
+    @State private var originalValues: [String: String] = [:]
+    @State private var editingFieldKey: String?
     @State private var saveMessage: String?
-
-    private static let highConfidenceMatchThreshold = 0.72
 
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    LabeledContent("You selected", value: payload.userDocumentType.rawValue)
-                    if let understanding = payload.understanding {
-                        LabeledContent("AI document type", value: formatDocumentType(understanding.documentType))
-                        LabeledContent(
-                            "Type confidence",
-                            value: percentLabel(understanding.documentTypeConfidence)
-                        )
-                        if let region = understanding.issuerRegion, !region.isEmpty {
-                            LabeledContent("Issuer / region", value: region)
-                        }
-                        if let hint = understanding.displayNameHint, !hint.isEmpty {
-                            LabeledContent("Name hint", value: hint)
-                        }
-                    } else if DevAPIKeyStore.openAIAPIKey == nil {
-                        Text("Add an OpenAI API key in Settings for accurate field mapping (name, address, DL #, issue/expiry). Without it, only basic heuristics are used.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    LabeledContent("Pages", value: "\(payload.pageCount)")
-                    LabeledContent("Text regions", value: "\(payload.ocrBlockCount)")
-                }
-
-                if let plan = payload.storagePlan, !plan.operations.isEmpty {
-                    Section("Storage plan") {
-                        LabeledContent(
-                            "Profile fields",
-                            value: "\(plan.summary.canonicalCount)"
-                        )
-                        LabeledContent(
-                            "Extension fields",
-                            value: "\(plan.summary.extensionCount)"
-                        )
-                        ForEach(plan.operations) { op in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(ProfileSchema.definition(for: op.key)?.label ?? op.key)
-                                    .font(.subheadline)
-                                Text(op.value)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                Text("\(op.targetLabel) · \(op.reason)")
-                                    .font(.caption2)
-                                    .foregroundStyle(.tertiary)
-                            }
-                        }
-                    }
-                }
-
-                if let resolution = payload.personResolution, !appState.people.isEmpty {
-                    Section("Person match") {
-                        LabeledContent("Suggestion", value: resolutionLabel(resolution.resolution))
-                        LabeledContent("Confidence", value: percentLabel(resolution.confidence))
-
-                        if resolution.resolution == .ambiguous {
-                            Text("Multiple profiles look similar. Pick the correct person below.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else if resolution.resolution == .newPerson {
-                            Text("This scan looks like a new household member.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-
-                        if !resolution.candidates.isEmpty {
-                            ForEach(resolution.candidates.prefix(5)) { candidate in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(personTitle(for: candidate.personID))
-                                        .font(.subheadline)
-                                    Text("Score: \(percentLabel(candidate.score))")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    if !candidate.reasonSummary.isEmpty {
-                                        Text(candidate.reasonSummary)
-                                            .font(.caption2)
-                                            .foregroundStyle(.tertiary)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Section("Apply to profile") {
-                    if appState.people.isEmpty {
-                        Text("Add a household member first, or create one below.")
-                            .foregroundStyle(.secondary)
-                    } else {
-                        Picker("Person", selection: $selectedPersonID) {
-                            Text("Select a person…").tag("")
-                            ForEach(appState.people) { person in
-                                Text(person.displayTitle).tag(person.id)
-                            }
-                        }
-
-                        if selectedPersonID.isEmpty, !payload.suggestions.isEmpty {
-                            Text(
-                                "The scan name does not match an existing profile. Create a new person from the scan, or pick someone to update manually."
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    if payload.personResolution?.resolution == .newPerson,
-                       let prefilled = payload.prefilledPerson
-                    {
-                        Button("Save as new person") {
-                            saveNewPerson(prefilled)
-                        }
-                        .disabled(prefilled.value(for: ProfileFieldKey.displayName).isEmpty)
-                    }
-
-                    Button("Create new person from scan") {
-                        showCreatePerson = true
-                    }
-                }
+                profileTargetSection
 
                 if payload.suggestions.isEmpty {
-                    Section("Suggested fields") {
-                        Text("No structured fields detected. Review raw text below and edit the profile manually.")
+                    Section {
+                        Text("No fields detected from this scan.")
                             .foregroundStyle(.secondary)
                     }
                 } else {
-                    Section("Suggested fields") {
-                        ForEach(payload.suggestions) { suggestion in
-                            Toggle(isOn: binding(for: suggestion.profileKey)) {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(suggestion.label)
-                                        .font(.headline)
-                                    Text(suggestion.value)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.secondary)
-                                    Text("Confidence: \(suggestion.confidence)")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
+                    ForEach(groupedFieldSections) { group in
+                        Section(group.title) {
+                            ForEach(group.items, id: \.profileKey) { suggestion in
+                                fieldRow(suggestion)
                             }
                         }
                     }
-                }
-
-                Section("Raw OCR text") {
-                    Text(payload.fullText)
-                        .font(.caption)
-                        .textSelection(.enabled)
                 }
             }
             .navigationTitle("Review scan")
             .navigationBarTitleDisplayMode(.inline)
+            .appListChrome()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save to profile") {
-                        saveSelectedFields()
+                    Button("Save") {
+                        saveFields()
                     }
+                    .fontWeight(.semibold)
                     .disabled(!canSave)
                 }
             }
             .onAppear {
+                let initial = Dictionary(
+                    uniqueKeysWithValues: payload.suggestions.map { ($0.profileKey, $0.value) }
+                )
+                editedValues = initial
+                originalValues = initial
                 if selectedPersonID.isEmpty {
                     selectedPersonID = defaultPersonID()
-                }
-                appliedKeys = Set(payload.suggestions.map(\.profileKey))
-            }
-            .sheet(isPresented: $showCreatePerson) {
-                NavigationStack {
-                    PersonEditorView(
-                        person: suggestedNewPerson(),
-                        isNew: true
-                    ) { saved in
-                        selectedPersonID = saved.id
-                        showCreatePerson = false
-                    }
                 }
             }
             .alert(
@@ -212,56 +76,297 @@ struct ScanReviewView: View {
         }
     }
 
-    private var canSave: Bool {
-        !selectedPersonID.isEmpty && !appliedKeys.isEmpty
+    private var groupedFieldSections: [ProfileSchema.FieldGroup] {
+        ProfileSchema.groupedSuggestions(payload.suggestions)
     }
 
-    private func defaultPersonID() -> String {
-        if let resolution = payload.personResolution,
-           resolution.resolution == .matchExisting,
-           let personID = resolution.personID,
-           resolution.confidence >= Self.highConfidenceMatchThreshold,
-           appState.people.contains(where: { $0.id == personID })
-        {
-            return personID
-        }
+    @ViewBuilder
+    private var profileTargetSection: some View {
+        Section {
+            if appState.people.isEmpty {
+                Label("A new profile will be created when you save.", systemImage: "person.badge.plus")
+                    .foregroundStyle(.secondary)
+            } else if let match = resolvedProfileMatch {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label {
+                        Text("Updating existing profile")
+                            .font(.headline)
+                    } icon: {
+                        Image(systemName: "person.crop.circle.badge.checkmark")
+                            .foregroundStyle(.green)
+                    }
 
-        guard let scannedName = payload.suggestions
-            .first(where: { $0.profileKey == ProfileFieldKey.displayName })?
-            .value
-            .trimmingCharacters(in: .whitespacesAndNewlines),
-            !scannedName.isEmpty
-        else {
-            return ""
-        }
+                    if let person = appState.people.first(where: { $0.id == match.personID }) {
+                        Text(person.displayTitle)
+                            .font(.subheadline.weight(.semibold))
+                    }
 
-        let normalized = scannedName.lowercased()
-        if let match = appState.people.first(where: {
-            $0.displayTitle.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == normalized
-        }) {
-            return match.id
+                    if !match.reasons.isEmpty {
+                        Text(matchReasonSummary(match.reasons))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if appState.people.count > 1 {
+                        Picker("Profile", selection: $selectedPersonID) {
+                            Text("Choose profile…").tag("")
+                            ForEach(appState.people) { person in
+                                Text(person.displayTitle).tag(person.id)
+                            }
+                        }
+                    }
+                }
+            } else if payload.personResolution?.resolution == .ambiguous {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("Multiple profiles may match", systemImage: "person.2.circle")
+                        .font(.headline)
+                    Text("Pick the profile to update, or save to create a new one.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Picker("Profile", selection: $selectedPersonID) {
+                        Text("Create new profile").tag("")
+                        ForEach(appState.people) { person in
+                            Text(person.displayTitle).tag(person.id)
+                        }
+                    }
+                }
+            } else {
+                Label("No matching profile found — a new profile will be created.", systemImage: "person.badge.plus")
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Save to profile")
         }
-        return ""
     }
 
-    private func binding(for key: String) -> Binding<Bool> {
+    private var resolvedProfileMatch: PersonProfileMatcher.MatchResult? {
+        PersonProfileMatcher.matchExistingPerson(
+            among: appState.people,
+            fieldUpdates: currentUpdates(),
+            resolution: payload.personResolution
+        )
+    }
+
+    private func matchReasonSummary(_ reasons: [String]) -> String {
+        let labels: [String: String] = [
+            "date_of_birth_exact": "date of birth",
+            "date_of_birth": "date of birth",
+            "legal_last_name_exact": "last name",
+            "legal_last_name": "last name",
+            "legal_first_name": "first name",
+            "name_exact": "name",
+            "name_fuzzy": "similar name",
+            "display_name_match": "display name",
+            "display_name": "display name",
+            "address_line1_match": "address",
+            "address_line1": "address",
+            "postal_code_exact": "ZIP code",
+            "postal_code": "ZIP code",
+            "drivers_license_number_exact": "driver license number",
+            "drivers_license_number": "driver license number",
+            "passport_number_exact": "passport number",
+            "passport_number": "passport number",
+            "dob_and_last_name_combo": "DOB + last name",
+            "dob_and_address_combo": "DOB + address",
+            "dob_and_postal_combo": "DOB + ZIP",
+            "dob_with_secondary_fields": "DOB + other fields",
+            "name_and_dob_combo": "name + DOB",
+        ]
+
+        let readable = reasons.compactMap { reason -> String? in
+            if let exact = labels[reason] { return exact }
+            if reason.hasPrefix("name_fuzzy:") { return "similar name" }
+            return nil
+        }
+        let unique = Array(Set(readable)).sorted()
+        guard !unique.isEmpty else { return "Matched on shared identity fields." }
+        return "Matched on " + unique.joined(separator: ", ")
+    }
+
+    @ViewBuilder
+    private func fieldRow(_ suggestion: OcrFieldSuggestion) -> some View {
+        EditableFieldRow(
+            label: suggestion.label,
+            profileKey: suggestion.profileKey,
+            text: binding(for: suggestion.profileKey),
+            isEditing: editingBinding(for: suggestion.profileKey),
+            originalValue: originalValues[suggestion.profileKey, default: ""]
+        )
+    }
+
+    private func editingBinding(for key: String) -> Binding<Bool> {
         Binding(
-            get: { appliedKeys.contains(key) },
-            set: { enabled in
-                if enabled {
-                    appliedKeys.insert(key)
-                } else {
-                    appliedKeys.remove(key)
+            get: { editingFieldKey == key },
+            set: { isEditing in
+                if isEditing {
+                    editingFieldKey = key
+                } else if editingFieldKey == key {
+                    editingFieldKey = nil
                 }
             }
         )
     }
 
-    private func suggestedNewPerson() -> PersonRecord {
-        let updates = payload.suggestions
-            .filter { appliedKeys.contains($0.profileKey) }
-            .reduce(into: [String: String]()) { $0[$1.profileKey] = $1.value }
+    private var canSave: Bool {
+        !currentUpdates().isEmpty && editingFieldKey == nil
+    }
 
+    private func binding(for key: String) -> Binding<String> {
+        Binding(
+            get: { editedValues[key, default: ""] },
+            set: { editedValues[key] = $0 }
+        )
+    }
+
+    private func currentUpdates() -> [String: String] {
+        editedValues.compactMapValues { value in
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+    }
+
+    private func defaultPersonID() -> String {
+        if let previous = DocumentFingerprintStore.findPreviousImport(for: payload.fullText) {
+            if let personID = previous.personID,
+               appState.people.contains(where: { $0.id == personID })
+            {
+                return personID
+            }
+            if let name = previous.personName?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !name.isEmpty,
+               let match = appState.people.first(where: { namesMatch($0, scannedName: name) })
+            {
+                return match.id
+            }
+        }
+
+        if let match = resolvedProfileMatch {
+            return match.personID
+        }
+
+        if let nameMatch = appState.people.first(where: { personMatchesScan($0) }) {
+            return nameMatch.id
+        }
+
+        return ""
+    }
+
+    private func personMatchesScan(_ person: PersonRecord) -> Bool {
+        let updates = currentUpdates()
+        let scannedDisplay = updates[ProfileFieldKey.displayName]
+        let scannedFirst = updates[ProfileFieldKey.legalFirstName]
+        let scannedLast = updates[ProfileFieldKey.legalLastName]
+        let scannedDOB = updates[ProfileFieldKey.dateOfBirth]
+
+        if let scannedDOB, !scannedDOB.isEmpty {
+            let personDOB = person.value(for: ProfileFieldKey.dateOfBirth)
+            if PersonProfileMatcher.dobMatches(scannedDOB, personDOB) {
+                if let scannedLast, !scannedLast.isEmpty {
+                    let personLast = person.value(for: ProfileFieldKey.legalLastName)
+                    if normalizeName(scannedLast) == normalizeName(personLast) {
+                        return true
+                    }
+                }
+                if let scannedDisplay, namesMatch(person, scannedName: scannedDisplay) {
+                    return true
+                }
+            }
+        }
+
+        if let scannedDisplay, namesMatch(person, scannedName: scannedDisplay) {
+            return true
+        }
+
+        if let scannedFirst, let scannedLast {
+            let firstLast = "\(scannedFirst) \(scannedLast)"
+            let lastFirst = "\(scannedLast) \(scannedFirst)"
+            if namesMatch(person, scannedName: firstLast) || namesMatch(person, scannedName: lastFirst) {
+                return true
+            }
+
+            let personFirst = person.value(for: ProfileFieldKey.legalFirstName)
+            let personLast = person.value(for: ProfileFieldKey.legalLastName)
+            if !personFirst.isEmpty, !personLast.isEmpty {
+                let normalizedScanFirst = normalizeName(scannedFirst)
+                let normalizedScanLast = normalizeName(scannedLast)
+                let normalizedPersonFirst = normalizeName(personFirst)
+                let normalizedPersonLast = normalizeName(personLast)
+                if normalizedScanFirst == normalizedPersonFirst,
+                   normalizedScanLast == normalizedPersonLast
+                {
+                    return true
+                }
+                if normalizedScanFirst == normalizedPersonLast,
+                   normalizedScanLast == normalizedPersonFirst
+                {
+                    return true
+                }
+            }
+        }
+
+        return false
+    }
+
+    private func namesMatch(_ person: PersonRecord, scannedName: String) -> Bool {
+        normalizeName(person.displayTitle) == normalizeName(scannedName)
+    }
+
+    private func normalizeName(_ raw: String) -> String {
+        raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+    }
+
+    private func saveFields() {
+        let updates = currentUpdates()
+        guard !updates.isEmpty else { return }
+
+        var personID = selectedPersonID
+        if personID.isEmpty {
+            personID = defaultPersonID()
+        }
+        if personID.isEmpty,
+           let match = PersonProfileMatcher.matchExistingPerson(
+               among: appState.people,
+               fieldUpdates: updates,
+               resolution: payload.personResolution
+           )
+        {
+            personID = match.personID
+        }
+        if personID.isEmpty,
+           let match = appState.people.first(where: { personMatchesScan($0) })
+        {
+            personID = match.id
+        }
+
+        if personID.isEmpty {
+            createPerson(from: updates)
+            return
+        }
+
+        guard var person = appState.people.first(where: { $0.id == personID }) else {
+            createPerson(from: updates)
+            return
+        }
+
+        person = person.merged(with: updates)
+        if appState.savePerson(person) {
+            let isReimport = DocumentFingerprintStore.findPreviousImport(for: payload.fullText) != nil
+            recordIngestAudit(
+                person: person,
+                fieldCount: updates.count,
+                notes: isReimport ? "Updated profile from rescan" : ""
+            )
+            saveMessage = isReimport
+                ? "Updated \(updates.count) field(s) on \(person.displayTitle)."
+                : "Added \(updates.count) field(s) to existing profile \(person.displayTitle)."
+        } else {
+            saveMessage = "Could not save profile."
+        }
+    }
+
+    private func createPerson(from updates: [String: String]) {
         var person = payload.prefilledPerson ?? PersonRecord.empty()
         person = person.merged(with: updates)
         if person.value(for: ProfileFieldKey.displayName).isEmpty,
@@ -269,54 +374,35 @@ struct ScanReviewView: View {
         {
             person = person.withValue(name, for: ProfileFieldKey.displayName)
         }
-        return person
-    }
-
-    private func saveNewPerson(_ person: PersonRecord) {
-        let updates = payload.suggestions
-            .filter { appliedKeys.contains($0.profileKey) }
-            .reduce(into: [String: String]()) { $0[$1.profileKey] = $1.value }
-        let merged = person.merged(with: updates)
-        if appState.savePerson(merged) {
-            saveMessage = "Created \(merged.displayTitle) under People."
+        if person.value(for: ProfileFieldKey.displayName).isEmpty {
+            saveMessage = "Could not save — add a name field to create a profile."
+            return
+        }
+        if appState.savePerson(person) {
+            recordIngestAudit(
+                person: person,
+                fieldCount: updates.count,
+                notes: "Created from scan"
+            )
+            saveMessage = "Created \(person.displayTitle) under People."
         } else {
             saveMessage = "Could not create profile."
         }
     }
 
-    private func saveSelectedFields() {
-        guard var person = appState.people.first(where: { $0.id == selectedPersonID }) else { return }
-        let updates = payload.suggestions
-            .filter { appliedKeys.contains($0.profileKey) }
-            .reduce(into: [String: String]()) { $0[$1.profileKey] = $1.value }
-        person = person.merged(with: updates)
-        if appState.savePerson(person) {
-            saveMessage = "Saved \(updates.count) field(s) to \(person.displayTitle)."
-        } else {
-            saveMessage = "Could not save profile."
-        }
-    }
-
-    private func personTitle(for id: String) -> String {
-        appState.people.first(where: { $0.id == id })?.displayTitle ?? id
-    }
-
-    private func resolutionLabel(_ kind: PersonResolutionKind) -> String {
-        switch kind {
-        case .matchExisting: return "Existing profile"
-        case .newPerson: return "New person"
-        case .ambiguous: return "Ambiguous — choose manually"
-        }
-    }
-
-    private func formatDocumentType(_ raw: String) -> String {
-        raw
-            .replacingOccurrences(of: "_", with: " ")
-            .capitalized
-    }
-
-    private func percentLabel(_ value: Double) -> String {
-        let pct = Int((value * 100).rounded())
-        return "\(pct)%"
+    private func recordIngestAudit(person: PersonRecord, fieldCount: Int, notes: String = "") {
+        DocumentFingerprintStore.record(
+            ocrText: payload.fullText,
+            personID: person.id,
+            personName: person.displayTitle
+        )
+        IngestAuditLog.append(
+            documentType: payload.detectedDocumentType.rawValue,
+            personID: person.id,
+            personName: person.displayTitle,
+            fieldCount: fieldCount,
+            usedAI: payload.usedAI,
+            notes: notes
+        )
     }
 }

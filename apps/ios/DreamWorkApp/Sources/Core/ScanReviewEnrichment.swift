@@ -38,4 +38,5 @@ struct ScanReviewEnrichment: Hashable {
     let personResolution: PersonResolutionSuggestion?
     let storagePlan: StoragePlanSuggestion?
     let suggestions: [OcrFieldSuggestion]
+    let usedAI: Bool
 }

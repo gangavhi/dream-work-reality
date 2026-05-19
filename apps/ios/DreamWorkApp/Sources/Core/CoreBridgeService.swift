@@ -18,7 +18,7 @@ extension CoreBridgeService {
     /// Stage 1 (GenAI direct, then optional core-api HTTP) + Stage 2/3 (Rust FFI).
     func enrichScanReview(
         ocrText: String,
-        userDocumentType: ScannedDocumentType,
+        detectedDocumentType: ScannedDocumentType,
         fallbackSuggestions: [OcrFieldSuggestion],
         driverLicenseScan: DriverLicenseScanResult? = nil
     ) async -> ScanReviewEnrichment {
@@ -29,44 +29,54 @@ extension CoreBridgeService {
 
         if let dl = driverLicenseScan {
             trusted = DriverLicenseFieldMapper.suggestions(from: dl)
-        } else if userDocumentType == .driversLicense {
-            trusted = OcrFieldSuggester.suggest(from: ocrText, documentType: .driversLicense)
+        } else if detectedDocumentType == .driversLicense || detectedDocumentType == .stateId {
+            trusted = OcrFieldSuggester.suggest(from: ocrText, documentType: detectedDocumentType)
         }
 
-        if let apiKey = DevAPIKeyStore.openAIAPIKey {
+        let usedAI: Bool
+        if GenAISettings.activeLLMConfig != nil {
             if let genAI = await GenAIFieldMapper.mapFields(
                 ocrText: ocrText,
-                documentType: userDocumentType,
-                profileSchemaKeys: schemaKeys,
-                apiKey: apiKey
+                documentType: detectedDocumentType,
+                profileSchemaKeys: schemaKeys
             ) {
-                trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: genAI, supplemental: trusted)
+                trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: genAI.suggestions, supplemental: trusted)
                 understanding = DocumentUnderstandingResult(
-                    documentType: userDocumentType == .driversLicense ? "drivers_license" : "other",
-                    documentTypeConfidence: 0.9,
+                    documentType: genAI.documentType
+                        ?? DocumentTypeClassifier.mapToUnderstandingType(detectedDocumentType),
+                    documentTypeConfidence: 1.0,
                     issuerRegion: trusted.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
                     displayNameHint: trusted.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
                     usedAI: true
                 )
-            } else {
+                usedAI = true
+            } else if let apiKey = DevAPIKeyStore.openAIAPIKey {
                 switch await CoreIngestHTTPClient.understandDocument(
                     ocrText: ocrText,
-                    documentTypeHint: userDocumentType.rawValue,
+                    documentTypeHint: detectedDocumentType.rawValue,
                     profileSchemaKeys: schemaKeys,
                     apiKey: apiKey
                 ) {
                 case .success(let aiUnderstanding, let aiFields):
                     understanding = aiUnderstanding
                     trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: aiFields, supplemental: trusted)
+                    usedAI = true
                 case .failure:
-                    break
+                    usedAI = false
                 }
+            } else {
+                usedAI = false
             }
+        } else {
+            usedAI = false
         }
 
-        let supplemental = ScanFieldValidator.filter(fallbackSuggestions, documentType: userDocumentType)
+        let supplemental = fallbackSuggestions.filter {
+            !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
         var merged = CoreIngestHTTPClient.mergeSuggestions(trusted: trusted, supplemental: supplemental)
-        merged = GenAIFieldMapper.finalizeSuggestions(merged, documentType: userDocumentType)
+        merged = GenAIFieldMapper.finalizeSuggestions(merged, documentType: detectedDocumentType)
+        merged = PersonNameResolver.apply(to: merged, ocrText: ocrText, documentType: detectedDocumentType)
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: merged)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
@@ -84,12 +94,36 @@ extension CoreBridgeService {
             profileSchemaKeys: schemaKeys
         )
 
+        merged = mergeExtensionFields(from: storagePlan, into: merged)
+
         return ScanReviewEnrichment(
             understanding: understanding,
             personResolution: personResolution,
             storagePlan: storagePlan,
-            suggestions: merged
+            suggestions: merged,
+            usedAI: usedAI
         )
+    }
+
+    private func mergeExtensionFields(
+        from plan: StoragePlanSuggestion?,
+        into suggestions: [OcrFieldSuggestion]
+    ) -> [OcrFieldSuggestion] {
+        guard let plan else { return suggestions }
+        var byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0) })
+        for op in plan.operations where op.kind == .upsertExtensionField {
+            guard !op.key.isEmpty, !op.value.isEmpty else { continue }
+            if byKey[op.key] == nil {
+                byKey[op.key] = OcrFieldSuggestion(
+                    profileKey: op.key,
+                    label: ProfileSchema.label(forExtensionKey: op.key),
+                    value: op.value,
+                    confidence: "Medium",
+                    confidenceScore: 0.68
+                )
+            }
+        }
+        return ProfileSchema.sortSuggestions(Array(byKey.values))
     }
 }
 

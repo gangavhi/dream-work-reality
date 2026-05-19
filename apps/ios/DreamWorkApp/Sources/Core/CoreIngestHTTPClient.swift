@@ -96,16 +96,26 @@ enum CoreIngestHTTPClient {
                 displayNameHint: decoded.display_name_hint,
                 usedAI: true
             )
-            let suggestions = (decoded.fields ?? []).compactMap { field -> OcrFieldSuggestion? in
+            let parsedFields = (decoded.fields ?? []).compactMap { field -> (String, String, Double)? in
                 let key = field.key.trimmingCharacters(in: .whitespacesAndNewlines)
                 let value = field.value.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !key.isEmpty, !value.isEmpty else { return nil }
-                let label = ProfileSchema.definition(for: key)?.label ?? key
-                return OcrFieldSuggestion(
+                return (key, value, field.confidence)
+            }
+            let fieldMap = Dictionary(uniqueKeysWithValues: parsedFields.map { ($0.0, $0.1) })
+            let labelContext = DocumentFieldLabelContext.from(
+                fieldValues: fieldMap.merging(
+                    [ProfileFieldKey.driversLicenseState: decoded.issuer_region ?? ""]
+                ) { current, _ in current },
+                documentType: .other
+            )
+            let suggestions = parsedFields.map { key, value, confidence in
+                OcrFieldSuggestion(
                     profileKey: key,
-                    label: label,
+                    label: DocumentFieldLabels.label(for: key, context: labelContext),
                     value: value,
-                    confidence: confidenceLabel(field.confidence)
+                    confidence: confidenceLabel(confidence),
+                    confidenceScore: confidence
                 )
             }
             return .success((understanding, suggestions))
@@ -172,14 +182,14 @@ enum CoreIngestHTTPClient {
         }
         for item in supplemental {
             if let existing = byKey[item.profileKey] {
-                if confidenceRank(item.confidence) > confidenceRank(existing.confidence) {
+                if item.confidenceScore > existing.confidenceScore {
                     byKey[item.profileKey] = item
                 }
             } else {
                 byKey[item.profileKey] = item
             }
         }
-        return byKey.values.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }
+        return ProfileSchema.sortSuggestions(Array(byKey.values))
     }
 
     /// Backward-compatible argument order: primary mapping first, heuristics second.

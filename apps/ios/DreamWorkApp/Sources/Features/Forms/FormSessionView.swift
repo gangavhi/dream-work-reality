@@ -45,6 +45,7 @@ struct FormSessionView: View {
                 }
             }
         }
+        .appListChrome()
         .navigationTitle(template.name)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
@@ -75,7 +76,7 @@ struct FormSessionView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(requirement.label)
-                    .font(.headline)
+                    .fieldLabelStyle()
                 Spacer()
                 if isMissing {
                     Text("Missing")
@@ -100,15 +101,18 @@ struct FormSessionView: View {
                     .foregroundStyle(.secondary)
             } else {
                 Text(value)
-                    .font(.subheadline)
+                    .fieldValueStyle(prominent: true)
                     .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
                 Button {
                     copyValue(value, fieldKey: requirement.profileKey, label: requirement.label)
                 } label: {
-                    Label("Copy", systemImage: "doc.on.doc")
+                    Label("Copy to clipboard", systemImage: "doc.on.doc")
+                        .font(.subheadline.weight(.semibold))
                 }
-                .buttonStyle(.bordered)
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
             }
         }
         .padding(.vertical, 4)
