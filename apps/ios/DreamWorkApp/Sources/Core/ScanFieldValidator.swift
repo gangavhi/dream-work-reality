@@ -7,7 +7,8 @@ enum ScanFieldValidator {
         "driver", "license", "licence", "identification", "identificationcard", "id",
         "class", "endorse", "restriction", "restrictions", "organ", "donor", "veteran",
         "commercial", "non", "compliant", "federal", "usa", "united", "states",
-        "texas", "california", "florida", "new", "york", "dmv", "dds", "dps",
+        "texas", "texass", "california", "florida", "new", "york", "dmv", "dds", "dps",
+        "none", "eno",
     ]
 
     private static let usStateCodes: Set<String> = [
@@ -22,9 +23,12 @@ enum ScanFieldValidator {
         guard !value.isEmpty else { return false }
 
         switch suggestion.profileKey {
-        case ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName,
-             ProfileFieldKey.legalMiddleName, ProfileFieldKey.legalLastName:
+        case ProfileFieldKey.displayName:
             return isPlausiblePersonName(value)
+        case ProfileFieldKey.legalFirstName, ProfileFieldKey.legalMiddleName, ProfileFieldKey.legalLastName:
+            return isPlausibleNameComponent(value)
+        case ProfileFieldKey.ssn:
+            return isPlausibleSSN(value)
         case ProfileFieldKey.driversLicenseNumber:
             return isPlausibleDriversLicenseNumber(value)
         case ProfileFieldKey.driversLicenseState:
@@ -40,6 +44,15 @@ enum ScanFieldValidator {
 
     static func filter(_ suggestions: [OcrFieldSuggestion], documentType: ScannedDocumentType) -> [OcrFieldSuggestion] {
         suggestions.filter { isValid($0, documentType: documentType) }
+    }
+
+    /// Single-token first/last names (Texas DL field 1 / field 2).
+    static func isPlausibleNameComponent(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 2, trimmed.count <= 48 else { return false }
+        let lower = trimmed.lowercased()
+        if nonNameTokens.contains(lower) { return false }
+        return trimmed.range(of: #"^[A-Za-z][A-Za-z\-']*$"#, options: .regularExpression) != nil
     }
 
     static func isPlausiblePersonName(_ value: String) -> Bool {
@@ -74,6 +87,13 @@ enum ScanFieldValidator {
             }
         }
         return true
+    }
+
+    static func isPlausibleSSN(_ value: String) -> Bool {
+        let digits = value.filter(\.isNumber)
+        guard digits.count == 9 else { return false }
+        return value.range(of: #"^\d{3}-\d{2}-\d{4}$"#, options: .regularExpression) != nil
+            || digits.count == 9
     }
 
     static func isPlausibleDriversLicenseNumber(_ value: String) -> Bool {

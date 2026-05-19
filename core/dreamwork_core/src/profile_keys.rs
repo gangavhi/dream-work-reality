@@ -31,6 +31,15 @@ pub fn canonical_profile_keys() -> &'static [&'static str] {
         "insurance_member_id",
         "emergency_contact_name",
         "emergency_contact_phone",
+        "gender",
+        "state_id_number",
+        "state_id_expiry",
+        "employer_name",
+        "bank_name",
+        "bank_account_last4",
+        "utility_provider",
+        "tax_form_type",
+        "tax_year",
     ]
 }
 
@@ -60,6 +69,9 @@ pub fn normalize_field_key(key: &str) -> String {
         "member_id" | "insurance_id" => "insurance_member_id",
         "carrier" => "insurance_carrier",
         "ssn_last4" => "ssn",
+        "sex" | "gender" => "gender",
+        "state_id" | "id_number" => "state_id_number",
+        "employer" => "employer_name",
         other => other,
     };
     mapped.to_string()

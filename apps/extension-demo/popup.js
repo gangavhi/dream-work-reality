@@ -64,8 +64,7 @@ async function refreshProfileUI() {
     return;
   }
 
-  // Default selection: stored selection if valid; otherwise prefer alex carter if present.
-  const preferred = profiles.find((p) => p === "alex carter") || profiles[0];
+  const preferred = profiles[0];
   const selected = profiles.includes(storedSelected) ? storedSelected : preferred;
   if (selected !== storedSelected) {
     await setStoredProfiles({ selectedProfileName: selected });
@@ -121,17 +120,16 @@ function buildProfileDefaults(profileName) {
     return {
       display_name: "Demo Child",
       first_name: "Demo",
-      last_name: "Lee",
-      // Demo form uses MM/DD/YYYY.
+      last_name: "Child",
       date_of_birth: "03/24/2023",
       guardian_name: "Alex Carter",
       guardian_email: "guardian@example.com",
       guardian_phone: "+1 555-555-5555",
-      address_line_1: "2528 Burnely Ct",
-      city: "Ridgewood",
+      address_line_1: "123 Main St",
+      city: "Austin",
       state: "TX",
       postal_code: "78701",
-      insurance_provider: "UHG",
+      insurance_provider: "Demo Insurance",
       policy_number: "1234"
     };
   }

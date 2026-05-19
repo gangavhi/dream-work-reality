@@ -11,36 +11,78 @@ enum DriverLicenseFieldMapper {
     }()
 
     static func suggestions(from scan: DriverLicenseScanResult) -> [OcrFieldSuggestion] {
+        let labelContext = DocumentFieldLabelContext.from(scan: scan, documentType: .driversLicense)
+        var genAILabels: [String: String] = [:]
+        if let genAI = scan.genAIValues {
+            for (key, value) in genAI where key.hasPrefix("__label_") {
+                let profileKey = String(key.dropFirst("__label_".count))
+                genAILabels[profileKey] = value
+            }
+        }
         var out: [OcrFieldSuggestion] = []
-        func add(_ key: String, _ label: String, _ value: String?, _ confidence: String) {
+        func add(_ key: String, _ value: String?, _ confidence: String, _ score: Double? = nil) {
             let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             guard !trimmed.isEmpty else { return }
+            let trimmedLabel = genAILabels[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let label = trimmedLabel.isEmpty
+                ? DocumentFieldLabels.label(for: key, context: labelContext)
+                : trimmedLabel
             out.append(
-                OcrFieldSuggestion(profileKey: key, label: label, value: trimmed, confidence: confidence)
+                OcrFieldSuggestion(
+                    profileKey: key,
+                    label: label,
+                    value: trimmed,
+                    confidence: confidence,
+                    confidenceScore: score
+                )
             )
         }
 
-        let displayName = resolvedDisplayName(scan)
-        add(ProfileFieldKey.displayName, "Display name", displayName, "High")
-        add(ProfileFieldKey.legalFirstName, "Legal first name", scan.firstName, "High")
-        add(ProfileFieldKey.legalMiddleName, "Legal middle name", scan.middleName, "Medium")
-        add(ProfileFieldKey.legalLastName, "Legal last name", scan.lastName, "High")
+        let first = scan.firstName.map { DriverLicenseFormatting.personName($0) }
+        let middle = scan.middleName.map { DriverLicenseFormatting.personName($0) }
+        let last = scan.lastName.map { DriverLicenseFormatting.personName($0) }
+        let displayName: String?
+        if let first, let last, !first.isEmpty, !last.isEmpty {
+            displayName = DriverLicenseFormatting.displayName(first: first, middle: middle, last: last)
+        } else {
+            displayName = scan.fullName.map { DriverLicenseFormatting.personName($0) }
+        }
+
+        add(ProfileFieldKey.displayName, displayName, "High", 0.95)
+        add(ProfileFieldKey.legalFirstName, first, "High", 0.95)
+        add(ProfileFieldKey.legalMiddleName, middle, "Medium")
+        add(ProfileFieldKey.legalLastName, last, "High", 0.95)
 
         if let dob = scan.dateOfBirth {
-            add(ProfileFieldKey.dateOfBirth, "Date of birth", formatDate(dob), "High")
+            add(ProfileFieldKey.dateOfBirth, formatDate(dob), "High", 0.95)
         }
-        add(ProfileFieldKey.driversLicenseNumber, "Driver license number", scan.documentNumber, "High")
-        add(ProfileFieldKey.driversLicenseState, "Driver license state", scan.state, "Medium")
+        add(ProfileFieldKey.driversLicenseNumber, scan.documentNumber, "High", 0.95)
+        let dlState = scan.state ?? "TX"
+        add(ProfileFieldKey.driversLicenseState, dlState, "High", 0.9)
         if let issue = scan.issueDate {
-            add(ProfileFieldKey.driversLicenseIssueDate, "Driver license issue date", formatDate(issue), "High")
+            add(ProfileFieldKey.driversLicenseIssueDate, formatDate(issue), "High", 0.92)
         }
         if let expiry = scan.expiryDate {
-            add(ProfileFieldKey.driversLicenseExpiry, "Driver license expiry", formatDate(expiry), "High")
+            add(ProfileFieldKey.driversLicenseExpiry, formatDate(expiry), "High", 0.92)
         }
-        add(ProfileFieldKey.addressLine1, "Address line 1", scan.addressLine1, "Medium")
-        add(ProfileFieldKey.city, "City", scan.city, "Medium")
-        add(ProfileFieldKey.state, "State / province", scan.state, "Medium")
-        add(ProfileFieldKey.postalCode, "ZIP / postal code", scan.postalCode, "Medium")
+        add(
+            ProfileFieldKey.addressLine1,
+            scan.addressLine1.map { DriverLicenseFormatting.streetAddress($0) },
+            "High",
+            0.9
+        )
+        add(ProfileFieldKey.city, scan.city.map { DriverLicenseFormatting.city($0) }, "High", 0.9)
+        add(ProfileFieldKey.state, scan.state, "High", 0.9)
+        add(
+            ProfileFieldKey.postalCode,
+            scan.postalCode.map { DriverLicenseFormatting.zip5($0) },
+            "High",
+            0.92
+        )
+
+        if let gender = scan.genAIValues?["gender"] ?? scan.genAIValues?["sex"] {
+            add(ProfileFieldKey.gender, gender, "Medium", 0.7)
+        }
 
         var seen = Set<String>()
         let unique = out.filter { seen.insert($0.profileKey).inserted }
@@ -54,7 +96,11 @@ enum DriverLicenseFieldMapper {
             record = record.withValue(item.value, for: item.profileKey)
         }
         if record.value(for: ProfileFieldKey.displayName).isEmpty,
-           let name = resolvedDisplayName(scan)
+           let name = DriverLicenseFormatting.displayName(
+               first: scan.firstName,
+               middle: scan.middleName,
+               last: scan.lastName
+           )
         {
             record = record.withValue(name, for: ProfileFieldKey.displayName)
         }
@@ -62,13 +108,11 @@ enum DriverLicenseFieldMapper {
     }
 
     static func resolvedDisplayName(_ scan: DriverLicenseScanResult) -> String? {
-        if let full = scan.fullName?.trimmingCharacters(in: .whitespacesAndNewlines), !full.isEmpty {
-            return full
-        }
-        let parts = [scan.firstName, scan.middleName, scan.lastName]
-            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        return parts.isEmpty ? nil : parts.joined(separator: " ")
+        DriverLicenseFormatting.displayName(
+            first: scan.firstName.map { DriverLicenseFormatting.personName($0) },
+            middle: scan.middleName.map { DriverLicenseFormatting.personName($0) },
+            last: scan.lastName.map { DriverLicenseFormatting.personName($0) }
+        ) ?? scan.fullName.map { DriverLicenseFormatting.personName($0) }
     }
 
     private static func formatDate(_ date: Date) -> String {

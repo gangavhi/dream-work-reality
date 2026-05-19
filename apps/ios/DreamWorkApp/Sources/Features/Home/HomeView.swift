@@ -4,79 +4,139 @@ import UniformTypeIdentifiers
 struct HomeView: View {
     @EnvironmentObject private var appState: AppState
 
+#if targetEnvironment(simulator)
+    @State private var showLaptopImport = false
+#endif
+
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    Text("TrustNest keeps household profiles on this device. Scan IDs, review extracted fields, then use Forms to copy values into medical, tax, school, or other paperwork.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section("Vault status") {
-                    LabeledContent("Core", value: appState.statusText)
-                    LabeledContent("Profiles", value: "\(appState.manualEntryCount)")
-                    LabeledContent("OCR runs", value: "\(appState.extractionRunCount)")
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Household profiles, on your device")
+                            .font(.title3.weight(.bold))
+                            .foregroundStyle(.primary)
+                        Text("Scan an ID or document, review the extracted fields, then copy them into medical, tax, school, or other forms.")
+                            .appHelperText()
+                    }
+                    .padding(.vertical, 4)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 20, bottom: 4, trailing: 20))
                 }
 
                 Section {
-                    Text("Simulator tip: drag a PDF or image from your Mac onto the Simulator window, then use Upload and pick it from Photos/Files. On a real iPhone, use Scan or Upload normally.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    AppStepRow(
+                        number: 1,
+                        title: "Capture",
+                        detail: "Scan with the camera or upload a photo/PDF."
+                    )
+                    AppStepRow(
+                        number: 2,
+                        title: "Review",
+                        detail: "Check names, dates, and addresses before saving."
+                    )
+                    AppStepRow(
+                        number: 3,
+                        title: "Use",
+                        detail: "Open Forms to copy values into other apps."
+                    )
+                } header: {
+                    Text("How it works")
                 }
 
-                Section("Capture document") {
-                    Picker("Document type", selection: $appState.pendingScanDocumentType) {
-                        ForEach(ScannedDocumentType.allCases) { type in
-                            Label(type.rawValue, systemImage: type.iconName).tag(type)
-                        }
-                    }
-
-                    Button {
+                Section {
+                    AppActionCard(
+                        title: "Scan with camera",
+                        subtitle: "Best for driver's licenses, passports, and IDs",
+                        systemImage: "camera.viewfinder"
+                    ) {
                         appState.showDocumentScanner = true
-                    } label: {
-                        Label("Scan with camera", systemImage: "camera.viewfinder")
                     }
                     .disabled(appState.isImportingDocument)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
 
-                    Button {
+                    AppActionCard(
+                        title: "Upload PDF or image",
+                        subtitle: "Pick from Files, Photos, or email attachments",
+                        systemImage: "doc.badge.plus",
+                        tint: .blue
+                    ) {
                         appState.showFileImporter = true
-                    } label: {
-                        Label("Upload PDF or image", systemImage: "doc.badge.plus")
                     }
                     .disabled(appState.isImportingDocument)
                     .accessibilityIdentifier("homeUploadDocumentButton")
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
 
                     if appState.isImportingDocument {
-                        HStack {
+                        HStack(spacing: 12) {
                             ProgressView()
-                            Text("Extracting text…")
+                            Text("Reading document…")
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(.primary)
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 8)
                     }
+                } header: {
+                    Text("Get started")
                 }
 
-                Section("Quick actions") {
-                    Button("Refresh status") {
-                        appState.refreshStatus()
+#if targetEnvironment(simulator)
+                Section {
+                    AppActionCard(
+                        title: "Browse laptop documents",
+                        subtitle: "Test with files from your Mac (Simulator only)",
+                        systemImage: "macbook.and.iphone",
+                        tint: .purple
+                    ) {
+                        showLaptopImport = true
                     }
+                    .disabled(appState.isImportingDocument)
+                    .accessibilityIdentifier("homeBrowseLaptopDocumentsButton")
+                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                } header: {
+                    Text("Developer testing")
+                }
+#endif
 
-                    Button("Open People") {
-                        appState.selectedTab = .people
-                    }
-
-                    Button("Open Forms") {
-                        appState.selectedTab = .forms
+                if !appState.people.isEmpty {
+                    Section {
+                        Button {
+                            appState.selectedTab = .people
+                        } label: {
+                            HStack {
+                                Label(
+                                    "\(appState.people.count) saved profile\(appState.people.count == 1 ? "" : "s")",
+                                    systemImage: "person.2.fill"
+                                )
+                                .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .foregroundStyle(.primary)
                     }
                 }
             }
+            .appListChrome()
             .navigationTitle("Home")
+#if targetEnvironment(simulator)
+            .sheet(isPresented: $showLaptopImport) {
+                SimulatorLaptopImportView()
+            }
+#endif
             .sheet(isPresented: $appState.showDocumentScanner) {
                 DocumentCameraView { url in
                     Task {
-                        await appState.importDocument(
-                            from: url,
-                            documentType: appState.pendingScanDocumentType
-                        )
+                        await appState.importDocument(from: url)
                     }
                 }
             }
@@ -88,13 +148,11 @@ struct HomeView: View {
                 switch result {
                 case .success(let urls):
                     guard let url = urls.first else { return }
-                    // Copy synchronously while the picker grant is active; OCR runs afterward on the temp file.
                     do {
                         let localURL = try DocumentImportHelper.makeLocalCopy(of: url)
                         Task {
                             await appState.importDocument(
                                 from: localURL,
-                                documentType: appState.pendingScanDocumentType,
                                 urlIsTemporaryCopy: true
                             )
                         }
@@ -124,7 +182,7 @@ struct HomeView: View {
                 }
             }
             .onAppear {
-                appState.refreshStatus()
+                appState.refreshPeopleList()
             }
         }
     }

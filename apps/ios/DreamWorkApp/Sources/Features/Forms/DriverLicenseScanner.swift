@@ -49,13 +49,14 @@ enum DriverLicenseScannerPipeline {
         let genAIInput = (barcodePayloads.isEmpty ? rawText : "\(barcodePayloads.joined(separator: "\n"))\n\n\(rawText)")
         let genAIParsed = await GenAI.extractDriverLicense(from: genAIInput)
 
-        // Build the profile primarily from GenAI-extracted fields when available.
-        // This ensures profile creation uses the best/most-robust mapping.
-        var merged = barcodeParsed ?? DriverLicenseScanResult(rawText: rawText)
+        // Build profile: OCR + GenAI fill gaps; barcode wins for authoritative ID fields.
+        var merged = ocrParsed
         if let genAIParsed {
             merged = DriverLicenseParser.merge(primary: genAIParsed, fallback: merged)
         }
-        merged = DriverLicenseParser.merge(primary: merged, fallback: ocrParsed)
+        if let barcodeParsed {
+            merged = DriverLicenseParser.merge(primary: barcodeParsed, fallback: merged)
+        }
         if !ScanFieldValidator.isPlausiblePersonName(merged.fullName ?? "") {
             merged.fullName = barcodeParsed?.fullName ?? (ScanFieldValidator.isPlausiblePersonName(ocrParsed.fullName ?? "") ? ocrParsed.fullName : nil)
             if let full = merged.fullName {
@@ -63,6 +64,13 @@ enum DriverLicenseScannerPipeline {
                 merged.firstName = split.first
                 merged.lastName = split.last
             }
+        }
+        if let display = DriverLicenseFormatting.displayName(
+            first: merged.firstName,
+            middle: merged.middleName,
+            last: merged.lastName
+        ), ScanFieldValidator.isPlausiblePersonName(display) {
+            merged.fullName = display
         }
 
         if !barcodePayloads.isEmpty {
@@ -154,7 +162,9 @@ enum DriverLicenseScannerPipeline {
         }
 
         let data = try Data(contentsOf: url)
-        guard let uiImage = UIImage(data: data), let cg = makeCGImage(from: uiImage) else {
+        guard let uiImage = UIImage(data: data),
+              let cg = uiImage.normalizedCGImage() ?? makeCGImage(from: uiImage)
+        else {
             throw NSError(domain: "DriverLicenseScanner", code: 9, userInfo: [NSLocalizedDescriptionKey: "Selected file is not a readable image"])
         }
         return [cg]
@@ -196,7 +206,7 @@ enum DriverLicenseScannerPipeline {
 
     private static func renderPDFPage(_ page: PDFPage) -> CGImage? {
         let bounds = page.bounds(for: .mediaBox)
-        let scale: CGFloat = 2.0
+        let scale: CGFloat = 3.0
         let size = CGSize(width: max(1, bounds.width * scale), height: max(1, bounds.height * scale))
 
         let format = UIGraphicsImageRendererFormat()
@@ -230,9 +240,7 @@ private enum GenAI {
     }
 
     static func extractDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
-        if let apiKey = DevAPIKeyStore.openAIAPIKey,
-           let mapped = await GenAIFieldMapper.mapDriverLicense(from: rawText, apiKey: apiKey)
-        {
+        if let mapped = await GenAIFieldMapper.mapDriverLicense(from: rawText) {
             return mapped
         }
 
@@ -579,148 +587,7 @@ private struct ScannerFallbackView: View {
 
 enum OCR {
     static func recognizeText(from images: [CGImage]) async throws -> String {
-        var all: [String] = []
-        let ctx = CIContext(options: [
-            .useSoftwareRenderer: false,
-        ])
-
-        for image in images {
-            let processed = preprocess(image, context: ctx, scale: 1.5, contrast: 1.35, brightness: 0.02, sharpness: 0.55) ?? image
-            let primary = try recognizeLines(cgImage: processed, minimumTextHeight: 0.01, usesLanguageCorrection: true)
-
-            var combined = primary
-
-            // If we didn't catch a ZIP in the full-frame pass, do a targeted crop pass
-            // (Texas DL often has City/ST/ZIP as small text under the street line).
-            if !containsZipOrCityStateZip(combined) {
-                let crops = cropCandidatesForAddressRegion(processed)
-                for crop in crops {
-                    // Stronger preprocessing for tiny address text.
-                    let enhanced = preprocessBinarized(crop, context: ctx, scale: 3.0) ?? crop
-                    let secondary = try recognizeLines(cgImage: enhanced, minimumTextHeight: 0.005, usesLanguageCorrection: false)
-                    if !secondary.isEmpty {
-                        combined += "\n" + secondary
-                        if containsZipOrCityStateZip(combined) {
-                            break
-                        }
-                    }
-                }
-            }
-
-            all.append(combined.trimmingCharacters(in: .whitespacesAndNewlines))
-        }
-
-        return all.joined(separator: "\n\n")
-    }
-
-    private static func recognizeLines(cgImage: CGImage, minimumTextHeight: Float, usesLanguageCorrection: Bool) throws -> String {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        request.usesLanguageCorrection = usesLanguageCorrection
-        request.recognitionLanguages = ["en-US"]
-        // Encourage recognition of smaller text.
-        request.minimumTextHeight = minimumTextHeight
-
-        let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-        try handler.perform([request])
-
-        // Keep more candidates to reduce "missed" small text like City/ZIP.
-        // We'll dedupe per line to avoid too much noise.
-        let lines = (request.results ?? [])
-            .compactMap { obs -> String? in
-                let cands = obs.topCandidates(3).map { $0.string.trimmingCharacters(in: .whitespacesAndNewlines) }
-                let uniq = Array(NSOrderedSet(array: cands)) as? [String] ?? cands
-                return uniq.first(where: { !$0.isEmpty })
-            }
-
-        return lines.joined(separator: "\n")
-    }
-
-    private static func preprocess(
-        _ image: CGImage,
-        context: CIContext,
-        scale: CGFloat,
-        contrast: CGFloat,
-        brightness: CGFloat,
-        sharpness: CGFloat
-    ) -> CGImage? {
-        // OCR often misses small/light text. Boost contrast, desaturate, and sharpen a bit.
-        let ci = CIImage(cgImage: image)
-
-        let color = CIFilter.colorControls()
-        color.inputImage = ci
-        color.saturation = 0.0
-        color.contrast = Float(contrast)
-        color.brightness = Float(brightness)
-
-        let sharpen = CIFilter.sharpenLuminance()
-        sharpen.inputImage = color.outputImage
-        sharpen.sharpness = Float(sharpness)
-
-        // Upscale slightly to help small fonts (city/zip lines).
-        let transform = CGAffineTransform(scaleX: scale, y: scale)
-        let out = (sharpen.outputImage ?? color.outputImage ?? ci).transformed(by: transform)
-
-        return context.createCGImage(out, from: out.extent)
-    }
-
-    private static func preprocessBinarized(_ image: CGImage, context: CIContext, scale: CGFloat) -> CGImage? {
-        // More aggressive preprocessing to pull out tiny high-frequency text.
-        let ci = CIImage(cgImage: image)
-
-        let color = CIFilter.colorControls()
-        color.inputImage = ci
-        color.saturation = 0.0
-        color.contrast = 1.95
-        color.brightness = 0.06
-
-        // Slight gamma curve by scaling RGB to increase midtones.
-        let matrix = CIFilter.colorMatrix()
-        matrix.inputImage = color.outputImage
-        matrix.rVector = CIVector(x: 1.15, y: 0, z: 0, w: 0)
-        matrix.gVector = CIVector(x: 0, y: 1.15, z: 0, w: 0)
-        matrix.bVector = CIVector(x: 0, y: 0, z: 1.15, w: 0)
-        matrix.aVector = CIVector(x: 0, y: 0, z: 0, w: 1)
-
-        let sharpen = CIFilter.sharpenLuminance()
-        sharpen.inputImage = matrix.outputImage ?? color.outputImage
-        sharpen.sharpness = 1.0
-
-        let out = (sharpen.outputImage ?? matrix.outputImage ?? color.outputImage ?? ci)
-            .transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        return context.createCGImage(out, from: out.extent)
-    }
-
-    private static func containsZipOrCityStateZip(_ text: String) -> Bool {
-        let upper = text.uppercased()
-        if upper.range(of: #"\b\d{5}\b"#, options: .regularExpression) != nil { return true }
-        if upper.range(of: #"\b[A-Z]{2}\s*\d{5}\b"#, options: .regularExpression) != nil { return true }
-        if upper.range(of: #"\b[A-Z]{3,}\s+TX\s+\d{5}\b"#, options: .regularExpression) != nil { return true }
-        return false
-    }
-
-    private static func cropCandidatesForAddressRegion(_ image: CGImage) -> [CGImage] {
-        // Empirical crops (front of TX DL): address block is left-middle and left-lower.
-        let w = CGFloat(image.width)
-        let h = CGFloat(image.height)
-        if w <= 2 || h <= 2 { return [] }
-
-        let rects: [CGRect] = [
-            // mid-left band (street + city line)
-            CGRect(x: 0, y: h * 0.30, width: w * 0.68, height: h * 0.40),
-            // slightly lower (city/state/zip line tends to be lower)
-            CGRect(x: 0, y: h * 0.42, width: w * 0.70, height: h * 0.36),
-            // tighter crop just under street line
-            CGRect(x: 0, y: h * 0.46, width: w * 0.62, height: h * 0.22),
-        ].map { $0.integral }
-
-        var out: [CGImage] = []
-        for r in rects {
-            if let c = image.cropping(to: r) {
-                out.append(c)
-            }
-        }
-        return out
+        try await OcrEngine.recognizeText(from: images)
     }
 }
 
@@ -787,6 +654,15 @@ enum Barcode {
 enum DriverLicenseParser {
     // Heuristic-only parsing. This stays on device; no network calls.
     static func parse(_ text: String) -> DriverLicenseScanResult {
+        parseInternal(text, includeGenericNames: true)
+    }
+
+    /// Used by name resolver — skips generic name heuristics that mis-read Texas LAST/FIRST order.
+    static func parseWithoutGenericNames(_ text: String) -> DriverLicenseScanResult {
+        parseInternal(text, includeGenericNames: false)
+    }
+
+    private static func parseInternal(_ text: String, includeGenericNames: Bool) -> DriverLicenseScanResult {
         let normalized = text
             .replacingOccurrences(of: "\r", with: "\n")
             .split(whereSeparator: \.isNewline)
@@ -796,9 +672,6 @@ enum DriverLicenseParser {
         let joined = normalized.joined(separator: "\n")
 
         var result = DriverLicenseScanResult(rawText: joined)
-
-        // DOB heuristics: prefer explicit DOB/Birth lines first (otherwise we might pick issue/expiry).
-        result.dateOfBirth = nil
 
         // Issue / expiry heuristics (OCR only): look for lines containing "ISS" or "EXP".
         if let issueLine = normalized.first(where: { $0.lowercased().contains("iss") || $0.lowercased().contains("issued") }),
@@ -810,19 +683,40 @@ enum DriverLicenseParser {
             result.expiryDate = d
         }
 
-        // Look for "DOB" / "Birth" lines.
-        if let dobLine = normalized.first(where: {
-            let l = $0.lowercased()
-            return l.contains("dob") || l.contains("birth") || l.contains("date of birth")
-        }),
-        let d = firstDate(in: dobLine) {
-            result.dateOfBirth = d
-        } else {
-            // Fallback: any date in the document.
-            result.dateOfBirth = firstDate(in: joined)
+        // DOB: prefer explicit DOB/Birth labels; never use issue/expiry dates as DOB.
+        result.dateOfBirth = extractDateOfBirth(from: normalized, joined: joined, excluding: [result.issueDate, result.expiryDate])
+
+        if includeGenericNames {
+            applyGenericNameHeuristics(from: normalized, into: &result)
         }
 
-        // Name heuristics: LAST, FIRST (common on US licenses).
+        if result.documentNumber == nil {
+            result.documentNumber = extractDocumentNumber(from: normalized)
+        }
+
+        // Address: street line + following city/state/ZIP lines (case-insensitive state).
+        let address = extractAddress(from: normalized)
+        result.addressLine1 = address.line1
+        result.city = address.city
+        if let residenceState = address.state {
+            result.state = residenceState
+        }
+        result.postalCode = address.postalCode
+
+        if result.state == nil {
+            result.state = extractStateCode(from: normalized)
+        }
+
+        // Texas DL numbered fields (1=last, 2=first, 3=DOB, 4a/4b/4d, 8=address) override generic OCR guesses.
+        if let texas = TexasDriverLicenseParser.parse(from: normalized, joined: joined) {
+            result = merge(primary: texas, fallback: result)
+        }
+
+        syncFullNameFromComponents(into: &result)
+        return result
+    }
+
+    private static func applyGenericNameHeuristics(from normalized: [String], into result: inout DriverLicenseScanResult) {
         for line in normalized {
             if let match = line.range(
                 of: #"^([A-Za-z][A-Za-z\-']+)\s*,\s*([A-Za-z][A-Za-z\-'\s]+)$"#,
@@ -836,7 +730,6 @@ enum DriverLicenseParser {
             }
         }
 
-        // Explicit "Name:" lines.
         if result.fullName == nil,
            let nameLine = normalized.first(where: {
                let l = $0.lowercased()
@@ -862,47 +755,35 @@ enum DriverLicenseParser {
             result.firstName = split.first
             result.lastName = split.last
         }
+    }
 
-        if result.documentNumber == nil {
-            result.documentNumber = extractDocumentNumber(from: normalized)
-        }
+    private static func syncFullNameFromComponents(into result: inout DriverLicenseScanResult) {
+        guard let first = result.firstName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              let last = result.lastName?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !first.isEmpty, !last.isEmpty,
+              ScanFieldValidator.isPlausibleNameComponent(first),
+              ScanFieldValidator.isPlausibleNameComponent(last)
+        else { return }
 
-        if result.state == nil {
-            result.state = extractStateCode(from: normalized)
-        }
-
-        // Address heuristics: find a line containing a street number.
-        if let addrIdx = normalized.firstIndex(where: looksLikeStreetAddress) {
-            result.addressLine1 = normalized[addrIdx]
-
-            // Try city/state/zip on next line or same line
-            let next = addrIdx + 1 < normalized.count ? normalized[addrIdx + 1] : nil
-            if let next, let csz = parseCityStateZip(next) {
-                result.city = csz.city
-                result.state = csz.state
-                result.postalCode = csz.zip
-            } else if let csz = parseCityStateZip(normalized[addrIdx]) {
-                result.city = csz.city
-                result.state = csz.state
-                result.postalCode = csz.zip
-            }
-        } else {
-            // Try to parse any city/state/zip line
-            if let line = normalized.first(where: { parseCityStateZip($0) != nil }), let csz = parseCityStateZip(line) {
-                result.city = csz.city
-                result.state = csz.state
-                result.postalCode = csz.zip
-            }
-        }
-
-        return result
+        result.fullName = DriverLicenseFormatting.displayName(
+            first: first,
+            middle: result.middleName,
+            last: last
+        )
     }
 
     static func merge(primary: DriverLicenseScanResult, fallback: DriverLicenseScanResult) -> DriverLicenseScanResult {
         var out = primary
-        if out.fullName == nil { out.fullName = fallback.fullName }
-        if out.firstName == nil { out.firstName = fallback.firstName }
-        if out.lastName == nil { out.lastName = fallback.lastName }
+        if out.firstName == nil || isGarbageName(out.firstName ?? "") || !ScanFieldValidator.isPlausibleNameComponent(out.firstName ?? "") {
+            if let v = fallback.firstName, !isGarbageName(v), ScanFieldValidator.isPlausibleNameComponent(v) {
+                out.firstName = v
+            }
+        }
+        if out.lastName == nil || isGarbageName(out.lastName ?? "") || !ScanFieldValidator.isPlausibleNameComponent(out.lastName ?? "") {
+            if let v = fallback.lastName, !isGarbageName(v), ScanFieldValidator.isPlausibleNameComponent(v) {
+                out.lastName = v
+            }
+        }
         if out.dateOfBirth == nil { out.dateOfBirth = fallback.dateOfBirth }
         if out.documentNumber == nil { out.documentNumber = fallback.documentNumber }
         if out.issueDate == nil { out.issueDate = fallback.issueDate }
@@ -915,41 +796,35 @@ enum DriverLicenseParser {
         if out.rawText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             out.rawText = fallback.rawText
         }
+        syncFullNameFromComponents(into: &out)
         return out
     }
 
+    private static func isGarbageName(_ value: String) -> Bool {
+        let lower = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return ["none", "eno", "ba.", "ba. eno", "director", "limited", "term", "texas", "texass"].contains(where: { lower.contains($0) })
+    }
+
     static func parseAAMVAPDF417(_ payload: String) -> DriverLicenseScanResult? {
-        // AAMVA DL/ID PDF417 payload usually contains ANSI header then lines with data element IDs.
-        // We parse common fields:
-        // DCS last name, DAC first name, DAD middle, DBB DOB (YYYYMMDD), DBA expiry (YYYYMMDD),
-        // DBD issue (YYYYMMDD), DAQ document number, DAG address, DAI city, DAJ state, DAK zip.
         let text = payload.replacingOccurrences(of: "\r", with: "\n")
-        var lines = text.split(whereSeparator: \.isNewline).map { String($0) }
-        if lines.isEmpty {
-            lines = text.components(separatedBy: "\n")
+        let fields = parseAAMVAFields(in: text)
+
+        func field(_ key: String) -> String? {
+            fields[key]?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
         }
 
-        func value(for key: String) -> String? {
-            for l in lines {
-                if l.hasPrefix(key) {
-                    let v = String(l.dropFirst(key.count)).trimmingCharacters(in: .whitespacesAndNewlines)
-                    if !v.isEmpty { return v }
-                }
-            }
-            return nil
-        }
-
-        let last = value(for: "DCS")
-        let first = value(for: "DAC")
-        let middle = value(for: "DAD")
-        let dobRaw = value(for: "DBB")
-        let expRaw = value(for: "DBA")
-        let issRaw = value(for: "DBD")
-        let docNumber = value(for: "DAQ")
-        let addr1 = value(for: "DAG")
-        let city = value(for: "DAI")
-        let state = value(for: "DAJ")
-        let zip = value(for: "DAK")
+        let last = field("DCS")
+        let first = field("DAC")
+        let middle = field("DAD")
+        let dobRaw = field("DBB")
+        let expRaw = field("DBA")
+        let issRaw = field("DBD")
+        let docNumber = field("DAQ")
+        let addr1 = field("DAG")
+        let addr2 = field("DAH")
+        let city = field("DAI")
+        let state = field("DAJ")
+        let zip = field("DAK")
 
         if last == nil, first == nil, dobRaw == nil, addr1 == nil, docNumber == nil {
             return nil
@@ -977,13 +852,65 @@ enum DriverLicenseParser {
             out.expiryDate = parseAAMVADateYYYYMMDD(expRaw)
         }
 
-        out.addressLine1 = addr1
+        out.addressLine1 = [addr1, addr2]
+            .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .joined(separator: ", ")
+            .nilIfEmpty ?? addr1
         out.city = city
-        out.state = state
+        out.state = parseAAMVAState(state)
         if let zip {
-            out.postalCode = zip.replacingOccurrences(of: "-", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let digits = zip.filter(\.isNumber)
+            if digits.count >= 5 {
+                out.postalCode = String(digits.prefix(9))
+            }
         }
         return out
+    }
+
+    /// Parses AAMVA PDF417 data element ids (DCS, DBB, DAI, …) from line-based or inline payloads.
+    private static func parseAAMVAFields(in text: String) -> [String: String] {
+        let knownKeys: Set<String> = [
+            "DCS", "DAC", "DAD", "DBB", "DBA", "DBD", "DBE", "DAQ", "DAG", "DAH", "DAI", "DAJ", "DAK",
+        ]
+
+        var hits: [(key: String, location: Int)] = []
+        let ns = text as NSString
+        guard let regex = try? NSRegularExpression(pattern: "[A-Z]{3}") else { return [:] }
+        regex.enumerateMatches(in: text, range: NSRange(location: 0, length: ns.length)) { match, _, _ in
+            guard let match else { return }
+            let key = ns.substring(with: match.range)
+            guard knownKeys.contains(key) else { return }
+            hits.append((key, match.range.location))
+        }
+        hits.sort { $0.location < $1.location }
+
+        var fields: [String: String] = [:]
+        for (index, hit) in hits.enumerated() {
+            let valueStart = hit.location + 3
+            let valueEnd = index + 1 < hits.count ? hits[index + 1].location : ns.length
+            guard valueEnd > valueStart else { continue }
+            let raw = ns.substring(with: NSRange(location: valueStart, length: valueEnd - valueStart))
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !raw.isEmpty else { continue }
+            // Prefer shorter value when the same key appears more than once (OCR/barcode noise).
+            if let existing = fields[hit.key], existing.count <= raw.count {
+                continue
+            }
+            fields[hit.key] = raw
+        }
+        return fields
+    }
+
+    private static func parseAAMVAState(_ raw: String?) -> String? {
+        guard let raw else { return nil }
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        if trimmed.count == 2, ScanFieldValidator.isPlausibleUSState(trimmed) { return trimmed }
+        if trimmed.count > 2 {
+            let code = String(trimmed.prefix(2))
+            if ScanFieldValidator.isPlausibleUSState(code) { return code }
+        }
+        return nil
     }
 
     private static func parseAAMVADateYYYYMMDD(_ s: String) -> Date? {
@@ -1069,17 +996,189 @@ enum DriverLicenseParser {
         return nil
     }
 
+    private static func extractDateOfBirth(
+        from lines: [String],
+        joined: String,
+        excluding excluded: [Date?]
+    ) -> Date? {
+        let excludedSet = Set(excluded.compactMap { $0 })
+
+        func isExcluded(_ date: Date) -> Bool {
+            excludedSet.contains { Calendar.current.isDate($0, inSameDayAs: date) }
+        }
+
+        // 1) Label on same line: "DOB 04/25/1990", "DOB: 04-25-1990", "3 DOB 04/25/1990"
+        for line in lines {
+            let lower = line.lowercased()
+            guard lower.contains("dob")
+                || lower.contains("birth")
+                || lower.contains("date of birth")
+                || lower.contains("bdate")
+            else { continue }
+
+            if let d = firstDate(in: line), !isExcluded(d), isPlausibleBirthDate(d) {
+                return d
+            }
+        }
+
+        // 2) Label on one line, date on the next (common OCR split).
+        for (idx, line) in lines.enumerated() {
+            let lower = line.lowercased()
+            guard lower.contains("dob") || lower.contains("birth") || lower.contains("bdate") else { continue }
+            if firstDate(in: line) != nil { continue }
+            if idx + 1 < lines.count,
+               let d = firstDate(in: lines[idx + 1]),
+               !isExcluded(d),
+               isPlausibleBirthDate(d)
+            {
+                return d
+            }
+        }
+
+        // 3) Any remaining date that isn't issue/expiry and looks like a birth date.
+        for d in allDates(in: joined) where !isExcluded(d) && isPlausibleBirthDate(d) {
+            return d
+        }
+        return nil
+    }
+
+    private static func isPlausibleBirthDate(_ date: Date) -> Bool {
+        let now = Date()
+        guard date <= now else { return false }
+        let years = Calendar.current.dateComponents([.year], from: date, to: now).year ?? 0
+        return years >= 14 && years <= 110
+    }
+
+    private static func allDates(in text: String) -> [Date] {
+        let patterns = [
+            #"(\d{1,2}/\d{1,2}/\d{4})"#,
+            #"(\d{1,2}-\d{1,2}-\d{4})"#,
+            #"(\d{4}-\d{1,2}-\d{1,2})"#,
+            #"(\d{1,2}/\d{1,2}/\d{2})"#,
+        ]
+        var found: [Date] = []
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern) else { continue }
+            let range = NSRange(text.startIndex..., in: text)
+            regex.enumerateMatches(in: text, range: range) { match, _, _ in
+                guard let match, match.numberOfRanges > 1, let r = Range(match.range(at: 1), in: text) else { return }
+                if let d = parseDate(String(text[r])) {
+                    found.append(d)
+                }
+            }
+        }
+        return found
+    }
+
+    private struct ParsedAddress {
+        var line1: String?
+        var city: String?
+        var state: String?
+        var postalCode: String?
+    }
+
+    private static func extractAddress(from lines: [String]) -> ParsedAddress {
+        var result = ParsedAddress()
+
+        // Full single-line address: "123 Main St, Austin, TX 78701"
+        for line in lines {
+            if let combined = parseFullAddressLine(line) {
+                return combined
+            }
+        }
+
+        guard let addrIdx = lines.firstIndex(where: looksLikeStreetAddress) else {
+            if let line = lines.first(where: { parseCityStateZip($0) != nil }),
+               let csz = parseCityStateZip(line)
+            {
+                result.city = csz.city
+                result.state = csz.state
+                result.postalCode = csz.zip
+            }
+            return result
+        }
+
+        result.line1 = cleanStreetLine(lines[addrIdx])
+
+        // City/state/ZIP often on the next 1–2 lines; skip apt/unit lines when hunting CSZ.
+        for offset in 1 ... 3 {
+            let idx = addrIdx + offset
+            guard idx < lines.count else { break }
+            let candidate = lines[idx]
+            if looksLikeStreetAddress(candidate), result.line1?.contains(candidate) != true {
+                // Apt / suite line — append to street address.
+                let extra = cleanStreetLine(candidate)
+                if let existing = result.line1, !existing.isEmpty {
+                    result.line1 = "\(existing), \(extra)"
+                } else {
+                    result.line1 = extra
+                }
+                continue
+            }
+            if let csz = parseCityStateZip(candidate) {
+                result.city = csz.city
+                result.state = csz.state
+                result.postalCode = csz.zip
+                break
+            }
+        }
+
+        if result.city == nil, let csz = parseCityStateZip(lines[addrIdx]) {
+            result.city = csz.city
+            result.state = csz.state
+            result.postalCode = csz.zip
+            if let street = csz.street {
+                result.line1 = street
+            }
+        }
+
+        return result
+    }
+
+    private static func parseFullAddressLine(_ line: String) -> ParsedAddress? {
+        // 123 Main St, Austin, TX 78701
+        let pattern = #"(?i)^(\d[\w\s\.\#\-]+?),\s*(.+?),\s*([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)),
+              match.numberOfRanges >= 5,
+              let r1 = Range(match.range(at: 1), in: line),
+              let r2 = Range(match.range(at: 2), in: line),
+              let r3 = Range(match.range(at: 3), in: line),
+              let r4 = Range(match.range(at: 4), in: line)
+        else { return nil }
+
+        return ParsedAddress(
+            line1: cleanStreetLine(String(line[r1])),
+            city: String(line[r2]).trimmingCharacters(in: .whitespacesAndNewlines),
+            state: String(line[r3]).uppercased(),
+            postalCode: String(line[r4])
+        )
+    }
+
+    private static func cleanStreetLine(_ line: String) -> String {
+        line
+            .replacingOccurrences(
+                of: #"^(?i)(?:address|addr|residence|res)\s*:?\s*"#,
+                with: "",
+                options: .regularExpression
+            )
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     private static func looksLikeStreetAddress(_ line: String) -> Bool {
-        // Simple: starts with digits and has a street-like word.
-        guard line.range(of: #"^\d+\s+\S+"#, options: .regularExpression) != nil else { return false }
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.range(of: #"^\d+\s+\S+"#, options: .regularExpression) != nil else { return false }
+        let lower = trimmed.lowercased()
+        if lower.contains("dob") || lower.contains("exp") || lower.contains("iss") { return false }
         return true
     }
 
     private static func firstDate(in s: String) -> Date? {
         let patterns = [
-            #"(\d{1,2})/(\d{1,2})/(\d{4})"#,
+            #"(\d{1,2}/\d{1,2}/\d{4})"#,
             #"(\d{1,2})-(\d{1,2})-(\d{4})"#,
             #"(\d{4})-(\d{1,2})-(\d{1,2})"#,
+            #"(\d{1,2}/\d{1,2}/\d{2})"#,
         ]
         for p in patterns {
             if let match = s.range(of: p, options: .regularExpression) {
@@ -1091,33 +1190,86 @@ enum DriverLicenseParser {
     }
 
     private static func parseDate(_ str: String) -> Date? {
-        let fmts = ["MM/dd/yyyy", "M/d/yyyy", "MM-d-yyyy", "M-d-yyyy", "yyyy-MM-dd", "yyyy-M-d"]
+        let fmts = ["MM/dd/yyyy", "M/d/yyyy", "MM-d-yyyy", "M-d-yyyy", "yyyy-MM-dd", "yyyy-M-d", "MM/dd/yy", "M/d/yy"]
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.timeZone = TimeZone(secondsFromGMT: 0)
         for f in fmts {
             df.dateFormat = f
-            if let d = df.date(from: str) { return d }
+            if let d = df.date(from: str) {
+                if f.contains("yy"), !f.contains("yyyy") {
+                    // Expand 2-digit year: 90 -> 1990, 05 -> 2005
+                    let year = Calendar.current.component(.year, from: d)
+                    if year > Calendar.current.component(.year, from: Date()) {
+                        return Calendar.current.date(byAdding: .year, value: -100, to: d) ?? d
+                    }
+                }
+                return d
+            }
         }
         return nil
     }
 
-    private struct CityStateZip { let city: String; let state: String; let zip: String }
+    private struct CityStateZip {
+        let city: String
+        let state: String
+        let zip: String
+        let street: String?
+    }
 
     private static func parseCityStateZip(_ line: String) -> CityStateZip? {
-        // Example: Austin, TX 78701
-        // Example: Austin TX 78701
-        let cleaned = line.replacingOccurrences(of: ",", with: " ")
-        let pattern = #"^(.+?)\s+([A-Z]{2})\s+(\d{5})(?:-\d{4})?$"#
-        guard let r = cleaned.range(of: pattern, options: .regularExpression) else { return nil }
-        let match = String(cleaned[r])
-        // Split by spaces from end
-        let parts = match.split(separator: " ")
-        guard parts.count >= 3 else { return nil }
-        let zip = String(parts.last!)
-        let state = String(parts[parts.count - 2])
-        let city = parts.dropLast(2).joined(separator: " ").trimmingCharacters(in: .whitespacesAndNewlines)
-        return CityStateZip(city: city, state: state, zip: zip)
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Combined: "123 Main St Austin TX 78701" — extract trailing CSZ.
+        let trailingPattern = #"(?i)^(.+?)\s+([A-Za-z]{2})\s+(\d{5}(?:-\d{4})?)$"#
+        if let regex = try? NSRegularExpression(pattern: trailingPattern),
+           let match = regex.firstMatch(in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed)),
+           match.numberOfRanges >= 4,
+           let cityRange = Range(match.range(at: 1), in: trimmed),
+           let stateRange = Range(match.range(at: 2), in: trimmed),
+           let zipRange = Range(match.range(at: 3), in: trimmed)
+        {
+            let cityPart = String(trimmed[cityRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+            let state = String(trimmed[stateRange]).uppercased()
+            let zip = String(trimmed[zipRange])
+            guard ScanFieldValidator.isPlausibleUSState(state) else { return nil }
+
+            // Split leading street from city when glued on one line.
+            if let streetMatch = cityPart.range(of: #"(?i)^(\d+\s+.+?)\s+([A-Za-z][A-Za-z\s'\-\.]+)$"#, options: .regularExpression) {
+                let parts = cityPart[streetMatch]
+                if let inner = try? NSRegularExpression(pattern: #"(?i)^(\d+\s+.+?)\s+([A-Za-z][A-Za-z\s'\-\.]+)$"#),
+                   let m = inner.firstMatch(in: String(parts), range: NSRange(parts.startIndex..., in: parts)),
+                   m.numberOfRanges >= 3,
+                   let sRange = Range(m.range(at: 1), in: parts),
+                   let cRange = Range(m.range(at: 2), in: parts)
+                {
+                    return CityStateZip(
+                        city: String(parts[cRange]).trimmingCharacters(in: .whitespacesAndNewlines),
+                        state: state,
+                        zip: zip,
+                        street: cleanStreetLine(String(parts[sRange]))
+                    )
+                }
+            }
+
+            return CityStateZip(city: cityPart, state: state, zip: zip, street: nil)
+        }
+
+        // Standard: "Austin, TX 78701" or "Austin TX 78701"
+        let cleaned = trimmed.replacingOccurrences(of: ",", with: " ")
+        let pattern = #"(?i)^(.+?)\s+([A-Za-z]{2})\s+(\d{5})(?:-(\d{4}))?$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)),
+              match.numberOfRanges >= 4,
+              let cityRange = Range(match.range(at: 1), in: cleaned),
+              let stateRange = Range(match.range(at: 2), in: cleaned),
+              let zipRange = Range(match.range(at: 3), in: cleaned)
+        else { return nil }
+
+        let state = String(cleaned[stateRange]).uppercased()
+        guard ScanFieldValidator.isPlausibleUSState(state) else { return nil }
+        let city = String(cleaned[cityRange]).trimmingCharacters(in: .whitespacesAndNewlines)
+        let zip = String(cleaned[zipRange])
+        return CityStateZip(city: city, state: state, zip: zip, street: nil)
     }
 
     static let demoDriverLicenseText = """

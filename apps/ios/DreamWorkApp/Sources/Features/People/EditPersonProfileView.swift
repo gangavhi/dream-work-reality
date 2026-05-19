@@ -47,6 +47,16 @@ struct EditPersonProfileView: View {
     @State private var newEmergencyPhone: String = ""
     @State private var autosaveTask: Task<Void, Never>?
 
+    private var dlLabelContext: DocumentFieldLabelContext {
+        DocumentFieldLabelContext.from(
+            fieldValues: [
+                ProfileFieldKey.driversLicenseState: dlState,
+                ProfileFieldKey.state: state,
+            ],
+            documentType: .driversLicense
+        )
+    }
+
     // Prevent unintended save when user explicitly cancels or deletes.
     @State private var didCancel = false
     @State private var didDelete = false
@@ -130,10 +140,33 @@ struct EditPersonProfileView: View {
 
                 Section("ID") {
                     FormField(title: "DOB (MM/dd/yyyy)", text: $dob)
-                    FormField(title: "Driver License Number", text: $dlNumber)
-                    FormField(title: "DL Issue (MM/dd/yyyy)", text: $dlIssue)
-                    FormField(title: "DL Expiry (MM/dd/yyyy)", text: $dlExpiry)
-                    FormField(title: "DL State (e.g. CA)") {
+                    FormField(
+                        title: ProfileSchema.contextualLabel(
+                            for: ProfileFieldKey.driversLicenseNumber,
+                            context: dlLabelContext
+                        ),
+                        text: $dlNumber
+                    )
+                    FormField(
+                        title: ProfileSchema.contextualLabel(
+                            for: ProfileFieldKey.driversLicenseIssueDate,
+                            context: dlLabelContext
+                        ) + " (MM/dd/yyyy)",
+                        text: $dlIssue
+                    )
+                    FormField(
+                        title: ProfileSchema.contextualLabel(
+                            for: ProfileFieldKey.driversLicenseExpiry,
+                            context: dlLabelContext
+                        ) + " (MM/dd/yyyy)",
+                        text: $dlExpiry
+                    )
+                    FormField(
+                        title: ProfileSchema.contextualLabel(
+                            for: ProfileFieldKey.driversLicenseState,
+                            context: dlLabelContext
+                        ) + " (e.g. CA)"
+                    ) {
                         TextField("", text: $dlState)
                             .textInputAutocapitalization(.characters)
                             .autocorrectionDisabled()

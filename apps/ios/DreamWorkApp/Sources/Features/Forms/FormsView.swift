@@ -5,32 +5,39 @@ struct FormsView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("Pick a form category, choose a template, then copy profile fields into Safari or any other app. Data stays on this device.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                    Text("Choose a form type, pick a template, then copy profile fields into Safari or any other app. Your data never leaves this device.")
+                        .appHelperText()
                 }
 
-                Section("Categories") {
+                Section {
                     ForEach(FormCategory.allCases) { category in
                         NavigationLink {
                             FormCategoryDetailView(category: category)
                         } label: {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 14) {
+                                Image(systemName: category.iconName)
+                                    .font(.title2.weight(.semibold))
+                                    .foregroundStyle(AppTheme.accent)
+                                    .frame(width: 44, height: 44)
+                                    .background(AppTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
+
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(category.rawValue)
-                                        .font(.headline)
+                                        .font(.headline.weight(.semibold))
+                                        .foregroundStyle(.primary)
                                     Text(category.subtitle)
-                                        .font(.caption)
+                                        .font(.subheadline)
                                         .foregroundStyle(.secondary)
                                 }
-                            } icon: {
-                                Image(systemName: category.iconName)
+                                .padding(.vertical, 4)
                             }
-                            .padding(.vertical, 4)
                         }
                     }
+                } header: {
+                    Text("Categories")
                 }
             }
+            .appListChrome()
             .navigationTitle("Forms")
         }
     }

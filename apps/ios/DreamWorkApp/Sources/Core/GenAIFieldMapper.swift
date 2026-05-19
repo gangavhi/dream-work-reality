@@ -1,9 +1,14 @@
 import Foundation
 
-/// Maps OCR text to profile fields via OpenAI-compatible API (direct from device — no core-api port-forward).
+/// Maps OCR text to profile fields via OpenAI-compatible API (OpenAI, Ollama, LM Studio).
 enum GenAIFieldMapper {
-    private static let defaultBaseURL = "https://api.openai.com/v1"
-    private static let defaultModel = "gpt-4o-mini"
+    struct ExtractionResult {
+        var values: [String: String]
+        var labels: [String: String]
+        var documentType: String?
+        var issuerRegion: String?
+        var country: String?
+    }
 
     private struct ChatRequest: Encodable {
         var model: String
@@ -35,68 +40,105 @@ enum GenAIFieldMapper {
     static func mapFields(
         ocrText: String,
         documentType: ScannedDocumentType,
-        profileSchemaKeys: [String],
-        apiKey: String
-    ) async -> [OcrFieldSuggestion]? {
-        guard let values = await fetchFlatFieldMap(
+        profileSchemaKeys: [String]
+    ) async -> (suggestions: [OcrFieldSuggestion], documentType: String?)? {
+        guard let extraction = await fetchExtraction(
             ocrText: ocrText,
             documentType: documentType,
-            profileSchemaKeys: profileSchemaKeys,
-            apiKey: apiKey
+            profileSchemaKeys: profileSchemaKeys
         ) else {
             return nil
         }
-        return suggestions(from: values)
+        let resolvedType = documentType == .other
+            ? (extraction.documentType ?? DocumentTypeClassifier.mapToUnderstandingType(documentType))
+            : DocumentTypeClassifier.mapToUnderstandingType(documentType)
+        return (
+            suggestions(from: extraction, documentType: documentType),
+            extraction.documentType ?? resolvedType
+        )
     }
 
     /// Driver-license pipeline helper (barcode + OCR text).
-    static func mapDriverLicense(
-        from rawText: String,
-        apiKey: String
-    ) async -> DriverLicenseScanResult? {
-        guard let values = await fetchFlatFieldMap(
+    static func mapDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
+        guard let extraction = await fetchExtraction(
             ocrText: rawText,
             documentType: .driversLicense,
-            profileSchemaKeys: ProfileSchema.allFields.map(\.key),
-            apiKey: apiKey
+            profileSchemaKeys: ProfileSchema.allFields.map(\.key)
         ) else {
             return nil
         }
-        return driverLicenseResult(from: values, rawText: rawText)
+        return driverLicenseResult(from: extraction, rawText: rawText)
     }
 
-    private static func fetchFlatFieldMap(
+    private static func fetchExtraction(
+        ocrText: String,
+        documentType: ScannedDocumentType,
+        profileSchemaKeys: [String]
+    ) async -> ExtractionResult? {
+        guard let config = GenAISettings.activeLLMConfig else { return nil }
+        return await fetchExtraction(
+            ocrText: ocrText,
+            documentType: documentType,
+            profileSchemaKeys: profileSchemaKeys,
+            baseURL: config.baseURL,
+            model: config.model,
+            apiKey: config.apiKey
+        )
+    }
+
+    private static func fetchExtraction(
         ocrText: String,
         documentType: ScannedDocumentType,
         profileSchemaKeys: [String],
+        baseURL: String,
+        model: String,
         apiKey: String
-    ) async -> [String: String]? {
+    ) async -> ExtractionResult? {
         let trimmed = String(ocrText.prefix(24_000))
         guard !trimmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
-        let baseURL = ProcessInfo.processInfo.environment["DREAMWORK_OPENAI_BASE_URL"]
-            ?? ProcessInfo.processInfo.environment["OPENAI_BASE_URL"]
-            ?? defaultBaseURL
-        let model = ProcessInfo.processInfo.environment["DREAMWORK_OPENAI_MODEL"]
-            ?? ProcessInfo.processInfo.environment["OPENAI_MODEL"]
-            ?? defaultModel
-
         let keysList = profileSchemaKeys.joined(separator: ", ")
         let system = """
-        You extract structured identity fields from noisy OCR text. Return ONE JSON object only.
-        Keys must be from this allow-list when applicable: \(keysList).
+        You extract structured identity and document fields from noisy OCR text. Return ONE JSON object only.
+
+        Response shape (required):
+        {
+          "document_type": "drivers_license | passport | state_id | insurance_card | utility_bill | bank_statement | tax_form | employment_document | ssn_card | other",
+          "issuer_region": "2-letter US state, province, or region code when known, else omit",
+          "country": "2-letter ISO country when known (e.g. US, GB, CA, IN), else omit",
+          "fields": {
+            "<canonical_key>": {"value": "...", "label": "..."},
+            ...
+          }
+        }
+
+        Canonical keys (use from this allow-list when applicable): \(keysList).
+        You may add extension keys (snake_case) for attributes not in the list when clearly present.
 
         Rules:
-        - For US driver's licenses: set display_name to the full name printed on the card (the driver's name).
-        - Split name into legal_first_name, legal_middle_name (if any), legal_last_name when visible.
-        - Dates use MM/DD/YYYY (date_of_birth, drivers_license_issue_date, drivers_license_expiry).
-        - address_line1 is street line only; city, state (2-letter US), postal_code on separate keys.
-        - drivers_license_number is the DL ID on the card (not the internal document control number unless that is the only ID).
-        - Do not invent values. Omit keys you cannot read.
-        - Fix obvious OCR character errors only when confident.
+        - Identify document_type from OCR content before extracting fields.
+        - Classify document context from the text (driver license, passport, state ID, utility bill, bank statement, tax form, pay stub, etc.).
+        - For each field, set "label" to the short human label as printed on the source document:
+          • Texas US driver license field 4d → "Driver License No"
+          • California DL → "DL No"
+          • UK driving licence → "Driving Licence No"
+          • Passport → "Passport No"
+          • Use Title Case; omit field numbers (no "4d.", "3.", etc.).
+        - Infer issuer_region and country from document headers, state names, and formatting.
+        - For US driver's licenses: display_name is full name on card; split legal_first_name, legal_middle_name, legal_last_name.
+        - Dates use MM/DD/YYYY in value.
+        - address_line1 is street only; city, state (2-letter US), postal_code separate.
+        - Include gender when visible on ID documents.
+        - For utility bills set utility_provider; bank statements set bank_name; tax docs set tax_form_type and tax_year; pay stubs set employer_name.
+        - For Social Security cards set ssn (xxx-xx-xxxx), legal names, and date_of_birth when visible.
+        - Do not invent values. Omit fields you cannot read.
+        - Fix obvious OCR errors only when confident.
         """
 
-        let user = "Document type hint: \(documentType.rawValue)\n\nOCR text:\n\(trimmed)"
+        let typeHint = documentType == .other
+            ? "Auto-detect from OCR"
+            : documentType.rawValue
+        let user = "Identify the document type from the OCR text below. Heuristic hint (may be wrong): \(typeHint)\n\nOCR text:\n\(trimmed)"
 
         guard let url = URL(string: "\(baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/chat/completions") else {
             return nil
@@ -125,29 +167,67 @@ enum GenAIFieldMapper {
             guard (200 ..< 300).contains(status) else { return nil }
             let decoded = try JSONDecoder().decode(ChatResponse.self, from: data)
             guard let content = decoded.choices.first?.message.content else { return nil }
-            return parseJSONObject(content)
+            return parseExtractionJSON(content)
         } catch {
             return nil
         }
     }
 
-    static func suggestions(from values: [String: String]) -> [OcrFieldSuggestion] {
+    static func suggestions(
+        from values: [String: String],
+        documentType: ScannedDocumentType = .other
+    ) -> [OcrFieldSuggestion] {
+        suggestions(
+            from: ExtractionResult(values: values, labels: [:], issuerRegion: nil, country: nil),
+            documentType: documentType
+        )
+    }
+
+    static func suggestions(
+        from extraction: ExtractionResult,
+        documentType: ScannedDocumentType
+    ) -> [OcrFieldSuggestion] {
+        var fieldValues = extraction.values
+        if let region = extraction.issuerRegion?.nilIfEmpty {
+            fieldValues[ProfileFieldKey.driversLicenseState] = fieldValues[ProfileFieldKey.driversLicenseState] ?? region
+        }
+        if let country = extraction.country?.nilIfEmpty {
+            fieldValues[ProfileFieldKey.country] = fieldValues[ProfileFieldKey.country] ?? country
+        }
+
+        let context = DocumentFieldLabelContext.from(fieldValues: fieldValues, documentType: documentType)
         var out: [OcrFieldSuggestion] = []
-        for (rawKey, rawValue) in values {
+        for (rawKey, rawValue) in extraction.values {
             let key = normalizeKey(rawKey)
             let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty, !value.isEmpty else { continue }
-            let label = ProfileSchema.definition(for: key)?.label ?? key
+            let label = resolvedLabel(
+                for: key,
+                genAILabel: extraction.labels[key],
+                context: context
+            )
             out.append(
                 OcrFieldSuggestion(
                     profileKey: key,
                     label: label,
                     value: value,
-                    confidence: "High"
+                    confidence: "High",
+                    confidenceScore: 0.88
                 )
             )
         }
-        return finalizeSuggestions(out)
+        return finalizeSuggestions(out, documentType: documentType)
+    }
+
+    private static func resolvedLabel(
+        for key: String,
+        genAILabel: String?,
+        context: DocumentFieldLabelContext
+    ) -> String {
+        if let genAILabel = genAILabel?.trimmingCharacters(in: .whitespacesAndNewlines), !genAILabel.isEmpty {
+            return genAILabel
+        }
+        return DocumentFieldLabels.label(for: key, context: context)
     }
 
     static func finalizeSuggestions(
@@ -165,25 +245,35 @@ enum GenAIFieldMapper {
                 .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
                 .filter { !$0.isEmpty }
             if !parts.isEmpty {
+                let context = DocumentFieldLabelContext.from(
+                    suggestions: Array(byKey.values),
+                    documentType: documentType
+                )
                 byKey[ProfileFieldKey.displayName] = OcrFieldSuggestion(
                     profileKey: ProfileFieldKey.displayName,
-                    label: "Display name",
+                    label: resolvedLabel(for: ProfileFieldKey.displayName, genAILabel: nil, context: context),
                     value: parts.joined(separator: " "),
-                    confidence: "High"
+                    confidence: "High",
+                    confidenceScore: 0.9
                 )
             }
         }
 
-        return byKey.values.sorted {
-            $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
-        }
+        return ProfileSchema.sortSuggestions(Array(byKey.values))
     }
 
     static func driverLicenseResult(from values: [String: String], rawText: String) -> DriverLicenseScanResult {
+        driverLicenseResult(
+            from: ExtractionResult(values: values, labels: [:], documentType: nil, issuerRegion: nil, country: nil),
+            rawText: rawText
+        )
+    }
+
+    static func driverLicenseResult(from extraction: ExtractionResult, rawText: String) -> DriverLicenseScanResult {
         func pick(_ keys: [String]) -> String? {
             for k in keys {
                 let canon = normalizeKey(k)
-                if let v = values[canon] ?? values[k],
+                if let v = extraction.values[canon] ?? extraction.values[k],
                    !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                 {
                     return v.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -191,6 +281,13 @@ enum GenAIFieldMapper {
             }
             return nil
         }
+
+        var genAIValues = extraction.values
+        for (key, label) in extraction.labels where !label.isEmpty {
+            genAIValues["__label_\(key)"] = label
+        }
+        if let region = extraction.issuerRegion { genAIValues["issuer_region"] = region }
+        if let country = extraction.country { genAIValues["country"] = country }
 
         return DriverLicenseScanResult(
             fullName: pick(["display_name", "full_name"]),
@@ -203,32 +300,75 @@ enum GenAIFieldMapper {
             expiryDate: parseDate(pick(["drivers_license_expiry", "expiry_mmddyyyy", "expiry"])),
             addressLine1: pick(["address_line1", "address_line_1"]),
             city: pick(["city"]),
-            state: pick(["drivers_license_state", "state"]),
+            state: pick(["drivers_license_state", "state"]) ?? extraction.issuerRegion,
             postalCode: pick(["postal_code", "zip"]),
             height: pick(["height"]),
             eyeColor: pick(["eye_color"]),
-            genAIValues: values,
+            genAIValues: genAIValues,
             rawText: rawText
         )
     }
 
-    private static func parseJSONObject(_ content: String) -> [String: String]? {
+    private static func parseExtractionJSON(_ content: String) -> ExtractionResult? {
         let stripped = stripMarkdownFence(content)
         guard let data = stripped.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else {
             return nil
         }
-        var out: [String: String] = [:]
-        for (k, v) in obj {
-            if let s = v as? String {
-                let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !t.isEmpty { out[normalizeKey(k)] = t }
-            } else if let n = v as? NSNumber {
-                out[normalizeKey(k)] = n.stringValue
+
+        let issuerRegion = stringValue(obj["issuer_region"])
+        let country = stringValue(obj["country"])
+        let documentType = stringValue(obj["document_type"])
+
+        var values: [String: String] = [:]
+        var labels: [String: String] = [:]
+
+        if let fields = obj["fields"] as? [String: Any] {
+            for (rawKey, rawEntry) in fields {
+                let key = normalizeKey(rawKey)
+                guard !key.isEmpty else { continue }
+                if let entry = rawEntry as? [String: Any] {
+                    if let value = stringValue(entry["value"]) {
+                        values[key] = value
+                    }
+                    if let label = stringValue(entry["label"]) {
+                        labels[key] = label
+                    }
+                } else if let flat = stringValue(rawEntry) {
+                    values[key] = flat
+                }
             }
         }
-        return out.isEmpty ? nil : out
+
+        // Backward compatibility: flat top-level keys.
+        if values.isEmpty {
+            for (k, v) in obj where k != "fields" && k != "issuer_region" && k != "country" && k != "document_type" {
+                if let s = stringValue(v) {
+                    values[normalizeKey(k)] = s
+                }
+            }
+        }
+
+        guard !values.isEmpty else { return nil }
+        return ExtractionResult(
+            values: values,
+            labels: labels,
+            documentType: documentType,
+            issuerRegion: issuerRegion,
+            country: country
+        )
+    }
+
+    private static func stringValue(_ value: Any?) -> String? {
+        if let s = value as? String {
+            let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+            return t.isEmpty ? nil : t
+        }
+        if let n = value as? NSNumber {
+            return n.stringValue
+        }
+        return nil
     }
 
     private static func normalizeKey(_ key: String) -> String {
@@ -245,7 +385,11 @@ enum GenAIFieldMapper {
         case "license_state", "dl_state": return ProfileFieldKey.driversLicenseState
         case "issue_mmddyyyy", "issue", "issue_date": return ProfileFieldKey.driversLicenseIssueDate
         case "expiry_mmddyyyy", "expiry", "expiration": return ProfileFieldKey.driversLicenseExpiry
-        default: return k
+        case "sex", "gender": return ProfileFieldKey.gender
+        default:
+            let normalized = k
+            if ProfileSchema.isCanonicalKey(normalized) { return normalized }
+            return normalized
         }
     }
 
@@ -280,5 +424,12 @@ enum GenAIFieldMapper {
             t = String(t[..<end.lowerBound])
         }
         return t.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? {
+        let t = trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
     }
 }
