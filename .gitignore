@@ -7,3 +7,7 @@ apps/ios/*.ipa
 apps/ios/*.xcarchive
 *.xcuserstate
 xcuserdata/
+.simulator-test-pids/
+demo/sample-documents/*-kota*
+demo/sample-documents/indian-passport-*.pdf
+apps/ios/DerivedData/

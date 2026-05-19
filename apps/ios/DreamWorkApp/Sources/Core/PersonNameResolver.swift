@@ -206,7 +206,7 @@ enum PersonNameResolver {
         return nil
     }
 
-    /// OCR may split `ALEXANDER` into `SREE` + `ANDERSON`, or truncate to `ANDERSON`.
+    /// OCR may split a long first name into fragments (e.g. `ALEX` + `ANDER`) or truncate suffixes.
     private static func expandFirstName(from lines: [String], current: String, lastName: String) -> String {
         let upperCurrent = current.uppercased()
         var best = current
