@@ -8,17 +8,29 @@ struct PersonEditorView: View {
     @State private var fieldValues: [String: String]
     @State private var relationship: HouseholdRelationship
     @State private var errorMessage: String?
+    @State private var showDeleteConfirm = false
 
     let isNew: Bool
     var onSaved: ((PersonRecord) -> Void)?
+    var onDeleted: (() -> Void)?
 
-    init(person: PersonRecord, isNew: Bool, onSaved: ((PersonRecord) -> Void)? = nil) {
+    init(
+        person: PersonRecord,
+        isNew: Bool,
+        onSaved: ((PersonRecord) -> Void)? = nil,
+        onDeleted: (() -> Void)? = nil
+    ) {
         _draft = State(initialValue: person)
         _fieldValues = State(initialValue: Dictionary(uniqueKeysWithValues: person.fields.map { ($0.key, $0.value) }))
         let rel = person.value(for: ProfileFieldKey.relationship)
         _relationship = State(initialValue: HouseholdRelationship.allCases.first { $0.rawValue == rel } ?? .selfMember)
         self.isNew = isNew
         self.onSaved = onSaved
+        self.onDeleted = onDeleted
+    }
+
+    private var labelContext: DocumentFieldLabelContext {
+        DocumentFieldLabelContext.from(fieldValues: fieldValues, documentType: .driversLicense)
     }
 
     var body: some View {
@@ -30,6 +42,7 @@ struct PersonEditorView: View {
                     }
                 }
                 TextField("Display name", text: binding(for: ProfileFieldKey.displayName))
+                    .fieldInputStyle()
                     .textContentType(.name)
             }
 
@@ -47,6 +60,24 @@ struct PersonEditorView: View {
                     }
                 }
             }
+
+            let extensionKeys = fieldValues.keys.filter { !ProfileSchema.isCanonicalKey($0) }.sorted()
+            if !extensionKeys.isEmpty {
+                Section("Additional fields") {
+                    ForEach(extensionKeys, id: \.self) { key in
+                        TextField(ProfileSchema.label(forExtensionKey: key), text: binding(for: key))
+                            .fieldInputStyle()
+                    }
+                }
+            }
+
+            if !isNew {
+                Section {
+                    Button("Delete and wipe profile", role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                }
+            }
         }
         .navigationTitle(isNew ? "New person" : "Edit profile")
         .navigationBarTitleDisplayMode(.inline)
@@ -57,6 +88,18 @@ struct PersonEditorView: View {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
             }
+        }
+        .confirmationDialog(
+            "Delete \(draft.displayTitle)?",
+            isPresented: $showDeleteConfirm,
+            titleVisibility: .visible
+        ) {
+            Button("Delete and wipe profile", role: .destructive) {
+                deleteProfile()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("This permanently removes this profile and all saved fields from this device.")
         }
         .alert("Could not save", isPresented: Binding(
             get: { errorMessage != nil },
@@ -70,13 +113,13 @@ struct PersonEditorView: View {
 
     @ViewBuilder
     private func fieldRow(_ field: ProfileFieldDefinition) -> some View {
-        if field.isSensitive {
-            SecureField(field.label, text: binding(for: field.key))
-        } else {
-            TextField(field.label, text: binding(for: field.key))
-                .textContentType(textContentType(for: field.key))
-                .keyboardType(keyboardType(for: field.key))
-        }
+        let label = ProfileSchema.contextualLabel(for: field.key, context: labelContext)
+        TextField(label, text: binding(for: field.key))
+            .fieldInputStyle()
+            .textContentType(ProfileFieldInputTraits.textContentType(for: field.key))
+            .keyboardType(ProfileFieldInputTraits.keyboardType(for: field.key))
+            .textInputAutocapitalization(ProfileFieldInputTraits.textInputAutocapitalization(for: field.key))
+            .autocorrectionDisabled(ProfileFieldInputTraits.autocorrectionDisabled(for: field.key))
     }
 
     private func binding(for key: String) -> Binding<String> {
@@ -84,29 +127,6 @@ struct PersonEditorView: View {
             get: { fieldValues[key, default: ""] },
             set: { fieldValues[key] = $0 }
         )
-    }
-
-    private func textContentType(for key: String) -> UITextContentType? {
-        switch key {
-        case ProfileFieldKey.email: return .emailAddress
-        case ProfileFieldKey.phoneMobile, ProfileFieldKey.phoneHome, ProfileFieldKey.emergencyContactPhone:
-            return .telephoneNumber
-        case ProfileFieldKey.addressLine1: return .streetAddressLine1
-        case ProfileFieldKey.addressLine2: return .streetAddressLine2
-        case ProfileFieldKey.city: return .addressCity
-        case ProfileFieldKey.state: return .addressState
-        case ProfileFieldKey.postalCode: return .postalCode
-        default: return nil
-        }
-    }
-
-    private func keyboardType(for key: String) -> UIKeyboardType {
-        switch key {
-        case ProfileFieldKey.phoneMobile, ProfileFieldKey.phoneHome, ProfileFieldKey.emergencyContactPhone:
-            return .phonePad
-        case ProfileFieldKey.email: return .emailAddress
-        default: return .default
-        }
     }
 
     private func save() {
@@ -124,6 +144,15 @@ struct PersonEditorView: View {
             return
         }
         onSaved?(person)
+        dismiss()
+    }
+
+    private func deleteProfile() {
+        guard appState.deletePerson(id: draft.id) else {
+            errorMessage = "Could not delete this profile."
+            return
+        }
+        onDeleted?()
         dismiss()
     }
 }

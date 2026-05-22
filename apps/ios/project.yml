@@ -95,8 +95,9 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
-        MARKETING_VERSION: "1.0.0"
-        CURRENT_PROJECT_VERSION: "14"
+        INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
+        MARKETING_VERSION: "1.1.0"
+        CURRENT_PROJECT_VERSION: "27"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.
@@ -132,7 +133,7 @@ targets:
     sources:
       - path: DreamWorkAppTests
     resources:
-      - path: DreamWorkAppTests/Fixtures/driver-license-first.jpeg
+      - path: DreamWorkAppTests/Fixtures
     dependencies:
       - target: DreamWorkApp
     settings:

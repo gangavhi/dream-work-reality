@@ -40,7 +40,7 @@ enum DocumentTextExtractor {
     /// Maximum PDF pages to OCR per import (memory / latency guard).
     private static let maxPdfPages = 25
     /// Long edge cap for rendered PDF thumbnails (points).
-    private static let maxPdfRasterSide: CGFloat = 2048
+    private static let maxPdfRasterSide: CGFloat = 4096
 
     /// - Parameter ingest: Returns whether SQLite ingest succeeded (`dreamwork_ocr_apply_normalized_json`).
     static func extractAndPersist(from url: URL, ingest: (String) -> Bool) async throws -> Summary {
@@ -71,7 +71,11 @@ enum DocumentTextExtractor {
 
     private static func extractRasterPages(url: URL) async throws -> [VisionOcrAdapter.Page] {
         let data = try Data(contentsOf: url)
-        guard let uiImage = UIImage(data: data), let cgImage = uiImage.cgImage else {
+        guard let uiImage = UIImage(data: data) else {
+            throw ExtractError.imageDecodeFailed
+        }
+        let cgImage = uiImage.normalizedCGImage() ?? uiImage.cgImage
+        guard let cgImage else {
             throw ExtractError.imageDecodeFailed
         }
         let page = try await recognizePage(cgImage: cgImage)
@@ -92,7 +96,7 @@ enum DocumentTextExtractor {
             guard bounds.width > 1, bounds.height > 1 else { continue }
 
             let longEdge = max(bounds.width, bounds.height)
-            let scale = min(maxPdfRasterSide / longEdge, 3.0)
+            let scale = min(maxPdfRasterSide / longEdge, 5.0)
             let size = CGSize(width: bounds.width * scale, height: bounds.height * scale)
             let thumbnail = pdfPage.thumbnail(of: size, for: .mediaBox)
             guard let cgImage = thumbnail.cgImage else { continue }
@@ -122,22 +126,7 @@ enum DocumentTextExtractor {
     }
 
     private static func recognizePage(cgImage: CGImage) async throws -> VisionOcrAdapter.Page {
-        try await withCheckedThrowingContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                let request = VNRecognizeTextRequest()
-                request.recognitionLevel = .accurate
-                request.recognitionLanguages = ["en-US"]
-                let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-                do {
-                    try handler.perform([request])
-                    let observations = request.results ?? []
-                    let partial = VisionOcrAdapter.normalizedDocument(from: observations)
-                    let page = partial.pages.first ?? VisionOcrAdapter.Page(blocks: [])
-                    continuation.resume(returning: page)
-                } catch {
-                    continuation.resume(throwing: ExtractError.visionFailed(error))
-                }
-            }
-        }
+        let blocks = try await OcrEngine.recognizePageBlocks(from: cgImage)
+        return VisionOcrAdapter.Page(blocks: blocks)
     }
 }

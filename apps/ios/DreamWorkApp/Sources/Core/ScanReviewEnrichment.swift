@@ -38,4 +38,8 @@ struct ScanReviewEnrichment: Hashable {
     let personResolution: PersonResolutionSuggestion?
     let storagePlan: StoragePlanSuggestion?
     let suggestions: [OcrFieldSuggestion]
+    let usedAI: Bool
+    let displayDocumentType: ScannedDocumentType
+    let openDocumentTypeLabel: String
+    let plainText: String
 }

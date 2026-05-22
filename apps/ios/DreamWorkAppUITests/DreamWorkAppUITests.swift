@@ -24,6 +24,6 @@ final class DreamWorkAppUITests: XCTestCase {
         list.cells.staticTexts["Alex Carter"].firstMatch.tap()
 
         XCTAssertTrue(app.navigationBars["Alex Carter"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["Edit"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["Edit all"].waitForExistence(timeout: 5))
     }
 }

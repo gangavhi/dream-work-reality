@@ -15,60 +15,16 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// Stage 1 (GenAI direct, then optional core-api HTTP) + Stage 2/3 (Rust FFI).
+    /// General-purpose ingest: layout OCR → on-device LLM (when enabled) → validators → Rust FFI.
     func enrichScanReview(
-        ocrText: String,
-        userDocumentType: ScannedDocumentType,
-        fallbackSuggestions: [OcrFieldSuggestion],
-        driverLicenseScan: DriverLicenseScanResult? = nil
+        document: VisionOcrAdapter.NormalizedDocument,
+        fileURL: URL? = nil
     ) async -> ScanReviewEnrichment {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-        var understanding: DocumentUnderstandingResult?
-        var trusted: [OcrFieldSuggestion] = []
+        let extracted = await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
 
-        if let dl = driverLicenseScan {
-            trusted = DriverLicenseFieldMapper.suggestions(from: dl)
-        } else if userDocumentType == .driversLicense {
-            trusted = OcrFieldSuggester.suggest(from: ocrText, documentType: .driversLicense)
-        }
-
-        if let apiKey = DevAPIKeyStore.openAIAPIKey {
-            if let genAI = await GenAIFieldMapper.mapFields(
-                ocrText: ocrText,
-                documentType: userDocumentType,
-                profileSchemaKeys: schemaKeys,
-                apiKey: apiKey
-            ) {
-                trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: genAI, supplemental: trusted)
-                understanding = DocumentUnderstandingResult(
-                    documentType: userDocumentType == .driversLicense ? "drivers_license" : "other",
-                    documentTypeConfidence: 0.9,
-                    issuerRegion: trusted.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
-                    displayNameHint: trusted.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
-                    usedAI: true
-                )
-            } else {
-                switch await CoreIngestHTTPClient.understandDocument(
-                    ocrText: ocrText,
-                    documentTypeHint: userDocumentType.rawValue,
-                    profileSchemaKeys: schemaKeys,
-                    apiKey: apiKey
-                ) {
-                case .success(let aiUnderstanding, let aiFields):
-                    understanding = aiUnderstanding
-                    trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: aiFields, supplemental: trusted)
-                case .failure:
-                    break
-                }
-            }
-        }
-
-        let supplemental = ScanFieldValidator.filter(fallbackSuggestions, documentType: userDocumentType)
-        var merged = CoreIngestHTTPClient.mergeSuggestions(trusted: trusted, supplemental: supplemental)
-        merged = GenAIFieldMapper.finalizeSuggestions(merged, documentType: userDocumentType)
-
-        let fieldMap = CoreIngestHTTPClient.fieldMap(from: merged)
+        let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
 
         let planPersonID: String? = {
@@ -84,12 +40,39 @@ extension CoreBridgeService {
             profileSchemaKeys: schemaKeys
         )
 
+        let suggestions = mergeExtensionFields(from: storagePlan, into: extracted.suggestions)
+
         return ScanReviewEnrichment(
-            understanding: understanding,
+            understanding: extracted.understanding,
             personResolution: personResolution,
             storagePlan: storagePlan,
-            suggestions: merged
+            suggestions: suggestions,
+            usedAI: extracted.usedAI,
+            displayDocumentType: extracted.displayType,
+            openDocumentTypeLabel: extracted.openDocumentTypeLabel,
+            plainText: extracted.plainText
         )
+    }
+
+    private func mergeExtensionFields(
+        from plan: StoragePlanSuggestion?,
+        into suggestions: [OcrFieldSuggestion]
+    ) -> [OcrFieldSuggestion] {
+        guard let plan else { return suggestions }
+        var byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0) })
+        for op in plan.operations where op.kind == .upsertExtensionField {
+            guard !op.key.isEmpty, !op.value.isEmpty else { continue }
+            if byKey[op.key] == nil {
+                byKey[op.key] = OcrFieldSuggestion(
+                    profileKey: op.key,
+                    label: ProfileSchema.label(forExtensionKey: op.key),
+                    value: op.value,
+                    confidence: "Medium",
+                    confidenceScore: 0.68
+                )
+            }
+        }
+        return ProfileSchema.sortSuggestions(Array(byKey.values))
     }
 }
 
