@@ -94,19 +94,15 @@ Before merging any feature that touches documents, profiles, or sharing:
 
 ## 5. Current implementation gaps (honest baseline)
 
-The **target** is zero egress. **iOS enforcement (May 2026):**
+The **target** is zero egress; the **iOS app today** still has paths that can send OCR text off-device when developers or testers enable them:
 
-| Path | Status |
-|------|--------|
-| `ZeroEgressPolicy` | **Shipped** — blocks public-internet LLM endpoints; allows loopback + private LAN only |
-| `GenAISettings` | **Shipped** — default **Off**; cloud provider removed from Release builds |
-| `GenAIFieldMapper` | **Shipped** — refuses HTTP when endpoint fails policy; degrades to heuristics |
-| `CoreIngestHTTPClient` / `CoreAPISync` | **Shipped** — DEBUG-only localhost `core-api` sync; disabled in Release |
-| `DevAPIKeyStore` | **Shipped** — DEBUG-only; no API keys in Release |
-| Bundled on-device GGUF | **Partial** — Rust `local_document_mapper` + FFI shipped; optional GGUF install path + header validation; full llama.cpp inference TBD |
-| Optional **account / telemetry** backend | **Planned** — must stay metadata-only ([ADR 0010](adr/0010-optional-backend-metadata-only.md)) |
+| Path | Risk | Remediation |
+|------|------|-------------|
+| `GenAIFieldMapper` + `GenAISettings` **OpenAI-compatible cloud** provider | OCR text in HTTPS body to `api.openai.com` (or compatible host) | Default **off**; ship **bundled GGUF** + Metal/CPU backend; remove cloud from production builds or gate behind explicit “leave device” consent not used in TrustNest retail |
+| `CoreIngestHTTPClient` → `core-api` `/ingest/understand` | Localhost dev server may forward to cloud OpenAI | Production ingest must call **Rust `GenerativeLlmSession` in-process**, not HTTP to cloud |
+| Optional **account / telemetry** backend | Must stay metadata-only ([ADR 0010](adr/0010-optional-backend-metadata-only.md)) | Automated contract tests on API payloads |
 
-**OCR itself** (Apple Vision via `OcrEngine` / `VisionOcrAdapter`) satisfies zero egress.
+**OCR itself** (Apple Vision via `OcrEngine` / `VisionOcrAdapter`) already satisfies zero egress.
 
 See [document-intelligence-deep-dive.md](document-intelligence-deep-dive.md) for ingest strategy: **general-purpose on-device extraction** (no per-document templates); accuracy work must stay on-device.
 
