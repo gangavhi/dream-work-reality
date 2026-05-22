@@ -67,7 +67,7 @@ enum OnDeviceFieldMapper {
         let suggestions = GenAIFieldMapper.suggestions(
             from: extraction,
             documentType: presentation.enumType
-        )
+        ).map { $0.withMappingSource(.onDevice) }
         return (suggestions, decoded.document_type, true)
     }
 

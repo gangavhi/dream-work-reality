@@ -85,14 +85,27 @@ struct ScanReviewView: View {
     private var documentSummarySection: some View {
         Section {
             Label(payload.openDocumentTypeLabel, systemImage: payload.detectedDocumentType.iconName)
-            if payload.usedAI {
-                Text("Extracted on this device with generative mapping.")
+            if payload.usedMachineReadablePayload {
+                Text("High-confidence fields from barcode or machine-readable zone on the document.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if payload.usedAI, !payload.usedHeuristicFallback {
+                Text("Extracted on this device (no data sent to the internet).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if payload.usedHeuristicFallback {
+                Text("Fields are estimated from text patterns — verify each value against the scan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Extracted with on-device heuristics. Enable a local network LLM in Settings for richer mapping, or review fields manually.")
+                Text("Limited fields detected. Enter missing details manually or try a clearer scan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            if let notice = payload.mappingNotice, !notice.isEmpty {
+                Text(notice)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         } header: {
             Text("Document")
@@ -204,13 +217,24 @@ struct ScanReviewView: View {
 
     @ViewBuilder
     private func fieldRow(_ suggestion: OcrFieldSuggestion) -> some View {
-        EditableFieldRow(
-            label: suggestion.label,
-            profileKey: suggestion.profileKey,
-            text: binding(for: suggestion.profileKey),
-            isEditing: editingBinding(for: suggestion.profileKey),
-            originalValue: originalValues[suggestion.profileKey, default: ""]
-        )
+        VStack(alignment: .leading, spacing: 4) {
+            EditableFieldRow(
+                label: suggestion.label,
+                profileKey: suggestion.profileKey,
+                text: binding(for: suggestion.profileKey),
+                isEditing: editingBinding(for: suggestion.profileKey),
+                originalValue: originalValues[suggestion.profileKey, default: ""]
+            )
+            if let source = suggestion.mappingSource, source == .estimated || suggestion.isLowConfidence {
+                Text("Source: \(source.displayLabel) — verify against scan")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else if let source = suggestion.mappingSource {
+                Text("Source: \(source.displayLabel)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func editingBinding(for key: String) -> Binding<Bool> {

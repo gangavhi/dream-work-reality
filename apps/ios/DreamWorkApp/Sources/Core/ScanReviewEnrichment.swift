@@ -42,4 +42,7 @@ struct ScanReviewEnrichment: Hashable {
     let displayDocumentType: ScannedDocumentType
     let openDocumentTypeLabel: String
     let plainText: String
+    let mappingNotice: String?
+    let usedMachineReadablePayload: Bool
+    let usedHeuristicFallback: Bool
 }

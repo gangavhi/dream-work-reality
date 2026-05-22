@@ -47,12 +47,18 @@ final class UniversalDocumentParserTests: XCTestCase {
         XCTAssertEqual(dob, "03/15/1985")
     }
 
-    func testMergesDriverLicenseFieldsFromSameText() {
+    func testDoesNotBleedDriverLicenseParserOnDLKeywords() {
         let text = DriverLicenseParserTests.texasSampleOCRText
         let suggestions = UniversalDocumentParser.parse(from: text)
         let keys = Set(suggestions.map(\.profileKey))
 
-        XCTAssertTrue(keys.contains(ProfileFieldKey.driversLicenseNumber))
-        XCTAssertTrue(keys.contains(ProfileFieldKey.displayName) || keys.contains(ProfileFieldKey.legalLastName))
+        XCTAssertFalse(keys.contains(ProfileFieldKey.driversLicenseNumber))
+        XCTAssertFalse(keys.contains(ProfileFieldKey.driversLicenseState))
+    }
+
+    func testEstimatedFieldsTagged() {
+        let suggestions = UniversalDocumentParser.parse(from: "Jane Smith\n123-45-6789")
+        XCTAssertTrue(suggestions.allSatisfy { $0.mappingSource == .estimated })
+        XCTAssertTrue(suggestions.allSatisfy { $0.confidence == "Estimated" })
     }
 }

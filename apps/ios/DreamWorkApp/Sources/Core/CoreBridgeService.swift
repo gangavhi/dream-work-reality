@@ -50,7 +50,10 @@ extension CoreBridgeService {
             usedAI: extracted.usedAI,
             displayDocumentType: extracted.displayType,
             openDocumentTypeLabel: extracted.openDocumentTypeLabel,
-            plainText: extracted.plainText
+            plainText: extracted.plainText,
+            mappingNotice: extracted.mappingNotice,
+            usedMachineReadablePayload: extracted.usedMachineReadablePayload,
+            usedHeuristicFallback: extracted.usedHeuristicFallback
         )
     }
 

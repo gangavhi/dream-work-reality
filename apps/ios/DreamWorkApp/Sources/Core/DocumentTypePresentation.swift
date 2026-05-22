@@ -29,6 +29,16 @@ enum DocumentTypePresentation {
                 return .employmentDocument
             case "ssn_card", "social_security_card", "social_security":
                 return .ssnCard
+            case "aadhaar_card", "aadhaar":
+                return .other
+            case "pan_card", "pan":
+                return .other
+            case "tax_w2", "tax_1099":
+                return .taxDocument
+            case "medical_record":
+                return .other
+            case "vehicle_registration":
+                return .other
             default:
                 return .other
             }

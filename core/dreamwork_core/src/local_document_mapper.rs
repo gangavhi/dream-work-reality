@@ -104,6 +104,17 @@ fn extract_fields(text: &str) -> BTreeMap<String, FieldEntry> {
     if let Some(ssn) = find_ssn(text) {
         insert(&mut out, "ssn", ssn, Some("Social Security Number".into()));
     }
+    if let Some(aadhaar) = find_aadhaar(text) {
+        insert(
+            &mut out,
+            "aadhaar_number",
+            aadhaar,
+            Some("Aadhaar number".into()),
+        );
+    }
+    if let Some(pan) = find_pan(text) {
+        insert(&mut out, "pan_number", pan, Some("PAN".into()));
+    }
     if let Some(email) = find_email(text) {
         insert(&mut out, "email", email, Some("Email".into()));
     }
@@ -262,11 +273,24 @@ fn label_to_key(label: &str) -> Option<&'static str> {
 
 fn infer_document_type(text: &str, fields: &BTreeMap<String, FieldEntry>) -> String {
     let upper = text.to_uppercase();
+    if fields.contains_key("aadhaar_number") || upper.contains("AADHAAR") || upper.contains("UIDAI") {
+        return "aadhaar_card".into();
+    }
+    if fields.contains_key("pan_number")
+        || upper.contains("PERMANENT ACCOUNT NUMBER")
+        || upper.contains("INCOME TAX")
+            && upper.contains("PAN")
+    {
+        return "pan_card".into();
+    }
     if upper.contains("DRIVER") && upper.contains("LICENSE") || upper.contains("DL ") {
         return "drivers_license".into();
     }
     if upper.contains("PASSPORT") || fields.contains_key("passport_number") {
         return "passport".into();
+    }
+    if upper.contains("VEHICLE REGISTRATION") || upper.contains("TITLE NUMBER") {
+        return "vehicle_registration".into();
     }
     if upper.contains("INSURANCE") || upper.contains("MEMBER ID") {
         return "insurance_card".into();
@@ -274,10 +298,25 @@ fn infer_document_type(text: &str, fields: &BTreeMap<String, FieldEntry>) -> Str
     if upper.contains("SOCIAL SECURITY") || fields.contains_key("ssn") {
         return "social_security_card".into();
     }
-    if upper.contains("W-2") || upper.contains("W2 ") {
+    if upper.contains("W-2") || upper.contains("W2 ") || upper.contains("FORM W-2") {
         return "tax_w2".into();
     }
-    if upper.contains("UTILITY") || upper.contains("ELECTRIC") {
+    if upper.contains("1099") || upper.contains("FORM 1099") {
+        return "tax_1099".into();
+    }
+    if upper.contains("BANK STATEMENT") || upper.contains("ACCOUNT SUMMARY") {
+        return "bank_statement".into();
+    }
+    if upper.contains("PAY STUB") || upper.contains("EARNINGS STATEMENT") {
+        return "employment_document".into();
+    }
+    if upper.contains("MEDICAL RECORD")
+        || upper.contains("PATIENT")
+            && (upper.contains("DIAGNOSIS") || upper.contains("CHART"))
+    {
+        return "medical_record".into();
+    }
+    if upper.contains("UTILITY") || upper.contains("ELECTRIC") || upper.contains("WATER BILL") {
         return "utility_bill".into();
     }
     "other".into()
@@ -407,7 +446,22 @@ fn regex_city_state_zip(line: &str) -> Option<(String, String, String)> {
 }
 
 fn find_ssn(text: &str) -> Option<String> {
+    let lower = text.to_lowercase();
+    let has_context = lower.contains("ssn")
+        || lower.contains("social security")
+        || lower.contains("social-security");
+
+    if !has_context {
+        return None;
+    }
     for token in text.split_whitespace() {
+        if token.len() == 11
+            && token.chars().nth(3) == Some('-')
+            && token.chars().nth(6) == Some('-')
+            && token.chars().filter(|c| c.is_ascii_digit()).count() == 9
+        {
+            return Some(token.to_string());
+        }
         let digits: String = token.chars().filter(|c| c.is_ascii_digit()).collect();
         if digits.len() == 9 {
             return Some(format!(
@@ -417,8 +471,41 @@ fn find_ssn(text: &str) -> Option<String> {
                 &digits[5..9]
             ));
         }
-        if token.len() == 11 && token.chars().nth(3) == Some('-') && token.chars().nth(6) == Some('-') {
-            return Some(token.to_string());
+    }
+    None
+}
+
+/// Indian Aadhaar: 12 digits, often grouped XXXX XXXX XXXX.
+fn find_aadhaar(text: &str) -> Option<String> {
+    let lower = text.to_lowercase();
+    if !lower.contains("aadhaar") && !lower.contains("uidai") {
+        return None;
+    }
+    let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() >= 12 {
+        let slice = &digits[digits.len() - 12..];
+        return Some(format!("{} {} {}", &slice[0..4], &slice[4..8], &slice[8..12]));
+    }
+    None
+}
+
+/// Indian PAN: AAAAA9999A (5 letters, 4 digits, 1 letter).
+fn find_pan(text: &str) -> Option<String> {
+    let upper = text.to_uppercase();
+    if !upper.contains("PAN") && !upper.contains("PERMANENT ACCOUNT") {
+        return None;
+    }
+    for token in text.split_whitespace() {
+        let alnum: String = token
+            .chars()
+            .filter(|c| c.is_ascii_alphanumeric())
+            .collect();
+        if alnum.len() == 10
+            && alnum[..5].chars().all(|c| c.is_ascii_alphabetic())
+            && alnum[5..9].chars().all(|c| c.is_ascii_digit())
+            && alnum.as_bytes()[9].is_ascii_alphabetic()
+        {
+            return Some(alnum.to_uppercase());
         }
     }
     None
@@ -590,5 +677,41 @@ Last name | Smith
         let json = r#"{"layout_text":"Email | test@example.com","profile_schema_keys":[]}"#;
         let resp = map_document_fields_from_json(json).unwrap();
         assert_eq!(resp.fields.get("email").unwrap().value, "test@example.com");
+    }
+
+    #[test]
+    fn infers_aadhaar_and_extracts_number() {
+        let text = "Government of India\nAADHAAR\n1234 5678 9012\nName | Test User";
+        let req = MapDocumentFieldsRequest {
+            layout_text: text.into(),
+            profile_schema_keys: vec![],
+            model_path: None,
+        };
+        let resp = map_document_fields(&req);
+        assert_eq!(resp.document_type, "aadhaar_card");
+        assert_eq!(
+            resp.fields.get("aadhaar_number").unwrap().value,
+            "1234 5678 9012"
+        );
+    }
+
+    #[test]
+    fn ssn_requires_context() {
+        let no_ctx = MapDocumentFieldsRequest {
+            layout_text: "Account 123-45-6789 summary".into(),
+            profile_schema_keys: vec![],
+            model_path: None,
+        };
+        assert!(!map_document_fields(&no_ctx).fields.contains_key("ssn"));
+
+        let with_ctx = MapDocumentFieldsRequest {
+            layout_text: "Social Security Number\n123-45-6789".into(),
+            profile_schema_keys: vec![],
+            model_path: None,
+        };
+        assert_eq!(
+            map_document_fields(&with_ctx).fields.get("ssn").unwrap().value,
+            "123-45-6789"
+        );
     }
 }

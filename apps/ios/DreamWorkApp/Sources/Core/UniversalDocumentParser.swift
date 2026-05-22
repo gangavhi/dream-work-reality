@@ -20,40 +20,36 @@ enum UniversalDocumentParser {
                     label: label.isEmpty ? resolvedLabel : label,
                     value: v,
                     confidence: confidence,
-                    confidenceScore: score
+                    confidenceScore: score,
+                    mappingSource: .estimated
                 )
             )
         }
 
         if let ssn = extractSSN(from: trimmed) {
-            add(ProfileFieldKey.ssn, "Social Security Number", ssn, "High", 0.92)
+            add(ProfileFieldKey.ssn, "Social Security Number", ssn, "Estimated", 0.58)
         }
 
-        let names = shouldIncludeDriverLicenseFields(in: trimmed) ? ParsedNames() : extractNames(from: trimmed)
+        let names = extractNames(from: trimmed)
         if let display = names.display {
-            add(ProfileFieldKey.displayName, "Full name", display, "High", 0.9)
+            add(ProfileFieldKey.displayName, "Full name", display, "Estimated", 0.55)
         }
         if let first = names.first {
-            add(ProfileFieldKey.legalFirstName, "Legal first name", first, "High", 0.88)
+            add(ProfileFieldKey.legalFirstName, "Legal first name", first, "Estimated", 0.52)
         }
         if let last = names.last {
-            add(ProfileFieldKey.legalLastName, "Legal last name", last, "High", 0.88)
+            add(ProfileFieldKey.legalLastName, "Legal last name", last, "Estimated", 0.52)
         }
 
         if let dob = extractDOB(from: trimmed) {
-            add(ProfileFieldKey.dateOfBirth, "Date of birth", dob, "High", 0.88)
-        }
-
-        if shouldIncludeDriverLicenseFields(in: trimmed) {
-            let dl = DriverLicenseParser.parse(trimmed)
-            suggestions.append(contentsOf: DriverLicenseFieldMapper.suggestions(from: dl))
+            add(ProfileFieldKey.dateOfBirth, "Date of birth", dob, "Estimated", 0.5)
         }
 
         if let addr = extractAddress(from: trimmed) {
-            add(ProfileFieldKey.addressLine1, "Address line 1", addr.street, "Medium", 0.75)
-            add(ProfileFieldKey.city, "City", addr.city, "Medium", 0.72)
-            add(ProfileFieldKey.state, "State / province", addr.state, "Medium", 0.72)
-            add(ProfileFieldKey.postalCode, "ZIP / postal code", addr.zip, "Medium", 0.72)
+            add(ProfileFieldKey.addressLine1, "Address line 1", addr.street, "Estimated", 0.48)
+            add(ProfileFieldKey.city, "City", addr.city, "Estimated", 0.45)
+            add(ProfileFieldKey.state, "State / province", addr.state, "Estimated", 0.45)
+            add(ProfileFieldKey.postalCode, "ZIP / postal code", addr.zip, "Estimated", 0.45)
         }
 
         return dedupeByKey(suggestions)
@@ -177,17 +173,6 @@ enum UniversalDocumentParser {
     private static func isSingleNameToken(_ token: String) -> Bool {
         guard !token.isEmpty else { return false }
         return ScanFieldValidator.isPlausibleNameComponent(token)
-    }
-
-    private static func shouldIncludeDriverLicenseFields(in text: String) -> Bool {
-        let upper = text.uppercased()
-        if upper.contains("SOCIAL SECURITY") && !upper.contains("DRIVER") {
-            return false
-        }
-        return upper.contains("DRIVER")
-            || upper.contains("LICENSE")
-            || upper.contains("IDENTIFICATION")
-            || upper.range(of: #"(?i)4\s*D\.?\s*DL"#, options: .regularExpression) != nil
     }
 
     private static func applyName(_ raw: String, to result: inout ParsedNames) {
