@@ -36,33 +36,37 @@ enum GenAIFieldMapper {
         var choices: [Choice]
     }
 
-    /// Flat canonical field map from the model.
+    /// General-purpose extraction from layout-ordered OCR (no document-type routing).
+    static func mapFields(
+        layoutText: String,
+        profileSchemaKeys: [String]
+    ) async -> (suggestions: [OcrFieldSuggestion], documentType: String?)? {
+        guard let extraction = await fetchExtraction(
+            layoutText: layoutText,
+            profileSchemaKeys: profileSchemaKeys
+        ) else {
+            return nil
+        }
+        let presentation = DocumentTypePresentation.resolve(extraction.documentType)
+        return (
+            suggestions(from: extraction, documentType: presentation.enumType),
+            extraction.documentType
+        )
+    }
+
+    /// Legacy flat-text entry — prefer `mapFields(layoutText:)`.
     static func mapFields(
         ocrText: String,
         documentType: ScannedDocumentType,
         profileSchemaKeys: [String]
     ) async -> (suggestions: [OcrFieldSuggestion], documentType: String?)? {
-        guard let extraction = await fetchExtraction(
-            ocrText: ocrText,
-            documentType: documentType,
-            profileSchemaKeys: profileSchemaKeys
-        ) else {
-            return nil
-        }
-        let resolvedType = documentType == .other
-            ? (extraction.documentType ?? DocumentTypeClassifier.mapToUnderstandingType(documentType))
-            : DocumentTypeClassifier.mapToUnderstandingType(documentType)
-        return (
-            suggestions(from: extraction, documentType: documentType),
-            extraction.documentType ?? resolvedType
-        )
+        await mapFields(layoutText: ocrText, profileSchemaKeys: profileSchemaKeys)
     }
 
-    /// Driver-license pipeline helper (barcode + OCR text).
+    /// Driver-license scanner UI helper (legacy surface).
     static func mapDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
         guard let extraction = await fetchExtraction(
-            ocrText: rawText,
-            documentType: .driversLicense,
+            layoutText: rawText,
             profileSchemaKeys: ProfileSchema.allFields.map(\.key)
         ) else {
             return nil
@@ -71,14 +75,12 @@ enum GenAIFieldMapper {
     }
 
     private static func fetchExtraction(
-        ocrText: String,
-        documentType: ScannedDocumentType,
+        layoutText: String,
         profileSchemaKeys: [String]
     ) async -> ExtractionResult? {
         guard let config = GenAISettings.activeLLMConfig else { return nil }
         return await fetchExtraction(
-            ocrText: ocrText,
-            documentType: documentType,
+            layoutText: layoutText,
             profileSchemaKeys: profileSchemaKeys,
             baseURL: config.baseURL,
             model: config.model,
@@ -87,58 +89,44 @@ enum GenAIFieldMapper {
     }
 
     private static func fetchExtraction(
-        ocrText: String,
-        documentType: ScannedDocumentType,
+        layoutText: String,
         profileSchemaKeys: [String],
         baseURL: String,
         model: String,
         apiKey: String
     ) async -> ExtractionResult? {
-        let trimmed = String(ocrText.prefix(24_000))
+        let trimmed = String(layoutText.prefix(24_000))
         guard !trimmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
 
         let keysList = profileSchemaKeys.joined(separator: ", ")
         let system = """
-        You extract structured identity and document fields from noisy OCR text. Return ONE JSON object only.
+        You extract structured fields from OCR text with layout hints. Return ONE JSON object only.
 
         Response shape (required):
         {
-          "document_type": "drivers_license | passport | state_id | insurance_card | utility_bill | bank_statement | tax_form | employment_document | ssn_card | other",
-          "issuer_region": "2-letter US state, province, or region code when known, else omit",
-          "country": "2-letter ISO country when known (e.g. US, GB, CA, IN), else omit",
+          "document_type": "short snake_case label describing this document (open vocabulary, e.g. drivers_license, school_enrollment_form, medical_bill, green_card, other)",
+          "issuer_region": "2-letter US state, province, or region when known, else omit",
+          "country": "2-letter ISO country when known, else omit",
           "fields": {
             "<canonical_key>": {"value": "...", "label": "..."},
             ...
           }
         }
 
-        Canonical keys (use from this allow-list when applicable): \(keysList).
-        You may add extension keys (snake_case) for attributes not in the list when clearly present.
+        Canonical keys (use when applicable): \(keysList).
+        You may add extension keys (snake_case) for clear attributes not in the list.
 
         Rules:
-        - Identify document_type from OCR content before extracting fields.
-        - Classify document context from the text (driver license, passport, state ID, utility bill, bank statement, tax form, pay stub, etc.).
-        - For each field, set "label" to the short human label as printed on the source document:
-          • Texas US driver license field 4d → "Driver License No"
-          • California DL → "DL No"
-          • UK driving licence → "Driving Licence No"
-          • Passport → "Passport No"
-          • Use Title Case; omit field numbers (no "4d.", "3.", etc.).
-        - Infer issuer_region and country from document headers, state names, and formatting.
-        - For US driver's licenses: display_name is full name on card; split legal_first_name, legal_middle_name, legal_last_name.
-        - Dates use MM/DD/YYYY in value.
-        - address_line1 is street only; city, state (2-letter US), postal_code separate.
-        - Include gender when visible on ID documents.
-        - For utility bills set utility_provider; bank statements set bank_name; tax docs set tax_form_type and tax_year; pay stubs set employer_name.
-        - For Social Security cards set ssn (xxx-xx-xxxx), legal names, and date_of_birth when visible.
-        - Do not invent values. Omit fields you cannot read.
-        - Fix obvious OCR errors only when confident.
+        - Infer document_type from content; use a specific snake_case label when confident, else "other".
+        - Set "label" to the human text printed on the document (Title Case; no invented field numbers).
+        - Split person names into legal_first_name, legal_middle_name, legal_last_name when shown; use display_name for full line if needed.
+        - Dates as MM/DD/YYYY in value.
+        - address_line1 is street only; city, state, postal_code separate when visible.
+        - Do not invent values. Omit uncertain fields.
+        - Use embedded barcode/MRZ sections when present — they are authoritative over noisy OCR lines.
         """
 
-        let typeHint = documentType == .other
-            ? "Auto-detect from OCR"
-            : documentType.rawValue
-        let user = "Identify the document type from the OCR text below. Heuristic hint (may be wrong): \(typeHint)\n\nOCR text:\n\(trimmed)"
+        let user = "Extract fields from this layout-ordered OCR (blocks and optional machine-readable payloads):\n\n\(trimmed)"
 
         guard let url = URL(string: "\(baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/")))/chat/completions") else {
             return nil

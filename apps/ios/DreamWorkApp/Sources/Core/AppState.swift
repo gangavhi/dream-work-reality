@@ -103,29 +103,10 @@ final class AppState: ObservableObject {
             }
             refreshStatus()
 
-            var fullText = OcrFieldSuggester.fullText(from: result.document)
+            let layoutText = OcrLayoutSerializer.serialize(document: result.document)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
 
-            var classification = DocumentTypeClassifier.classify(from: fullText)
-            var driverLicenseScan: DriverLicenseScanResult?
-
-            if classification.documentType == .driversLicense || classification.documentType == .stateId {
-                driverLicenseScan = try? await DriverLicenseScannerPipeline.scan(fileURL: localURL)
-            }
-
-            if fullText.isEmpty {
-                if driverLicenseScan == nil {
-                    driverLicenseScan = try? await DriverLicenseScannerPipeline.scan(fileURL: localURL)
-                }
-                if let dlText = driverLicenseScan?.rawText.trimmingCharacters(in: .whitespacesAndNewlines),
-                   !dlText.isEmpty
-                {
-                    fullText = dlText
-                    classification = DocumentTypeClassifier.classify(from: fullText)
-                }
-            }
-
-            if fullText.isEmpty, driverLicenseScan == nil {
+            if layoutText.isEmpty {
                 documentImportMessage =
                     "No text was detected in this file. Try a clearer photo or PDF, or enter details manually under People."
                 return
@@ -133,10 +114,9 @@ final class AppState: ObservableObject {
 
             await presentScanReview(
                 document: result.document,
-                classification: classification,
+                fileURL: localURL,
                 pageCount: result.pageCount,
-                blockCount: result.blockCount,
-                driverLicenseScan: driverLicenseScan
+                blockCount: result.blockCount
             )
         } catch {
             documentImportMessage = error.localizedDescription
@@ -145,42 +125,18 @@ final class AppState: ObservableObject {
 
     func presentScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
-        classification: DocumentClassification,
+        fileURL: URL? = nil,
         pageCount: Int,
-        blockCount: Int,
-        driverLicenseScan: DriverLicenseScanResult? = nil
+        blockCount: Int
     ) async {
-        let detectedType = classification.documentType
-        let fullText: String = {
-            let fromDoc = OcrFieldSuggester.fullText(from: document)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !fromDoc.isEmpty { return fromDoc }
-            return driverLicenseScan?.rawText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        }()
-        let heuristic = OcrFieldSuggester.suggest(from: fullText, documentType: detectedType)
-        let enrichment = await coreService.enrichScanReview(
-            ocrText: fullText,
-            detectedDocumentType: detectedType,
-            fallbackSuggestions: heuristic,
-            driverLicenseScan: driverLicenseScan
-        )
-        let effectiveType = enrichment.understanding.flatMap { understandingType(from: $0.documentType) }
-            ?? detectedType
-        let refinedClassification = DocumentTypeClassifier.refine(
-            DocumentClassification(
-                documentType: effectiveType,
-                confidence: classification.confidence,
-                matchedSignals: classification.matchedSignals
-            ),
-            driverLicenseScan: driverLicenseScan,
-            fullText: fullText
-        )
-        let prefilled = driverLicenseScan.map { DriverLicenseFieldMapper.personRecord(from: $0) }
+        let enrichment = await coreService.enrichScanReview(document: document, fileURL: fileURL)
+
         scanReviewPayload = ScanReviewPayload(
-            detectedDocumentType: effectiveType,
-            classificationConfidence: refinedClassification.confidence,
-            classificationSignals: refinedClassification.matchedSignals,
-            fullText: fullText,
+            detectedDocumentType: enrichment.displayDocumentType,
+            openDocumentTypeLabel: enrichment.openDocumentTypeLabel,
+            classificationConfidence: enrichment.understanding?.documentTypeConfidence ?? 0.55,
+            classificationSignals: enrichment.usedAI ? ["on-device extraction"] : ["layout heuristics"],
+            fullText: enrichment.plainText,
             ocrBlockCount: blockCount,
             pageCount: pageCount,
             suggestions: enrichment.suggestions,
@@ -188,23 +144,8 @@ final class AppState: ObservableObject {
             personResolution: enrichment.personResolution,
             storagePlan: enrichment.storagePlan,
             usedAI: enrichment.usedAI,
-            prefilledPerson: prefilled
+            prefilledPerson: nil
         )
-    }
-
-    private func understandingType(from raw: String) -> ScannedDocumentType? {
-        switch raw.lowercased() {
-        case "drivers_license", "driver_license", "drivers license": return .driversLicense
-        case "passport": return .passport
-        case "state_id", "state id": return .stateId
-        case "insurance_card", "insurance card": return .insuranceCard
-        case "utility_bill", "utility bill": return .utilityBill
-        case "bank_statement", "bank statement": return .bankStatement
-        case "tax_form", "tax_document", "tax document": return .taxDocument
-        case "employment_document", "employment document", "pay_stub", "pay stub": return .employmentDocument
-        case "ssn_card", "ssn card", "social_security_card", "social security card": return .ssnCard
-        default: return nil
-        }
     }
 
     func saveAndLoadDemoPerson() {
