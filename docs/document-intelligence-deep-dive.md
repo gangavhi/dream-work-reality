@@ -3,7 +3,7 @@
 **Product:** TrustNest (DreamWork iOS + shared Rust core)  
 **Constraint:** [trustnest-zero-egress-design-constraint.md](trustnest-zero-egress-design-constraint.md) — all improvements must run **on-device**  
 **Status:** Engineering reference (May 2026)  
-**Related:** [ADR 0004](adr/0004-on-device-ocr-with-pluggable-engines.md), [ADR 0005](adr/0005-schema-inference-constrained-llm-and-transactional-ddl.md), [ADR 0017](adr/0017-on-device-inference-runtimes-per-platform.md), [device-matrix.md](device-matrix.md)
+**Related:** [field-mapping-accuracy-analysis.md](field-mapping-accuracy-analysis.md) (why OCR OK but fields wrong), [ADR 0004](adr/0004-on-device-ocr-with-pluggable-engines.md), [ADR 0005](adr/0005-schema-inference-constrained-llm-and-transactional-ddl.md), [ADR 0017](adr/0017-on-device-inference-runtimes-per-platform.md), [device-matrix.md](device-matrix.md)
 
 ---
 
