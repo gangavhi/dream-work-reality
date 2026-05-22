@@ -1,13 +1,36 @@
 import Foundation
 
-/// Configures OpenAI-compatible LLM endpoints (OpenAI cloud, Ollama, LM Studio, etc.).
+/// Configures on-device and local-network LLM endpoints for document field extraction.
+/// Default: fully on-device via Rust core (zero egress).
 enum GenAISettings {
-    enum Provider: String, CaseIterable, Identifiable {
-        case off = "Off (layout + universal heuristics)"
-        case ollama = "Ollama / on-device network LLM"
-        case openAI = "Cloud LLM (dev only — data leaves device)"
+    enum Provider: String, Identifiable {
+        case onDevice
+        case off
+        case localLLM = "ollama"
+        case cloudLLMDevOnly = "openAI"
 
         var id: String { rawValue }
+
+        var displayName: String {
+            switch self {
+            case .onDevice:
+                return "On-device (built-in, no network)"
+            case .off:
+                return "Off (OCR + heuristics only)"
+            case .localLLM:
+                return "Local network LLM (Ollama / LM Studio)"
+            case .cloudLLMDevOnly:
+                return "Cloud LLM (DEBUG — data leaves device)"
+            }
+        }
+
+        static var allCases: [Provider] {
+            #if DEBUG
+            [.onDevice, .off, .localLLM, .cloudLLMDevOnly]
+            #else
+            [.onDevice, .off, .localLLM]
+            #endif
+        }
     }
 
     private static let providerKey = "dreamwork.genai.provider"
@@ -16,10 +39,15 @@ enum GenAISettings {
 
     static var provider: Provider {
         get {
-            guard let raw = UserDefaults.standard.string(forKey: providerKey),
-                  let value = Provider(rawValue: raw)
-            else { return .off }
-            return value
+            guard let raw = UserDefaults.standard.string(forKey: providerKey) else {
+                return .onDevice
+            }
+            // Migrate legacy default keys.
+            if raw == "Off (layout + universal heuristics)" || raw == "off_legacy" {
+                return .onDevice
+            }
+            guard let value = Provider(rawValue: raw) else { return .onDevice }
+            return ZeroEgressPolicy.sanitizedProvider(value)
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: providerKey) }
     }
@@ -33,9 +61,9 @@ enum GenAISettings {
                 return saved
             }
             switch provider {
-            case .ollama: return "http://127.0.0.1:11434/v1"
-            case .openAI: return "https://api.openai.com/v1"
-            case .off: return ""
+            case .localLLM: return "http://127.0.0.1:11434/v1"
+            case .cloudLLMDevOnly: return "https://api.openai.com/v1"
+            case .onDevice, .off: return ""
             }
         }
         set { UserDefaults.standard.set(newValue, forKey: baseURLKey) }
@@ -50,29 +78,33 @@ enum GenAISettings {
                 return saved
             }
             switch provider {
-            case .ollama: return "llama3.2"
-            case .openAI: return "gpt-4o-mini"
-            case .off: return ""
+            case .localLLM: return "llama3.2"
+            case .cloudLLMDevOnly: return "gpt-4o-mini"
+            case .onDevice, .off: return ""
             }
         }
         set { UserDefaults.standard.set(newValue, forKey: modelKey) }
     }
 
-    /// Returns credentials when LLM enrichment should run.
+    /// Returns credentials when local-network LLM enrichment should run (never for `.onDevice`).
     static var activeLLMConfig: (baseURL: String, model: String, apiKey: String)? {
         switch provider {
-        case .off:
+        case .onDevice, .off:
             return nil
-        case .ollama:
+        case .localLLM:
             let url = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !url.isEmpty else { return nil }
-            // Ollama accepts any non-empty bearer token.
+            guard !url.isEmpty, ZeroEgressPolicy.allowsLLMEndpoint(url) else { return nil }
             return (url, model, "ollama")
-        case .openAI:
+        case .cloudLLMDevOnly:
+            #if DEBUG
+            guard ZeroEgressPolicy.isCloudLLMDevEnabled else { return nil }
             guard let key = DevAPIKeyStore.openAIAPIKey else { return nil }
             let url = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !url.isEmpty else { return nil }
+            guard !url.isEmpty, ZeroEgressPolicy.allowsLLMEndpoint(url) else { return nil }
             return (url, model, key)
+            #else
+            return nil
+            #endif
         }
     }
 }

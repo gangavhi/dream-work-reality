@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "artifact_id": "llm.schema.lite.v1",
+      "filename": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 3B Instruct Q4_K_M — on-device schema extraction (optional download)",
+      "bytes_approx": 2100000000,
+      "sha256": null,
+      "download_url": null
+    }
+  ]
+}

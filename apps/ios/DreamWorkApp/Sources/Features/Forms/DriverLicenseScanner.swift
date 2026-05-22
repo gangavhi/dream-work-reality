@@ -244,7 +244,11 @@ private enum GenAI {
             return mapped
         }
 
-        guard let url = URL(string: "http://127.0.0.1:18081/genai/extract-document") else { return nil }
+        #if DEBUG
+        guard ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled else { return nil }
+        guard let url = URL(string: "http://127.0.0.1:18081/genai/extract-document"),
+              ZeroEgressPolicy.allowsCoreAPILocalhost(url)
+        else { return nil }
         let body = ExtractRequest(document_type: "driver_license", raw_text: rawText)
         guard let payload = try? JSONEncoder().encode(body) else { return nil }
 
@@ -264,6 +268,9 @@ private enum GenAI {
         } catch {
             return nil
         }
+        #else
+        return nil
+        #endif
     }
 }
 

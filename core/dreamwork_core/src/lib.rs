@@ -7,6 +7,7 @@ pub mod form;
 pub mod inference;
 pub mod ingest;
 pub mod ingestion;
+pub mod local_document_mapper;
 pub mod memory;
 pub mod ocr;
 pub mod profile_keys;
