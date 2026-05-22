@@ -1,6 +1,7 @@
 import Foundation
 
-/// Maps OCR text to profile fields via OpenAI-compatible API (OpenAI, Ollama, LM Studio).
+/// Maps OCR text to profile fields via a local-network OpenAI-compatible endpoint (Ollama, LM Studio).
+/// Cloud endpoints are blocked in Release builds per zero-egress policy.
 enum GenAIFieldMapper {
     struct ExtractionResult {
         var values: [String: String]
@@ -97,6 +98,7 @@ enum GenAIFieldMapper {
     ) async -> ExtractionResult? {
         let trimmed = String(layoutText.prefix(24_000))
         guard !trimmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        guard ZeroEgressPolicy.allowsLLMEndpoint(baseURL) else { return nil }
 
         let keysList = profileSchemaKeys.joined(separator: ", ")
         let system = """
