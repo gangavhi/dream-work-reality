@@ -15,6 +15,7 @@ struct ScanReviewView: View {
     var body: some View {
         NavigationStack {
             List {
+                documentSummarySection
                 profileTargetSection
 
                 if payload.suggestions.isEmpty {
@@ -78,6 +79,24 @@ struct ScanReviewView: View {
 
     private var groupedFieldSections: [ProfileSchema.FieldGroup] {
         ProfileSchema.groupedSuggestions(payload.suggestions)
+    }
+
+    @ViewBuilder
+    private var documentSummarySection: some View {
+        Section {
+            Label(payload.openDocumentTypeLabel, systemImage: payload.detectedDocumentType.iconName)
+            if payload.usedAI {
+                Text("Extracted on this device with generative mapping.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Extracted with layout heuristics. Enable Ollama in Settings for richer field mapping.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Document")
+        }
     }
 
     @ViewBuilder

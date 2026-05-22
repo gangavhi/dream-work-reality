@@ -2,8 +2,10 @@ import Foundation
 
 struct ScanReviewPayload: Identifiable {
     let id = UUID()
-    /// Auto-detected document type from OCR heuristics and/or Document AI.
+    /// UI category (mapped from model open vocabulary when available).
     let detectedDocumentType: ScannedDocumentType
+    /// Human-readable type from on-device extraction (e.g. "School Enrollment Form").
+    let openDocumentTypeLabel: String
     let classificationConfidence: Double
     let classificationSignals: [String]
     let fullText: String

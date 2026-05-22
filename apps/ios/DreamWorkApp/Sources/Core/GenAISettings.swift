@@ -3,9 +3,9 @@ import Foundation
 /// Configures OpenAI-compatible LLM endpoints (OpenAI cloud, Ollama, LM Studio, etc.).
 enum GenAISettings {
     enum Provider: String, CaseIterable, Identifiable {
-        case off = "Off (heuristics only)"
-        case ollama = "Ollama / local LLM"
-        case openAI = "OpenAI-compatible cloud"
+        case off = "Off (layout + universal heuristics)"
+        case ollama = "Ollama / on-device network LLM"
+        case openAI = "Cloud LLM (dev only — data leaves device)"
 
         var id: String { rawValue }
     }
@@ -18,7 +18,7 @@ enum GenAISettings {
         get {
             guard let raw = UserDefaults.standard.string(forKey: providerKey),
                   let value = Provider(rawValue: raw)
-            else { return .openAI }
+            else { return .off }
             return value
         }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: providerKey) }

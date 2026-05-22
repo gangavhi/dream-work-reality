@@ -2,7 +2,7 @@
 
 This document separates **mandatory** capabilities (required for the product to be coherent, trustworthy, and aligned with its privacy story) from a **wish list** that would make the platform **formidable** in market—without turning every wish into scope creep for v1.
 
-**Related docs:** `docs/architecture.md` (diagrams + module guide), `idea-brainstorming.md`, `devils-advocate.md`, `market-analysis.md`, `how-secure-is-the-data-locally.md`, `user-interaction-screens.md`, `brainstorming-topic-filling-form-in-another-app.md`.
+**Related docs:** `docs/architecture.md` (diagrams + module guide), `docs/trustnest-zero-egress-design-constraint.md`, `docs/document-intelligence-deep-dive.md`, `idea-brainstorming.md`, `devils-advocate.md`, `market-analysis.md`, `how-secure-is-the-data-locally.md`, `user-interaction-screens.md`, `brainstorming-topic-filling-form-in-another-app.md`.
 
 ---
 

@@ -15,70 +15,16 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// Stage 1 (GenAI direct, then optional core-api HTTP) + Stage 2/3 (Rust FFI).
+    /// General-purpose ingest: layout OCR → on-device LLM (when enabled) → validators → Rust FFI.
     func enrichScanReview(
-        ocrText: String,
-        detectedDocumentType: ScannedDocumentType,
-        fallbackSuggestions: [OcrFieldSuggestion],
-        driverLicenseScan: DriverLicenseScanResult? = nil
+        document: VisionOcrAdapter.NormalizedDocument,
+        fileURL: URL? = nil
     ) async -> ScanReviewEnrichment {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-        var understanding: DocumentUnderstandingResult?
-        var trusted: [OcrFieldSuggestion] = []
+        let extracted = await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
 
-        if let dl = driverLicenseScan {
-            trusted = DriverLicenseFieldMapper.suggestions(from: dl)
-        } else if detectedDocumentType == .driversLicense || detectedDocumentType == .stateId {
-            trusted = OcrFieldSuggester.suggest(from: ocrText, documentType: detectedDocumentType)
-        }
-
-        let usedAI: Bool
-        if GenAISettings.activeLLMConfig != nil {
-            if let genAI = await GenAIFieldMapper.mapFields(
-                ocrText: ocrText,
-                documentType: detectedDocumentType,
-                profileSchemaKeys: schemaKeys
-            ) {
-                trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: genAI.suggestions, supplemental: trusted)
-                understanding = DocumentUnderstandingResult(
-                    documentType: genAI.documentType
-                        ?? DocumentTypeClassifier.mapToUnderstandingType(detectedDocumentType),
-                    documentTypeConfidence: 1.0,
-                    issuerRegion: trusted.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
-                    displayNameHint: trusted.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
-                    usedAI: true
-                )
-                usedAI = true
-            } else if let apiKey = DevAPIKeyStore.openAIAPIKey {
-                switch await CoreIngestHTTPClient.understandDocument(
-                    ocrText: ocrText,
-                    documentTypeHint: detectedDocumentType.rawValue,
-                    profileSchemaKeys: schemaKeys,
-                    apiKey: apiKey
-                ) {
-                case .success(let aiUnderstanding, let aiFields):
-                    understanding = aiUnderstanding
-                    trusted = CoreIngestHTTPClient.mergeSuggestions(trusted: aiFields, supplemental: trusted)
-                    usedAI = true
-                case .failure:
-                    usedAI = false
-                }
-            } else {
-                usedAI = false
-            }
-        } else {
-            usedAI = false
-        }
-
-        let supplemental = fallbackSuggestions.filter {
-            !$0.value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        }
-        var merged = CoreIngestHTTPClient.mergeSuggestions(trusted: trusted, supplemental: supplemental)
-        merged = GenAIFieldMapper.finalizeSuggestions(merged, documentType: detectedDocumentType)
-        merged = PersonNameResolver.apply(to: merged, ocrText: ocrText, documentType: detectedDocumentType)
-
-        let fieldMap = CoreIngestHTTPClient.fieldMap(from: merged)
+        let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
 
         let planPersonID: String? = {
@@ -94,14 +40,17 @@ extension CoreBridgeService {
             profileSchemaKeys: schemaKeys
         )
 
-        merged = mergeExtensionFields(from: storagePlan, into: merged)
+        let suggestions = mergeExtensionFields(from: storagePlan, into: extracted.suggestions)
 
         return ScanReviewEnrichment(
-            understanding: understanding,
+            understanding: extracted.understanding,
             personResolution: personResolution,
             storagePlan: storagePlan,
-            suggestions: merged,
-            usedAI: usedAI
+            suggestions: suggestions,
+            usedAI: extracted.usedAI,
+            displayDocumentType: extracted.displayType,
+            openDocumentTypeLabel: extracted.openDocumentTypeLabel,
+            plainText: extracted.plainText
         )
     }
 
