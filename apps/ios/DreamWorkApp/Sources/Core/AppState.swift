@@ -131,11 +131,17 @@ final class AppState: ObservableObject {
     ) async {
         let enrichment = await coreService.enrichScanReview(document: document, fileURL: fileURL)
 
+        var signals: [String] = []
+        if enrichment.usedMachineReadablePayload { signals.append("barcode or MRZ") }
+        if enrichment.usedAI { signals.append("on-device extraction") }
+        if enrichment.usedHeuristicFallback { signals.append("estimated heuristics") }
+        if signals.isEmpty { signals = ["layout heuristics"] }
+
         scanReviewPayload = ScanReviewPayload(
             detectedDocumentType: enrichment.displayDocumentType,
             openDocumentTypeLabel: enrichment.openDocumentTypeLabel,
             classificationConfidence: enrichment.understanding?.documentTypeConfidence ?? 0.55,
-            classificationSignals: enrichment.usedAI ? ["on-device extraction"] : ["layout heuristics"],
+            classificationSignals: signals,
             fullText: enrichment.plainText,
             ocrBlockCount: blockCount,
             pageCount: pageCount,
@@ -144,6 +150,9 @@ final class AppState: ObservableObject {
             personResolution: enrichment.personResolution,
             storagePlan: enrichment.storagePlan,
             usedAI: enrichment.usedAI,
+            mappingNotice: enrichment.mappingNotice,
+            usedMachineReadablePayload: enrichment.usedMachineReadablePayload,
+            usedHeuristicFallback: enrichment.usedHeuristicFallback,
             prefilledPerson: nil
         )
     }

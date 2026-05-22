@@ -10,6 +10,6 @@ final class DocumentTypePresentationTests: XCTestCase {
     func testUnknownTypeStaysOtherWithHumanLabel() {
         let result = DocumentTypePresentation.resolve("hoa_assessment_notice")
         XCTAssertEqual(result.enumType, .other)
-        XCTAssertEqual(result.displayLabel, "Hoa Assessment Notice")
+        XCTAssertEqual(result.displayLabel, "HOA Assessment Notice")
     }
 }

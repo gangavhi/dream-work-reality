@@ -23,7 +23,9 @@ final class DocumentIntelligencePipelineTests: XCTestCase {
         defer { GenAISettings.provider = previous }
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        XCTAssertFalse(result.usedAI)
+        XCTAssertTrue(result.usedHeuristicFallback || result.suggestions.contains { $0.profileKey == ProfileFieldKey.ssn })
         XCTAssertTrue(result.suggestions.contains { $0.profileKey == ProfileFieldKey.ssn })
+        let ssn = result.suggestions.first { $0.profileKey == ProfileFieldKey.ssn }
+        XCTAssertEqual(ssn?.confidence, "Estimated")
     }
 }

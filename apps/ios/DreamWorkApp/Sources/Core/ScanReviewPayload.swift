@@ -16,6 +16,10 @@ struct ScanReviewPayload: Identifiable {
     let personResolution: PersonResolutionSuggestion?
     let storagePlan: StoragePlanSuggestion?
     let usedAI: Bool
+    /// Shown when network LLM failed or fields are regex-only estimates.
+    let mappingNotice: String?
+    let usedMachineReadablePayload: Bool
+    let usedHeuristicFallback: Bool
     /// Pre-filled profile from DL barcode/OCR/GenAI when creating a new household member.
     let prefilledPerson: PersonRecord?
 

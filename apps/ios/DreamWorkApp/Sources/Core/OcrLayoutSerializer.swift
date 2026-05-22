@@ -110,6 +110,9 @@ enum OcrLayoutSerializer {
     private static func looksLikeLabel(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= 40 else { return false }
+        if trimmed.contains(" "), trimmed != trimmed.uppercased() {
+            return false
+        }
         if trimmed.hasSuffix(":") { return true }
         if trimmed == trimmed.uppercased(), trimmed.rangeOfCharacter(from: .letters) != nil {
             return true

@@ -100,7 +100,12 @@ enum GenAIFieldMapper {
         guard !trimmed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
         guard ZeroEgressPolicy.allowsLLMEndpoint(baseURL) else { return nil }
 
-        let keysList = profileSchemaKeys.joined(separator: ", ")
+        let narrowed = profileSchemaKeys.isEmpty
+            ? ProfileSchemaKeysForDocument.keys(
+                forOpenDocumentType: ProfileSchemaKeysForDocument.inferOpenType(from: trimmed)
+            )
+            : profileSchemaKeys
+        let keysList = narrowed.joined(separator: ", ")
         let system = """
         You extract structured fields from OCR text with layout hints. Return ONE JSON object only.
 
@@ -202,7 +207,8 @@ enum GenAIFieldMapper {
                     label: label,
                     value: value,
                     confidence: "High",
-                    confidenceScore: 0.88
+                    confidenceScore: 0.88,
+                    mappingSource: .networkLLM
                 )
             )
         }
