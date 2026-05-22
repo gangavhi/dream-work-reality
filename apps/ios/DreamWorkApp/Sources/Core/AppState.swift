@@ -21,7 +21,6 @@ final class AppState: ObservableObject {
     @Published var scanReviewPayload: ScanReviewPayload?
     @Published var showDocumentScanner = false
     @Published var showFileImporter = false
-    @Published var pendingScanDocumentType: ScannedDocumentType = .driversLicense
 
     private let coreService: CoreBridgeService
 
@@ -47,15 +46,26 @@ final class AppState: ObservableObject {
     }
 
     func deletePerson(id: String) -> Bool {
+        let personName = people.first(where: { $0.id == id })?.displayTitle
         guard coreService.deletePerson(id: id) else { return false }
+        DocumentFingerprintStore.removeEntries(forPersonID: id, personName: personName)
         refreshStatus()
         return true
     }
 
-    /// Imports a document from a URL. When `urlIsTemporaryCopy` is true, the file is deleted after processing.
+    /// Imports a document downloaded from a Mac-hosted HTTP folder (Simulator testing).
+    func importDocument(fromRemoteURL url: URL) async {
+        do {
+            let localURL = try await LaptopDocumentListing.downloadToTemporaryFile(from: url)
+            await importDocument(from: localURL, urlIsTemporaryCopy: true)
+        } catch {
+            documentImportMessage = error.localizedDescription
+        }
+    }
+
+    /// Imports a document from a URL. Document type is inferred from OCR after extraction.
     func importDocument(
         from url: URL,
-        documentType: ScannedDocumentType,
         urlIsTemporaryCopy: Bool = false
     ) async {
         documentImportMessage = nil
@@ -86,10 +96,6 @@ final class AppState: ObservableObject {
         }
 
         let bridge = coreService
-        var driverLicenseScan: DriverLicenseScanResult?
-        if documentType == .driversLicense {
-            driverLicenseScan = try? await DriverLicenseScannerPipeline.scan(fileURL: localURL)
-        }
 
         do {
             let result = try await DocumentTextExtractor.extractAndPersist(from: localURL) { json in
@@ -97,9 +103,10 @@ final class AppState: ObservableObject {
             }
             refreshStatus()
 
-            let fullText = OcrFieldSuggester.fullText(from: result.document)
+            let layoutText = OcrLayoutSerializer.serialize(document: result.document)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            if fullText.isEmpty, driverLicenseScan == nil {
+
+            if layoutText.isEmpty {
                 documentImportMessage =
                     "No text was detected in this file. Try a clearer photo or PDF, or enter details manually under People."
                 return
@@ -107,10 +114,9 @@ final class AppState: ObservableObject {
 
             await presentScanReview(
                 document: result.document,
-                documentType: documentType,
+                fileURL: localURL,
                 pageCount: result.pageCount,
-                blockCount: result.blockCount,
-                driverLicenseScan: driverLicenseScan
+                blockCount: result.blockCount
             )
         } catch {
             documentImportMessage = error.localizedDescription
@@ -119,35 +125,26 @@ final class AppState: ObservableObject {
 
     func presentScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
-        documentType: ScannedDocumentType,
+        fileURL: URL? = nil,
         pageCount: Int,
-        blockCount: Int,
-        driverLicenseScan: DriverLicenseScanResult? = nil
+        blockCount: Int
     ) async {
-        let fullText: String = {
-            let fromDoc = OcrFieldSuggester.fullText(from: document)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            if !fromDoc.isEmpty { return fromDoc }
-            return driverLicenseScan?.rawText.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        }()
-        let heuristic = OcrFieldSuggester.suggest(from: fullText, documentType: documentType)
-        let enrichment = await coreService.enrichScanReview(
-            ocrText: fullText,
-            userDocumentType: documentType,
-            fallbackSuggestions: heuristic,
-            driverLicenseScan: driverLicenseScan
-        )
-        let prefilled = driverLicenseScan.map { DriverLicenseFieldMapper.personRecord(from: $0) }
+        let enrichment = await coreService.enrichScanReview(document: document, fileURL: fileURL)
+
         scanReviewPayload = ScanReviewPayload(
-            userDocumentType: documentType,
-            fullText: fullText,
+            detectedDocumentType: enrichment.displayDocumentType,
+            openDocumentTypeLabel: enrichment.openDocumentTypeLabel,
+            classificationConfidence: enrichment.understanding?.documentTypeConfidence ?? 0.55,
+            classificationSignals: enrichment.usedAI ? ["on-device extraction"] : ["layout heuristics"],
+            fullText: enrichment.plainText,
             ocrBlockCount: blockCount,
             pageCount: pageCount,
             suggestions: enrichment.suggestions,
             understanding: enrichment.understanding,
             personResolution: enrichment.personResolution,
             storagePlan: enrichment.storagePlan,
-            prefilledPerson: prefilled
+            usedAI: enrichment.usedAI,
+            prefilledPerson: nil
         )
     }
 

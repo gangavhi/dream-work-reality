@@ -2,21 +2,21 @@ import XCTest
 
 @testable import DreamWorkApp
 
-/// End-to-end OCR on a real-world JPEG (copied from `~/Downloads/driver license-first.jpeg` into `Fixtures/`),
-/// persisted via Rust → SQLite `extraction_run`.
+/// End-to-end OCR on a document image, persisted via Rust → SQLite `extraction_run`.
+/// Add your own test image at `DreamWorkAppTests/Fixtures/sample-document.jpeg` to run locally.
 @MainActor
 final class OcrSQLiteIntegrationTests: XCTestCase {
-    func testDriverLicenseImageOcrPersistsExtractionRunToSQLite() async throws {
+    func testDocumentImageOcrPersistsExtractionRunToSQLite() async throws {
+        let bundle = Bundle(for: type(of: self))
+        guard let url = bundle.url(forResource: "sample-document", withExtension: "jpeg")
+            ?? bundle.url(forResource: "sample-document", withExtension: "jpg")
+            ?? bundle.url(forResource: "sample-document", withExtension: "png")
+        else {
+            throw XCTSkip("No sample document fixture — add DreamWorkAppTests/Fixtures/sample-document.jpeg to run locally.")
+        }
+
         let bridge = RustCoreBridgeService()
         let runsBefore = bridge.extractionRunCount()
-
-        let bundle = Bundle(for: type(of: self))
-        guard let url = bundle.url(forResource: "driver-license-first", withExtension: "jpeg") else {
-            XCTFail(
-                "Fixture missing: add DreamWorkAppTests/Fixtures/driver-license-first.jpeg and XcodeGen resources entry."
-            )
-            return
-        }
 
         let accessing = url.startAccessingSecurityScopedResource()
         defer {
@@ -33,7 +33,7 @@ final class OcrSQLiteIntegrationTests: XCTestCase {
         XCTAssertGreaterThan(
             summary.blockCount,
             0,
-            "Vision should detect at least one text region on the driver license image"
+            "Vision should detect at least one text region on the document image"
         )
 
         let runsAfter = bridge.extractionRunCount()

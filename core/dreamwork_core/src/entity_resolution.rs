@@ -43,7 +43,11 @@ const AMBIGUOUS_SCORE_GAP: f64 = 0.08;
 const SCORE_EXACT_ID: f64 = 0.80;
 const SCORE_NAME_FUZZY_MAX: f64 = 0.28;
 const SCORE_DOB_EXACT: f64 = 0.40;
+const SCORE_LAST_NAME_EXACT: f64 = 0.22;
 const SCORE_NAME_DOB_COMBO: f64 = 0.35;
+const SCORE_DOB_LAST_NAME_COMBO: f64 = 0.32;
+const SCORE_DOB_ADDRESS_COMBO: f64 = 0.30;
+const SCORE_DOB_POSTAL_COMBO: f64 = 0.28;
 const SCORE_ADDRESS: f64 = 0.10;
 const SCORE_ZIP: f64 = 0.08;
 const SCORE_DISPLAY_NAME: f64 = 0.07;
@@ -159,6 +163,7 @@ struct NormalizedFields {
     drivers_license_number: Option<String>,
     passport_number: Option<String>,
     ssn_last4: Option<String>,
+    legal_last_name: Option<String>,
     name_key: Option<String>,
     date_of_birth: Option<String>,
     address_line1: Option<String>,
@@ -198,23 +203,52 @@ fn score_pair(query: &NormalizedFields, existing: &NormalizedFields) -> (f64, Ve
         }
     }
 
-    if dob_equal(&query.date_of_birth, &existing.date_of_birth) {
+    if let (Some(ql), Some(el)) = (&query.legal_last_name, &existing.legal_last_name) {
+        if ql == el {
+            score += SCORE_LAST_NAME_EXACT;
+            reasons.push("legal_last_name_exact".to_string());
+        }
+    }
+
+    let has_dob = dob_equal(&query.date_of_birth, &existing.date_of_birth);
+    if has_dob {
         score += SCORE_DOB_EXACT;
         reasons.push("date_of_birth_exact".to_string());
     }
 
-    if let (Some(qa), Some(ea)) = (&query.address_line1, &existing.address_line1) {
-        if name_similarity(qa, ea) >= 0.90 {
-            score += SCORE_ADDRESS;
-            reasons.push("address_line1_match".to_string());
-        }
+    let has_address = if let (Some(qa), Some(ea)) = (&query.address_line1, &existing.address_line1) {
+        name_similarity(qa, ea) >= 0.90
+    } else {
+        false
+    };
+    if has_address {
+        score += SCORE_ADDRESS;
+        reasons.push("address_line1_match".to_string());
     }
 
-    if let (Some(qz), Some(ez)) = (&query.postal_code, &existing.postal_code) {
-        if qz == ez {
-            score += SCORE_ZIP;
-            reasons.push("postal_code_exact".to_string());
-        }
+    let has_postal = if let (Some(qz), Some(ez)) = (&query.postal_code, &existing.postal_code) {
+        qz == ez
+    } else {
+        false
+    };
+    if has_postal {
+        score += SCORE_ZIP;
+        reasons.push("postal_code_exact".to_string());
+    }
+
+    let has_last_name = reasons.iter().any(|r| r == "legal_last_name_exact");
+
+    if has_dob && has_last_name {
+        score += SCORE_DOB_LAST_NAME_COMBO;
+        reasons.push("dob_and_last_name_combo".to_string());
+    }
+    if has_dob && has_address {
+        score += SCORE_DOB_ADDRESS_COMBO;
+        reasons.push("dob_and_address_combo".to_string());
+    }
+    if has_dob && has_postal {
+        score += SCORE_DOB_POSTAL_COMBO;
+        reasons.push("dob_and_postal_combo".to_string());
     }
 
     if let (Some(qd), Some(ed)) = (&query.display_name, &existing.display_name) {
@@ -279,8 +313,9 @@ fn normalize_fields(fields: &BTreeMap<String, String>) -> NormalizedFields {
         drivers_license_number: get(&["drivers_license_number", "dl_number"]).map(normalize_id),
         passport_number: get(&["passport_number"]).map(normalize_id),
         ssn_last4,
+        legal_last_name: legal_last.as_deref().map(normalize_name).filter(|s| !s.is_empty()),
         name_key,
-        date_of_birth: get(&["date_of_birth", "dob", "dob_mmddyyyy"]).map(normalize_dob),
+        date_of_birth: get(&["date_of_birth", "dob", "dob_mmddyyyy"]),
         address_line1: get(&["address_line1", "address1", "address"]).map(normalize_address),
         postal_code: get(&["postal_code", "zip", "zip_code"]).map(normalize_zip),
         display_name: display_name.map(|s| normalize_name(&s)),
@@ -338,16 +373,51 @@ fn normalize_ssn_last4(value: &str) -> String {
 }
 
 fn normalize_dob(value: String) -> String {
-    let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
-    if digits.len() >= 8 {
-        digits[..8].to_string()
-    } else if digits.len() == 6 {
-        let yy: u32 = digits[4..6].parse().unwrap_or(0);
-        let century = if yy >= 30 { "19" } else { "20" };
-        format!("{century}{digits}")
-    } else {
-        digits
+    let forms = dob_forms_from_raw(&value);
+    forms.into_iter().next().unwrap_or_else(|| {
+        let digits: String = value.chars().filter(|c| c.is_ascii_digit()).collect();
+        if digits.len() >= 8 {
+            digits[..8].to_string()
+        } else if digits.len() == 6 {
+            let yy: u32 = digits[4..6].parse().unwrap_or(0);
+            let century = if yy >= 30 { "19" } else { "20" };
+            format!("{century}{digits}")
+        } else {
+            digits
+        }
+    })
+}
+
+fn dob_forms_from_raw(value: &str) -> Vec<String> {
+    let trimmed = value.trim();
+    let mut forms = Vec::new();
+
+    let parts: Vec<&str> = trimmed.split(|c| c == '/' || c == '-' || c == '.').collect();
+    if parts.len() == 3 {
+        if let (Ok(a), Ok(b), Ok(y)) = (
+            parts[0].parse::<u32>(),
+            parts[1].parse::<u32>(),
+            parts[2].parse::<u32>(),
+        ) {
+            if (1900..2100).contains(&y) {
+                if (1..=12).contains(&a) && (1..=31).contains(&b) {
+                    forms.push(format!("{y:04}{a:02}{b:02}"));
+                }
+                if (1..=12).contains(&b) && (1..=31).contains(&a) {
+                    forms.push(format!("{y:04}{b:02}{a:02}"));
+                }
+            }
+        }
     }
+
+    let digits: String = trimmed.chars().filter(|c| c.is_ascii_digit()).collect();
+    if digits.len() >= 8 {
+        forms.extend(dob_canonical_forms(&digits[..8]));
+    }
+
+    forms.sort();
+    forms.dedup();
+    forms
 }
 
 fn dob_equal(left: &Option<String>, right: &Option<String>) -> bool {
@@ -360,8 +430,8 @@ fn dob_equal(left: &Option<String>, right: &Option<String>) -> bool {
     if a == b {
         return true;
     }
-    let forms_a = dob_canonical_forms(a);
-    let forms_b = dob_canonical_forms(b);
+    let forms_a = dob_forms_from_raw(a);
+    let forms_b = dob_forms_from_raw(b);
     forms_a.iter().any(|fa| forms_b.iter().any(|fb| fa == fb))
 }
 
@@ -585,6 +655,55 @@ mod tests {
         assert_eq!(result.resolution, PersonResolution::NewPerson);
         assert_eq!(result.confidence, 1.0);
         assert!(result.candidates.is_empty());
+    }
+
+    #[test]
+    fn dob_and_last_name_match_across_documents() {
+        let existing = vec![person(
+            "person-h",
+            &[
+                ("legal_first_name", "Jane"),
+                ("legal_last_name", "Smith"),
+                ("date_of_birth", "03/15/1985"),
+                ("drivers_license_number", "D12345678"),
+            ],
+        )];
+        let query = fields(&[
+            ("legal_first_name", "Jane"),
+            ("legal_last_name", "Smith"),
+            ("date_of_birth", "15/03/1985"),
+            ("passport_number", "P12345678"),
+        ]);
+        let result = resolve_person(&query, &existing);
+        assert_eq!(result.resolution, PersonResolution::MatchExisting);
+        assert_eq!(result.person_id.as_deref(), Some("person-h"));
+        assert!(result.candidates[0]
+            .reasons
+            .contains(&"dob_and_last_name_combo".to_string()));
+    }
+
+    #[test]
+    fn dob_and_address_match_when_names_differ_in_ocr() {
+        let existing = vec![person(
+            "person-i",
+            &[
+                ("legal_first_name", "Alexander"),
+                ("legal_last_name", "Chen"),
+                ("date_of_birth", "03/15/1985"),
+                ("address_line1", "2457 Meadowbrook Ave"),
+                ("postal_code", "78701"),
+            ],
+        )];
+        let query = fields(&[
+            ("legal_first_name", "Xander"),
+            ("legal_last_name", "Chen"),
+            ("date_of_birth", "03/15/1985"),
+            ("address_line1", "2457 Meadowbrook Ave"),
+            ("passport_number", "P12345678"),
+        ]);
+        let result = resolve_person(&query, &existing);
+        assert_eq!(result.resolution, PersonResolution::MatchExisting);
+        assert_eq!(result.person_id.as_deref(), Some("person-i"));
     }
 
     #[test]

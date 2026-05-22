@@ -8,6 +8,7 @@ struct DreamWorkAppApp: App {
         WindowGroup {
             RootTabView()
                 .environmentObject(appState)
+                .tint(AppTheme.accent)
         }
     }
 }
