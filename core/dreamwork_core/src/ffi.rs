@@ -183,6 +183,25 @@ pub extern "C" fn dreamwork_plan_storage_json(ptr: *const c_char) -> *mut c_char
     }
 }
 
+/// On-device field mapping from layout OCR text (zero egress). Request JSON: `{ "layout_text", "profile_schema_keys"?, "model_path"? }`.
+#[no_mangle]
+pub extern "C" fn dreamwork_map_document_fields_json(ptr: *const c_char) -> *mut c_char {
+    if ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    match crate::local_document_mapper::map_document_fields_from_json(&s) {
+        Ok(result) => match serde_json::to_string(&result) {
+            Ok(j) => match CString::new(j) {
+                Ok(c) => c.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
 /// Returns heap-owned JSON for the last OCR payload (or null). Free with [`dreamwork_string_free`].
 #[no_mangle]
 pub extern "C" fn dreamwork_ocr_last_document_json() -> *mut c_char {

@@ -90,7 +90,7 @@ struct ScanReviewView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Extracted with layout heuristics. Enable Ollama in Settings for richer field mapping.")
+                Text("Extracted with on-device heuristics. Enable a local network LLM in Settings for richer mapping, or review fields manually.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

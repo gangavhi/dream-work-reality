@@ -273,7 +273,10 @@ enum CoreAPISync {
     }
 
     static func push(person: PersonProfile) async {
-        guard let url = URL(string: "http://127.0.0.1:18081/manual-entry") else { return }
+        guard ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled else { return }
+        guard let url = URL(string: "http://127.0.0.1:18081/manual-entry"),
+              ZeroEgressPolicy.allowsCoreAPILocalhost(url)
+        else { return }
 
         let profileName = person.nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         if profileName.isEmpty { return }
@@ -335,6 +338,8 @@ enum CoreAPISync {
     }
 
     static func pull(profileHints: [String]) async -> [String: String]? {
+        guard ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled else { return nil }
+
         let hints = profileHints
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }

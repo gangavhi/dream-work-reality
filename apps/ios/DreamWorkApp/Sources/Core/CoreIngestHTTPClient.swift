@@ -1,6 +1,7 @@
 import Foundation
 
-/// HTTP client for Stage 1 + Stage 3 ingest endpoints on local `core-api` (port-forward `18081`).
+/// HTTP client for DEBUG-only ingest endpoints on localhost `core-api` (port `18081`).
+/// Blocked in Release builds and when developer sync is disabled.
 enum CoreIngestHTTPClient {
     static let defaultBaseURL = URL(string: "http://127.0.0.1:18081")!
 
@@ -61,6 +62,12 @@ enum CoreIngestHTTPClient {
         baseURL: URL = defaultBaseURL,
         timeout: TimeInterval = 45
     ) async -> Result<(DocumentUnderstandingResult, [OcrFieldSuggestion]), IngestError> {
+        guard ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled,
+              ZeroEgressPolicy.allowsCoreAPILocalhost(baseURL)
+        else {
+            return .failure(.transport("core-api sync disabled (zero-egress policy)"))
+        }
+
         let url = baseURL.appendingPathComponent("ingest/understand")
         let body = UnderstandRequest(
             ocr_text: ocrText,
@@ -132,6 +139,12 @@ enum CoreIngestHTTPClient {
         baseURL: URL = defaultBaseURL,
         timeout: TimeInterval = 5
     ) async -> PersonResolutionSuggestion? {
+        guard ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled,
+              ZeroEgressPolicy.allowsCoreAPILocalhost(baseURL)
+        else {
+            return nil
+        }
+
         let url = baseURL.appendingPathComponent("ingest/resolve-person")
         let existing = people.map { person in
             ExistingPersonDTO(

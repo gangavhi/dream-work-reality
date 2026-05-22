@@ -6,23 +6,35 @@ struct SettingsView: View {
     @State private var llmBaseURL: String = GenAISettings.baseURL
     @State private var llmModel: String = GenAISettings.model
     @State private var auditEntries: [IngestAuditEntry] = IngestAuditLog.load()
+    @State private var settingsError: String?
+    #if DEBUG
+    @State private var cloudLLMDevEnabled: Bool = ZeroEgressPolicy.isCloudLLMDevEnabled
+    @State private var coreAPISyncEnabled: Bool = ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled
+    #endif
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("TrustNest keeps profiles on this device. Configure a local Ollama/LM Studio endpoint or an OpenAI-compatible cloud key for document understanding and field extraction.")
+                    Text("Your data stays on this device. TrustNest does not send document images, OCR text, or profile fields over the internet to fulfill product features.")
                         .appHelperText()
+                } header: {
+                    Text("Zero egress")
                 }
 
                 Section("Document AI provider") {
                     Picker("Provider", selection: $llmProvider) {
                         ForEach(GenAISettings.Provider.allCases) { provider in
-                            Text(provider.rawValue).tag(provider)
+                            Text(provider.displayName).tag(provider)
                         }
                     }
 
-                    if llmProvider != .off {
+                    if llmProvider == .onDevice {
+                        Text(BundledModelStore.installStatusMessage())
+                            .appHelperText()
+                    }
+
+                    if llmProvider == .localLLM {
                         TextField("API base URL", text: $llmBaseURL)
                             .fieldInputStyle()
                             .textContentType(.URL)
@@ -39,7 +51,25 @@ struct SettingsView: View {
                             #endif
                     }
 
-                    if llmProvider == .openAI {
+                    #if DEBUG
+                    if llmProvider == .cloudLLMDevOnly {
+                        TextField("API base URL", text: $llmBaseURL)
+                            .fieldInputStyle()
+                            .textContentType(.URL)
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+
+                        TextField("Model name", text: $llmModel)
+                            .fieldInputStyle()
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+
+                        Toggle("Allow cloud LLM (data leaves device)", isOn: $cloudLLMDevEnabled)
+
                         SecureField("OpenAI API key", text: $devAPIKey)
                             .fieldInputStyle()
                             .textContentType(.password)
@@ -47,18 +77,30 @@ struct SettingsView: View {
                             #if os(iOS)
                             .textInputAutocapitalization(.never)
                             #endif
+
+                        Text("DEBUG builds only. OCR text is sent to the configured cloud endpoint. Disabled in TestFlight and App Store releases.")
+                            .appHelperText()
+                            .foregroundStyle(.orange)
                     }
 
+                    Toggle("Sync to localhost core-api (extension demo)", isOn: $coreAPISyncEnabled)
+                    Text("When enabled, profile changes sync to http://127.0.0.1:18081 for the Chrome extension demo. Disabled in Release builds.")
+                        .appHelperText()
+                    #endif
+
                     Button("Save AI settings") {
-                        GenAISettings.provider = llmProvider
-                        GenAISettings.baseURL = llmBaseURL
-                        GenAISettings.model = llmModel
-                        DevAPIKeyStore.saveOpenAIAPIKey(devAPIKey)
+                        saveSettings()
                     }
                     .fontWeight(.semibold)
 
-                    if llmProvider == .ollama {
-                        Text("Run Ollama on your Mac (e.g. llama3.2, phi3, mistral). On a physical iPhone, use your Mac's LAN IP instead of 127.0.0.1.")
+                    if let settingsError {
+                        Text(settingsError)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    if llmProvider == .localLLM {
+                        Text("Run Ollama or LM Studio on your Mac or PC on the same Wi‑Fi network. Use your machine's local IP (e.g. 192.168.x.x) — not a public internet URL.")
                             .appHelperText()
                     } else if llmProvider == .off {
                         Text("Scans use on-device OCR, barcode parsing, and heuristics. Person matching and storage routing remain offline via the embedded Rust core.")
@@ -102,5 +144,34 @@ struct SettingsView: View {
             }
             .navigationTitle("Settings")
         }
+    }
+
+    private func saveSettings() {
+        settingsError = nil
+
+        if llmProvider == .localLLM || llmProvider == .cloudLLMDevOnly {
+            let url = llmBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !url.isEmpty else {
+                settingsError = "Enter a base URL for the LLM endpoint."
+                return
+            }
+            guard ZeroEgressPolicy.allowsLLMEndpoint(url) else {
+                settingsError = "That URL is not allowed. Use localhost, a private LAN IP (192.168.x.x), or a .local hostname. Public internet endpoints are blocked in this build."
+                return
+            }
+        }
+
+        #if DEBUG
+        ZeroEgressPolicy.setCloudLLMDevEnabled(cloudLLMDevEnabled)
+        ZeroEgressPolicy.setDeveloperCoreAPISyncEnabled(coreAPISyncEnabled)
+        if llmProvider == .cloudLLMDevOnly, !cloudLLMDevEnabled {
+            llmProvider = .off
+        }
+        DevAPIKeyStore.saveOpenAIAPIKey(devAPIKey)
+        #endif
+
+        GenAISettings.provider = llmProvider
+        GenAISettings.baseURL = llmBaseURL
+        GenAISettings.model = llmModel
     }
 }

@@ -27,28 +27,53 @@ enum DocumentIntelligencePipeline {
         var usedAI = false
         var openType: String?
 
-        if let mapped = await GenAIFieldMapper.mapFields(
-            layoutText: modelInput,
-            profileSchemaKeys: schemaKeys
-        ) {
-            suggestions = mapped.suggestions
-            openType = mapped.documentType
-            let presentation = DocumentTypePresentation.resolve(mapped.documentType)
+        switch GenAISettings.provider {
+        case .onDevice:
+            if let mapped = OnDeviceFieldMapper.mapFields(layoutText: modelInput, profileSchemaKeys: schemaKeys) {
+                suggestions = mapped.suggestions
+                openType = mapped.documentType
+                usedAI = true
+            }
+        case .localLLM:
+            if let mapped = await GenAIFieldMapper.mapFields(
+                layoutText: modelInput,
+                profileSchemaKeys: schemaKeys
+            ) {
+                suggestions = mapped.suggestions
+                openType = mapped.documentType
+                usedAI = true
+            }
+        case .cloudLLMDevOnly:
+            if let mapped = await GenAIFieldMapper.mapFields(
+                layoutText: modelInput,
+                profileSchemaKeys: schemaKeys
+            ) {
+                suggestions = mapped.suggestions
+                openType = mapped.documentType
+                usedAI = true
+            }
+        case .off:
+            break
+        }
+
+        if suggestions.isEmpty, !plainText.isEmpty {
+            suggestions = UniversalDocumentParser.parse(from: plainText)
+        }
+
+        if understanding == nil, usedAI, let openType {
+            let presentation = DocumentTypePresentation.resolve(openType)
             understanding = DocumentUnderstandingResult(
-                documentType: mapped.documentType ?? presentation.displayLabel,
-                documentTypeConfidence: 0.92,
-                issuerRegion: mapped.suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
-                displayNameHint: mapped.suggestions.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
+                documentType: openType.isEmpty ? presentation.displayLabel : openType,
+                documentTypeConfidence: GenAISettings.provider == .onDevice ? 0.82 : 0.92,
+                issuerRegion: suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
+                displayNameHint: suggestions.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
                 usedAI: true
             )
-            usedAI = true
-        } else if !plainText.isEmpty {
-            suggestions = UniversalDocumentParser.parse(from: plainText)
         }
 
         let presentation = DocumentTypePresentation.resolve(openType)
         let displayType = presentation.enumType
-        let label = presentation.displayLabel
+        let label = openType.map { DocumentTypePresentation.resolve($0).displayLabel } ?? presentation.displayLabel
 
         suggestions = GenAIFieldMapper.finalizeSuggestions(suggestions, documentType: displayType)
         suggestions = PersonNameResolver.apply(to: suggestions, ocrText: plainText, documentType: displayType)
