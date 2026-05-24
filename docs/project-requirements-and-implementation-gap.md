@@ -3,7 +3,7 @@
 **Product:** TrustNest / DreamWork (iOS + shared Rust core)  
 **Source:** Product architecture brief (May 2026)  
 **Compared against:** `dream-work-reality` repo, branch `ganga-2026-05-16-2` (Phase A + May 21, 2026 mapping improvements)  
-**Related:** [privacy-first-document-intelligence-architecture.md](privacy-first-document-intelligence-architecture.md) (canonical product vision) · [architecture.md](architecture.md) · [trustnest-zero-egress-design-constraint.md](trustnest-zero-egress-design-constraint.md) · [field-mapping-accuracy-analysis.md](field-mapping-accuracy-analysis.md), [features-list.md](../features-list.md), [implementation-status-testflight-build-27.md](implementation-status-testflight-build-27.md)
+**Related:** [implementation-status-testflight-build-30.md](implementation-status-testflight-build-30.md) (multi-agent foundation) · [architecture.md](architecture.md) · [trustnest-zero-egress-design-constraint.md](trustnest-zero-egress-design-constraint.md) · [field-mapping-accuracy-analysis.md](field-mapping-accuracy-analysis.md), [features-list.md](../features-list.md), [implementation-status-testflight-build-27.md](implementation-status-testflight-build-27.md)
 
 ---
 

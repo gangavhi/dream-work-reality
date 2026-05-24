@@ -32,6 +32,9 @@ struct SettingsView: View {
                     if llmProvider == .onDevice {
                         Text(BundledModelStore.installStatusMessage())
                             .appHelperText()
+                        Text(ModelArtifactRegistry.statusSummary())
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
                     }
 
                     if llmProvider == .localLLM {
