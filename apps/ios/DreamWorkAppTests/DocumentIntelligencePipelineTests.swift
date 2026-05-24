@@ -26,6 +26,7 @@ final class DocumentIntelligencePipelineTests: XCTestCase {
         XCTAssertTrue(result.usedHeuristicFallback || result.suggestions.contains { $0.profileKey == ProfileFieldKey.ssn })
         XCTAssertTrue(result.suggestions.contains { $0.profileKey == ProfileFieldKey.ssn })
         let ssn = result.suggestions.first { $0.profileKey == ProfileFieldKey.ssn }
-        XCTAssertEqual(ssn?.confidence, "Estimated")
+        XCTAssertNotNil(ssn?.confidenceBreakdown)
+        XCTAssertTrue(ssn?.requiresManualConfirmation ?? true)
     }
 }

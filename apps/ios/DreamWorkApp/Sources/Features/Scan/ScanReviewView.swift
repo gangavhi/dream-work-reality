@@ -225,7 +225,11 @@ struct ScanReviewView: View {
                 isEditing: editingBinding(for: suggestion.profileKey),
                 originalValue: originalValues[suggestion.profileKey, default: ""]
             )
-            if let source = suggestion.mappingSource, source == .estimated || suggestion.isLowConfidence {
+            if suggestion.requiresManualConfirmation {
+                Text("Review required — confidence below autofill threshold")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else if let source = suggestion.mappingSource, source == .estimated || suggestion.isLowConfidence {
                 Text("Source: \(source.displayLabel) — verify against scan")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
@@ -395,6 +399,7 @@ struct ScanReviewView: View {
 
         person = person.merged(with: updates)
         if appState.savePerson(person) {
+            recordLearningCorrections(updates: updates)
             let isReimport = DocumentFingerprintStore.findPreviousImport(for: payload.fullText) != nil
             recordIngestAudit(
                 person: person,
@@ -422,6 +427,7 @@ struct ScanReviewView: View {
             return
         }
         if appState.savePerson(person) {
+            recordLearningCorrections(updates: updates)
             recordIngestAudit(
                 person: person,
                 fieldCount: updates.count,
@@ -430,6 +436,19 @@ struct ScanReviewView: View {
             saveMessage = "Created \(person.displayTitle) under People."
         } else {
             saveMessage = "Could not create profile."
+        }
+    }
+
+    private func recordLearningCorrections(updates: [String: String]) {
+        let docType = payload.openDocumentTypeLabel
+        for (key, newValue) in updates {
+            let original = originalValues[key, default: ""]
+            IncrementalLearningStore.record(
+                profileKey: key,
+                originalValue: original,
+                correctedValue: newValue,
+                documentType: docType
+            )
         }
     }
 

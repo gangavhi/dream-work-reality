@@ -25,6 +25,7 @@ struct OcrFieldSuggestion: Identifiable, Hashable {
     let confidence: String
     let confidenceScore: Double
     let mappingSource: FieldMappingSource?
+    let confidenceBreakdown: ConfidenceOrchestrator.Breakdown?
 
     var id: String { profileKey }
 
@@ -34,7 +35,8 @@ struct OcrFieldSuggestion: Identifiable, Hashable {
         value: String,
         confidence: String,
         confidenceScore: Double? = nil,
-        mappingSource: FieldMappingSource? = nil
+        mappingSource: FieldMappingSource? = nil,
+        confidenceBreakdown: ConfidenceOrchestrator.Breakdown? = nil
     ) {
         self.profileKey = profileKey
         self.label = label
@@ -42,6 +44,7 @@ struct OcrFieldSuggestion: Identifiable, Hashable {
         self.confidence = confidence
         self.confidenceScore = confidenceScore ?? Self.score(from: confidence)
         self.mappingSource = mappingSource
+        self.confidenceBreakdown = confidenceBreakdown
     }
 
     static func score(from confidence: String) -> Double {
@@ -63,7 +66,12 @@ struct OcrFieldSuggestion: Identifiable, Hashable {
             value: value,
             confidence: confidence,
             confidenceScore: confidenceScore,
-            mappingSource: source
+            mappingSource: source,
+            confidenceBreakdown: confidenceBreakdown
         )
+    }
+
+    var requiresManualConfirmation: Bool {
+        confidenceBreakdown?.requiresManualConfirmation ?? isLowConfidence
     }
 }
