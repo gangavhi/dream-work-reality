@@ -240,8 +240,22 @@ private enum GenAI {
     }
 
     static func extractDriverLicense(from rawText: String) async -> DriverLicenseScanResult? {
-        if let mapped = await GenAIFieldMapper.mapDriverLicense(from: rawText) {
-            return mapped
+        let schemaKeys = ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "drivers_license")
+        if let mapped = OnDeviceFieldMapper.mapFields(layoutText: rawText, profileSchemaKeys: schemaKeys) {
+            var values: [String: String] = [:]
+            var labels: [String: String] = [:]
+            for suggestion in mapped.suggestions {
+                values[suggestion.profileKey] = suggestion.value
+                labels[suggestion.profileKey] = suggestion.label
+            }
+            let extraction = GenAIFieldMapper.ExtractionResult(
+                values: values,
+                labels: labels,
+                documentType: mapped.documentType,
+                issuerRegion: values[ProfileFieldKey.driversLicenseState],
+                country: values[ProfileFieldKey.country]
+            )
+            return GenAIFieldMapper.driverLicenseResult(from: extraction, rawText: rawText)
         }
 
         #if DEBUG
@@ -667,6 +681,27 @@ enum DriverLicenseParser {
     /// Used by name resolver — skips generic name heuristics that mis-read Texas LAST/FIRST order.
     static func parseWithoutGenericNames(_ text: String) -> DriverLicenseScanResult {
         parseInternal(text, includeGenericNames: false)
+    }
+
+    static func isDriversLicense(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        if upper.contains("DRIVER") && upper.contains("LICENSE") { return true }
+        if upper.contains("IDENTIFICATION CARD") && upper.contains("STATE") { return true }
+        if upper.contains("DL NO") || upper.contains("DL #") || upper.contains("DL:") { return true }
+        if upper.range(of: #"\b4D\.?\s*DL\b"#, options: .regularExpression) != nil { return true }
+        if upper.range(of: #"\bDMV\b"#, options: .regularExpression) != nil { return true }
+        return false
+    }
+
+    static func suggestions(from text: String) -> [OcrFieldSuggestion] {
+        guard isDriversLicense(text) else { return [] }
+        let scan = parse(text)
+        guard scan.firstName != nil
+            || scan.lastName != nil
+            || scan.documentNumber != nil
+            || scan.dateOfBirth != nil
+        else { return [] }
+        return DriverLicenseFieldMapper.suggestions(from: scan).map { $0.withMappingSource(.onDevice) }
     }
 
     private static func parseInternal(_ text: String, includeGenericNames: Bool) -> DriverLicenseScanResult {

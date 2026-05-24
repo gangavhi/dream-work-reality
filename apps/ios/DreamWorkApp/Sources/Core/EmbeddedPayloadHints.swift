@@ -47,15 +47,27 @@ enum EmbeddedPayloadHints {
     }
 
     private static func detectMRZLines(in text: String) -> [String] {
-        text
+        let rawLines = text
             .components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { line in
-                let upper = line.uppercased()
-                guard line.count >= 28, line.count <= 96 else { return false }
-                let angleCount = line.filter { $0 == "<" }.count
-                return upper.hasPrefix("P<") || angleCount >= 12
+            .filter { !$0.isEmpty }
+
+        var mrz: [String] = []
+        for line in rawLines {
+            let upper = line.uppercased()
+            let compact = upper.replacingOccurrences(of: " ", with: "")
+            let angleCount = line.filter { $0 == "<" }.count
+            let looksLikeMRZ = line.count >= 24 && line.count <= 96
+                && (upper.hasPrefix("P<") || angleCount >= 8)
+            let looksLikeIndianLine2 = compact.range(
+                of: #"[A-Z]\d{7}<+\dIND\d{6}"#,
+                options: .regularExpression
+            ) != nil
+            if looksLikeMRZ || looksLikeIndianLine2 || upper.contains("P<IND") {
+                mrz.append(line)
             }
+        }
+        return mrz
     }
 
     private static func rasterCGImages(from url: URL) throws -> [CGImage] {

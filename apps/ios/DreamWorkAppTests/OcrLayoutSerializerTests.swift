@@ -37,4 +37,24 @@ final class OcrLayoutSerializerTests: XCTestCase {
         XCTAssertEqual(pairs[0].label, "NAME")
         XCTAssertEqual(pairs[0].value, "Jane Doe")
     }
+
+    func testVerticalLabelValuePairsForPassportLayout() {
+        let blocks = [
+            OcrLayoutSerializer.LayoutBlock(text: "Surname", confidence: 1, x: 0.1, y: 0.72, width: 0.2, height: 0.03),
+            OcrLayoutSerializer.LayoutBlock(text: "SHARMA", confidence: 1, x: 0.1, y: 0.68, width: 0.25, height: 0.03),
+            OcrLayoutSerializer.LayoutBlock(text: "Given Name(s)", confidence: 1, x: 0.1, y: 0.62, width: 0.25, height: 0.03),
+            OcrLayoutSerializer.LayoutBlock(text: "RAJESH", confidence: 1, x: 0.1, y: 0.58, width: 0.2, height: 0.03),
+        ]
+        let pairs = OcrLayoutSerializer.labelValuePairs(from: blocks)
+        let byLabel = Dictionary(uniqueKeysWithValues: pairs.map { ($0.label.uppercased(), $0.value) })
+        XCTAssertEqual(byLabel["SURNAME"], "SHARMA")
+        XCTAssertEqual(byLabel["GIVEN NAME(S)"], "RAJESH")
+    }
+
+    func testInlineLabelValueFromSingleBlock() {
+        let pair = OcrLayoutSerializer.inlineLabelValue(from: "Date of Birth 15/03/1985")
+        XCTAssertNotNil(pair)
+        XCTAssertEqual(pair?.label, "Date of Birth")
+        XCTAssertEqual(pair?.value, "15/03/1985")
+    }
 }

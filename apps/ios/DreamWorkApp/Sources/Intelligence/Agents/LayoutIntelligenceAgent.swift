@@ -42,20 +42,12 @@ enum LayoutIntelligenceAgent {
 
     /// When LayoutLM ships, map pairs through semantic label keys first.
     static func suggestionsFromLayoutPairs(_ pairs: [OcrLayoutSerializer.LabelValuePair]) -> [OcrFieldSuggestion] {
-        var out: [OcrFieldSuggestion] = []
-        for pair in pairs {
-            guard let key = SemanticFieldLabelMapper.canonicalKey(for: pair.label) else { continue }
-            out.append(
-                OcrFieldSuggestion(
-                    profileKey: key,
-                    label: pair.label,
-                    value: pair.value,
-                    confidence: "Medium",
-                    confidenceScore: 0.74,
-                    mappingSource: .onDevice
-                )
-            )
-        }
-        return out
+        let stub = LayoutDocument(
+            layoutText: pairs.map { "\($0.label) | \($0.value)" }.joined(separator: "\n"),
+            modelInput: "",
+            labelValuePairs: pairs,
+            engineID: "layout.heuristic.v1"
+        )
+        return OpenVocabularyFieldExtractor.suggestions(from: stub)
     }
 }
