@@ -188,6 +188,7 @@ enum CoreIngestHTTPClient {
     }
 
     /// `trusted` wins on key conflicts; `supplemental` only fills missing keys or beats lower confidence.
+    /// Machine-readable fields (barcode/MRZ) are never replaced by lower-trust supplemental mappers.
     static func mergeSuggestions(trusted: [OcrFieldSuggestion], supplemental: [OcrFieldSuggestion]) -> [OcrFieldSuggestion] {
         var byKey: [String: OcrFieldSuggestion] = [:]
         for item in trusted {
@@ -195,6 +196,9 @@ enum CoreIngestHTTPClient {
         }
         for item in supplemental {
             if let existing = byKey[item.profileKey] {
+                if isProtectedMachineReadable(existing), !isProtectedMachineReadable(item) {
+                    continue
+                }
                 if item.confidenceScore > existing.confidenceScore {
                     byKey[item.profileKey] = item
                 }
@@ -203,6 +207,17 @@ enum CoreIngestHTTPClient {
             }
         }
         return ProfileSchema.sortSuggestions(Array(byKey.values))
+    }
+
+    private static func isProtectedMachineReadable(_ suggestion: OcrFieldSuggestion) -> Bool {
+        switch suggestion.mappingSource {
+        case .barcode, .mrz:
+            return suggestion.confidenceScore >= 0.85
+        case .onDevice:
+            return suggestion.confidenceScore >= 0.9
+        default:
+            return false
+        }
     }
 
     /// Backward-compatible argument order: primary mapping first, heuristics second.

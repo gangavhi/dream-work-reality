@@ -57,8 +57,9 @@ enum DriverLicenseFieldMapper {
             add(ProfileFieldKey.dateOfBirth, formatDate(dob), "High", 0.95)
         }
         add(ProfileFieldKey.driversLicenseNumber, scan.documentNumber, "High", 0.95)
-        let dlState = scan.state ?? "TX"
-        add(ProfileFieldKey.driversLicenseState, dlState, "High", 0.9)
+        if let dlState = scan.state?.trimmingCharacters(in: .whitespacesAndNewlines), !dlState.isEmpty {
+            add(ProfileFieldKey.driversLicenseState, dlState, "High", 0.9)
+        }
         if let issue = scan.issueDate {
             add(ProfileFieldKey.driversLicenseIssueDate, formatDate(issue), "High", 0.92)
         }

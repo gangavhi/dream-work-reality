@@ -84,10 +84,10 @@ enum IndianPassportParser {
             _ = issue // biodata issue date captured internally; no dedicated schema key yet
         }
         if let pob = parsed.placeOfBirth {
-            add(ProfileFieldKey.city, pob, 0.75)
+            add("place_of_birth", pob, 0.75)
         }
         if let poi = parsed.placeOfIssue {
-            add(ProfileFieldKey.state, poi, 0.72)
+            add("place_of_issue", poi, 0.72)
         }
 
         var seen = Set<String>()
@@ -118,7 +118,8 @@ enum IndianPassportParser {
 
     private static func parseMRZ(from lines: [String], into result: inout ParsedPassport) {
         for (idx, line) in lines.enumerated() {
-            let compact = fixMRZCompact(line)
+            let isNameLine = line.uppercased().contains("P<IND") || line.contains("<<")
+            let compact = isNameLine ? fixMRZNameLine(line) : fixMRZNumericLine(line)
 
             if compact.contains("P<IND") || compact.hasPrefix("P<IND") {
                 parseMRZLine1(compact, into: &result)
@@ -137,27 +138,38 @@ enum IndianPassportParser {
             }
 
             if idx > 0 {
-                let prev = fixMRZCompact(lines[idx - 1])
-                if prev.contains("P<IND") || prev.contains("<<") {
-                    parseMRZLine1(prev, into: &result)
+                let prev = lines[idx - 1]
+                let prevCompact = fixMRZNameLine(prev)
+                if prevCompact.contains("P<IND") || prevCompact.contains("<<") {
+                    parseMRZLine1(prevCompact, into: &result)
                 }
             }
         }
     }
 
-    /// Correct common Vision OCR substitutions in MRZ lines.
-    private static func fixMRZCompact(_ line: String) -> String {
+    /// MRZ line 1 (names) — do not map letters O→0.
+    private static func fixMRZNameLine(_ line: String) -> String {
+        line.replacingOccurrences(of: " ", with: "").uppercased()
+    }
+
+    /// MRZ line 2 (passport no / dates) — OCR digit fixes only.
+    private static func fixMRZNumericLine(_ line: String) -> String {
         var compact = line
             .replacingOccurrences(of: " ", with: "")
             .uppercased()
-            .replacingOccurrences(of: "O", with: "0")
-            .replacingOccurrences(of: "Q", with: "0")
+        compact = compact.replacingOccurrences(of: "O", with: "0")
+        compact = compact.replacingOccurrences(of: "Q", with: "0")
         compact = compact.replacingOccurrences(
             of: #"(?<=\d)K(?=\d)"#,
             with: "4",
             options: .regularExpression
         )
         return compact
+    }
+
+    /// @deprecated Use fixMRZNameLine / fixMRZNumericLine
+    private static func fixMRZCompact(_ line: String) -> String {
+        line.uppercased().contains("P<IND") ? fixMRZNameLine(line) : fixMRZNumericLine(line)
     }
 
     private static func parseMRZLine1(_ line: String, into result: inout ParsedPassport) {
@@ -268,7 +280,6 @@ enum IndianPassportParser {
             result.dateOfBirth = labeledDate(in: joined, patterns: [
                 #"(?i)date\s*of\s*birth[^\d]*(\d{2}\D?\d{2}\D?\d{4})"#,
                 #"(?i)birth[^\d]*(\d{2}\D?\d{2}\D?\d{4})"#,
-                #"(?i)\b(\d{2}[/\-\.]?\d{2}[/\-\.]?\d{4})\b"#,
             ], preferEarliest: true)
         }
 

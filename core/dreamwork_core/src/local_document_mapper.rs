@@ -158,6 +158,7 @@ fn extract_fields(text: &str) -> BTreeMap<String, FieldEntry> {
 }
 
 fn apply_label_value_pairs(text: &str, fields: &mut BTreeMap<String, FieldEntry>) {
+    let is_passport = text.to_uppercase().contains("PASSPORT");
     for line in text.lines() {
         let trimmed = line.trim();
         if let Some((label, value)) = trimmed.split_once('|') {
@@ -166,11 +167,70 @@ fn apply_label_value_pairs(text: &str, fields: &mut BTreeMap<String, FieldEntry>
             if label.is_empty() || value.is_empty() {
                 continue;
             }
-            if let Some(key) = label_to_key(label) {
-                insert(fields, key, value.to_string(), Some(title_case_label(label)));
+            if let Some(key) = resolve_label_key(label, is_passport) {
+                insert(fields, &key, value.to_string(), Some(title_case_label(label)));
+            }
+            continue;
+        }
+        if let Some((label, value)) = split_inline_label_value(trimmed) {
+            if let Some(key) = resolve_label_key(&label, is_passport) {
+                insert(fields, &key, value, Some(title_case_label(&label)));
             }
         }
     }
+}
+
+fn split_inline_label_value(line: &str) -> Option<(String, String)> {
+    let line = line.trim();
+    if line.is_empty() || line.starts_with('[') || line.starts_with('#') {
+        return None;
+    }
+    if let Some((label, value)) = line.split_once(':') {
+        let label = label.trim().to_string();
+        let value = value.trim().to_string();
+        if !label.is_empty() && !value.is_empty() && resolve_label_key(&label, false).is_some() {
+            return Some((label, value));
+        }
+    }
+
+    let prefixes: &[(&str, &str)] = &[
+        ("date of birth", "date of birth"),
+        ("date of issue", "date of issue"),
+        ("date of expiry", "date of expiry"),
+        ("date of expiration", "date of expiration"),
+        ("place of birth", "place of birth"),
+        ("place of issue", "place of issue"),
+        ("nationality", "nationality"),
+        ("sex", "sex"),
+        ("gender", "gender"),
+        ("surname", "surname"),
+        ("given name", "given name"),
+        ("given names", "given names"),
+    ];
+    let lower = line.to_lowercase();
+    for (needle, label) in prefixes {
+        if let Some(rest) = lower.strip_prefix(needle) {
+            let value = rest.trim_start_matches([' ', ':', '.']).trim();
+            if !value.is_empty() {
+                return Some((label.to_string(), value.to_string()));
+            }
+        }
+    }
+
+    if let Some(rest) = lower.strip_prefix("passport") {
+        let mut value = rest
+            .trim_start()
+            .trim_start_matches("no")
+            .trim_start_matches("number")
+            .trim_start_matches(['.', ' ', '#'])
+            .trim()
+            .to_uppercase();
+        value.retain(|c| c.is_ascii_alphanumeric());
+        if value.len() >= 6 {
+            return Some(("passport number".to_string(), value));
+        }
+    }
+    None
 }
 
 fn apply_mrz_hints(text: &str, fields: &mut BTreeMap<String, FieldEntry>) {
@@ -214,9 +274,15 @@ fn parse_mrz_line(line: &str, fields: &mut BTreeMap<String, FieldEntry>) {
     }
 }
 
-fn label_to_key(label: &str) -> Option<&'static str> {
+fn label_to_key(label: &str, is_passport: bool) -> Option<&'static str> {
     let l = label.trim().trim_end_matches(':').to_lowercase();
     let l = l.as_str();
+    if l.contains("surname") || l.contains("family name") {
+        return Some("legal_last_name");
+    }
+    if l.contains("given") && l.contains("name") {
+        return Some("legal_first_name");
+    }
     if l.contains("first") && l.contains("name") {
         return Some("legal_first_name");
     }
@@ -233,15 +299,30 @@ fn label_to_key(label: &str) -> Option<&'static str> {
         return Some("date_of_birth");
     }
     if l.contains("expir") || l.contains("valid until") {
+        if is_passport || l.contains("passport") {
+            return Some("passport_expiry");
+        }
         return Some("drivers_license_expiry");
     }
     if l.contains("issue") && l.contains("date") {
         return Some("drivers_license_issue_date");
     }
+    if l.contains("place") && l.contains("birth") {
+        return Some("place_of_birth");
+    }
+    if l.contains("place") && l.contains("issue") {
+        return Some("place_of_issue");
+    }
+    if l.contains("nationality") {
+        return Some("passport_country");
+    }
+    if l.contains("sex") || l.contains("gender") {
+        return Some("gender");
+    }
     if l.contains("license") && (l.contains("no") || l.contains("number") || l.contains("#")) {
         return Some("drivers_license_number");
     }
-    if l.contains("passport") && l.contains("no") {
+    if l.contains("passport") && (l.contains("no") || l.contains("number") || l.contains("#")) {
         return Some("passport_number");
     }
     if l.contains("ssn") || l.contains("social security") {
@@ -265,10 +346,66 @@ fn label_to_key(label: &str) -> Option<&'static str> {
     if l.contains("zip") || l.contains("postal") {
         return Some("postal_code");
     }
-    if l.contains("sex") || l.contains("gender") {
-        return Some("gender");
+    if l == "country" {
+        return Some("country");
+    }
+    if l.contains("account") && (l.contains("no") || l.contains("number") || l.contains("#")) {
+        return Some("account_number");
+    }
+    if l.contains("amount") && l.contains("due") {
+        return Some("amount_due");
+    }
+    if l.contains("due") && l.contains("date") {
+        return Some("due_date");
+    }
+    if (l.contains("service") && l.contains("address")) || l.contains("billing address") {
+        return Some("address_line1");
+    }
+    if l.contains("provider") || l.contains("utility company") {
+        return Some("utility_provider");
     }
     None
+}
+
+fn slugify_label(label: &str) -> String {
+    let mut out = String::new();
+    let mut prev_underscore = false;
+    for c in label.trim().trim_end_matches(':').to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() {
+            out.push(c);
+            prev_underscore = false;
+        } else if c.is_whitespace() || c == '-' || c == '/' || c == '.' || c == '#' {
+            if !out.is_empty() && !prev_underscore {
+                out.push('_');
+                prev_underscore = true;
+            }
+        }
+    }
+    out.trim_matches('_').to_string()
+}
+
+fn is_valid_extension_key(key: &str) -> bool {
+    key.len() >= 2
+        && key.len() <= 64
+        && key
+            .as_bytes()
+            .first()
+            .map(|b| b.is_ascii_lowercase())
+            .unwrap_or(false)
+        && key
+            .bytes()
+            .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || b == b'_')
+}
+
+fn resolve_label_key(label: &str, is_passport: bool) -> Option<String> {
+    label_to_key(label, is_passport).map(str::to_string).or_else(|| {
+        let slug = slugify_label(label);
+        if is_valid_extension_key(&slug) {
+            Some(slug)
+        } else {
+            None
+        }
+    })
 }
 
 fn infer_document_type(text: &str, fields: &BTreeMap<String, FieldEntry>) -> String {
@@ -540,21 +677,33 @@ fn find_phone(text: &str) -> Option<String> {
 
 fn find_dates(text: &str) -> Vec<(String, String, String)> {
     let mut out = Vec::new();
-    for token in text.split_whitespace() {
-        if token.len() == 10
-            && token.chars().nth(2) == Some('/')
-            && token.chars().nth(5) == Some('/')
-        {
-            let lower = text.to_lowercase();
-            let label = if lower.contains("expir") {
-                ("drivers_license_expiry", "Expiration date")
-            } else if lower.contains("issue") {
-                ("drivers_license_issue_date", "Issue date")
-            } else {
-                ("date_of_birth", "Date of birth")
-            };
-            out.push((label.0.to_string(), label.1.to_string(), token.to_string()));
-            break;
+    let upper = text.to_uppercase();
+    let is_passport = upper.contains("PASSPORT");
+    for line in text.lines() {
+        for token in line.split_whitespace() {
+            if token.len() == 10
+                && token.chars().nth(2) == Some('/')
+                && token.chars().nth(5) == Some('/')
+            {
+                let lower_line = line.to_lowercase();
+                let label = if lower_line.contains("expir") {
+                    if is_passport {
+                        ("passport_expiry", "Passport expiry")
+                    } else {
+                        ("drivers_license_expiry", "Expiration date")
+                    }
+                } else if lower_line.contains("issue") {
+                    ("drivers_license_issue_date", "Issue date")
+                } else if lower_line.contains("birth") || lower_line.contains("dob") {
+                    ("date_of_birth", "Date of birth")
+                } else if is_passport {
+                    ("date_of_birth", "Date of birth")
+                } else {
+                    ("date_of_birth", "Date of birth")
+                };
+                out.push((label.0.to_string(), label.1.to_string(), token.to_string()));
+                break;
+            }
         }
     }
     out
@@ -693,6 +842,34 @@ Last name | Smith
             resp.fields.get("aadhaar_number").unwrap().value,
             "1234 5678 9012"
         );
+    }
+
+    #[test]
+    fn maps_unknown_labels_to_extension_keys() {
+        let text = r#"## Spatial label | value pairs (heuristic)
+Account Number | 1234567890
+Amount Due | $142.50
+Due Date | 04/15/2026
+Service Provider | ACME Electric
+Invoice Period | Jan 2026
+"#;
+        let req = MapDocumentFieldsRequest {
+            layout_text: text.into(),
+            profile_schema_keys: vec![],
+            model_path: None,
+        };
+        let resp = map_document_fields(&req);
+        assert_eq!(
+            resp.fields.get("account_number").unwrap().value,
+            "1234567890"
+        );
+        assert_eq!(resp.fields.get("amount_due").unwrap().value, "$142.50");
+        assert_eq!(resp.fields.get("due_date").unwrap().value, "04/15/2026");
+        assert_eq!(
+            resp.fields.get("utility_provider").unwrap().value,
+            "ACME Electric"
+        );
+        assert_eq!(resp.fields.get("invoice_period").unwrap().value, "Jan 2026");
     }
 
     #[test]

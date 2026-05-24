@@ -18,9 +18,11 @@ enum ClassificationAgent {
         machineReadableSources: [String]
     ) -> Result {
         var openType = mappedDocumentType
-        if openType == nil, machineReadableSources.contains("pdf417") {
+        if openType == nil, machineReadableSources.contains("pdf417")
+            || machineReadableSources.contains("drivers_license")
+        {
             openType = "drivers_license"
-        } else if openType == nil, machineReadableSources.contains("mrz") {
+        } else if openType == nil, machineReadableSources.contains("passport") {
             openType = "passport"
         }
         if openType == nil {

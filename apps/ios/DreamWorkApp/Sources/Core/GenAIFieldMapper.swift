@@ -1,7 +1,7 @@
 import Foundation
 
-/// Maps OCR text to profile fields via a local-network OpenAI-compatible endpoint (Ollama, LM Studio).
-/// Cloud endpoints are blocked in Release builds per zero-egress policy.
+/// Maps OCR text to profile fields via shared suggestion helpers.
+/// Network LLM calls are disabled — use `OnDeviceFieldMapper` for extraction.
 enum GenAIFieldMapper {
     struct ExtractionResult {
         var values: [String: String]
@@ -79,14 +79,8 @@ enum GenAIFieldMapper {
         layoutText: String,
         profileSchemaKeys: [String]
     ) async -> ExtractionResult? {
-        guard let config = GenAISettings.activeLLMConfig else { return nil }
-        return await fetchExtraction(
-            layoutText: layoutText,
-            profileSchemaKeys: profileSchemaKeys,
-            baseURL: config.baseURL,
-            model: config.model,
-            apiKey: config.apiKey
-        )
+        // Network LLM extraction disabled — document data stays on-device (zero egress).
+        nil
     }
 
     private static func fetchExtraction(

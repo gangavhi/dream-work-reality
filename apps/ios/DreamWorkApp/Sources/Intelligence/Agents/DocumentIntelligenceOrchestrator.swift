@@ -31,12 +31,11 @@ enum DocumentIntelligenceOrchestrator {
         let layout = LayoutIntelligenceAgent.analyze(document: document, payloadHints: payloadHints)
         trace.append("layout:\(layout.engineID)")
 
-        let inferredType = ProfileSchemaKeysForDocument.inferOpenType(from: layout.modelInput)
-        let schemaKeys = ProfileSchemaKeysForDocument.keys(forOpenDocumentType: inferredType)
+        let schemaKeys = ProfileSchema.allFields.map(\.key)
 
         let machineReadable = MachineReadableFieldExtractor.extract(
             from: payloadHints,
-            supplementalOCRText: layout.modelInput
+            plainOCRText: layout.layoutText
         )
         let extraction = await ExtractionAgent.extract(
             layout: layout,
@@ -53,10 +52,7 @@ enum DocumentIntelligenceOrchestrator {
         trace.append("classify:\(classification.engineID)")
 
         var mappingNotice: String?
-        if extraction.networkLLMFailed {
-            mappingNotice =
-                "Network model unavailable — using on-device mapping. For Ollama on a phone, set your Mac's Wi‑Fi IP in Settings (not 127.0.0.1)."
-        } else if extraction.usedHeuristicFallback, !machineReadable.decodedPayload, GenAISettings.provider == .onDevice {
+        if extraction.usedHeuristicFallback, !machineReadable.decodedPayload, GenAISettings.provider == .onDevice {
             mappingNotice =
                 "Fields are estimated from text patterns. Review each value against the scan — accuracy improves when labels are clear on the document."
         }

@@ -58,6 +58,8 @@ enum ProfileSchemaKeysForDocument {
                 ProfileFieldKey.passportExpiry,
                 ProfileFieldKey.passportCountry,
                 ProfileFieldKey.country,
+                "place_of_birth",
+                "place_of_issue",
             ] + address
         case "aadhaar_card":
             base = identity + address + ["aadhaar_number"]
