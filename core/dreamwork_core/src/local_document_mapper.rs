@@ -1,16 +1,26 @@
 //! On-device document field extraction from layout-ordered OCR text (zero egress).
-//! Uses heuristics + spatial label|value pairs; GGUF path validated when present (llama.cpp-class backend TBD).
+//! Document parsing is GGUF/llama.cpp-only; deterministic helpers are retained for
+//! tests and legacy template code but are not used as mapper fallback.
+#![allow(dead_code)]
 
 use std::collections::BTreeMap;
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
-use crate::inference::{parse_gguf_header_prefix, GenerativeArtifactId, GenerativeLlmSession, InferenceError};
+use crate::inference::{
+    generate_constrained_json, parse_gguf_header_prefix, GenerativeArtifactId,
+    GenerativeLlmSession, InferenceError,
+};
 use crate::profile_keys::normalize_field_key;
 
 pub const ENGINE_ID: &str = "heuristic.on_device.v1";
+pub const LLAMA_METAL_ENGINE_ID: &str = "llama.cpp.metal.v1";
 pub const DEFAULT_ARTIFACT_ID: &str = "llm.schema.lite.v1";
+pub const GGUF_METAL_ACTIVE: &str = "gguf_metal_active";
+pub const GGUF_RUNTIME_PENDING: &str = "gguf_valid_llama_cpp_no_fields";
+pub const LLM_PARSER_MISSING: &str = "llm_document_parser_failed:model_missing";
+pub const LLM_PARSER_INVALID: &str = "llm_document_parser_failed:model_invalid";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FieldEntry {
@@ -40,6 +50,26 @@ pub struct MapDocumentFieldsResponse {
     pub model_artifact_id: String,
     pub gguf_present: bool,
     pub gguf_valid: bool,
+    pub llm_runtime_status: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct LlmSchemaPlan {
+    #[serde(default)]
+    document_type: Option<String>,
+    #[serde(default)]
+    fields: BTreeMap<String, LlmFieldValue>,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(untagged)]
+enum LlmFieldValue {
+    Entry {
+        value: String,
+        #[serde(default)]
+        label: Option<String>,
+    },
+    String(String),
 }
 
 pub fn map_document_fields_from_json(json: &str) -> Result<MapDocumentFieldsResponse, String> {
@@ -50,33 +80,192 @@ pub fn map_document_fields_from_json(json: &str) -> Result<MapDocumentFieldsResp
 
 pub fn map_document_fields(req: &MapDocumentFieldsRequest) -> MapDocumentFieldsResponse {
     let (gguf_present, gguf_valid) = inspect_optional_gguf(req.model_path.as_deref());
-    let artifact_id = if gguf_valid {
-        DEFAULT_ARTIFACT_ID.to_string()
-    } else {
-        ENGINE_ID.to_string()
+    let artifact_id = DEFAULT_ARTIFACT_ID.to_string();
+
+    if !gguf_present {
+        return failed_response(
+            gguf_present,
+            gguf_valid,
+            LLM_PARSER_MISSING.to_string(),
+            artifact_id,
+        );
+    }
+    if !gguf_valid {
+        return failed_response(
+            gguf_present,
+            gguf_valid,
+            LLM_PARSER_INVALID.to_string(),
+            artifact_id,
+        );
     };
 
-    let mut fields = extract_fields(&req.layout_text);
-    apply_label_value_pairs(&req.layout_text, &mut fields);
-    apply_mrz_hints(&req.layout_text, &mut fields);
+    match run_llama_schema_plan(req) {
+        Ok(plan) => {
+            let mut fields = BTreeMap::new();
+            let applied = apply_llm_schema_plan(&plan, &req.profile_schema_keys, &mut fields);
+            if applied == 0 {
+                return failed_response(
+                    gguf_present,
+                    gguf_valid,
+                    GGUF_RUNTIME_PENDING.to_string(),
+                    artifact_id,
+                );
+            }
 
-    let document_type = infer_document_type(&req.layout_text, &fields);
-    let issuer_region = fields
-        .get("drivers_license_state")
-        .or_else(|| fields.get("state"))
-        .map(|e| e.value.clone());
-    let country = fields.get("country").map(|e| e.value.clone());
+            let document_type = plan
+                .document_type
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| "other".to_string());
+            let issuer_region = fields
+                .get("drivers_license_state")
+                .or_else(|| fields.get("state"))
+                .map(|e| e.value.clone());
+            let country = fields.get("country").map(|e| e.value.clone());
 
+            MapDocumentFieldsResponse {
+                document_type,
+                issuer_region,
+                country,
+                fields,
+                engine: LLAMA_METAL_ENGINE_ID.to_string(),
+                model_artifact_id: artifact_id,
+                gguf_present,
+                gguf_valid,
+                llm_runtime_status: GGUF_METAL_ACTIVE.to_string(),
+            }
+        }
+        Err(err) => failed_response(
+            gguf_present,
+            gguf_valid,
+            format!(
+                "gguf_valid_llama_cpp_generation_failed:{}",
+                status_reason(&err)
+            ),
+            artifact_id,
+        ),
+    }
+}
+
+fn failed_response(
+    gguf_present: bool,
+    gguf_valid: bool,
+    llm_runtime_status: String,
+    artifact_id: String,
+) -> MapDocumentFieldsResponse {
     MapDocumentFieldsResponse {
-        document_type,
-        issuer_region,
-        country,
-        fields,
-        engine: ENGINE_ID.to_string(),
+        document_type: "other".to_string(),
+        issuer_region: None,
+        country: None,
+        fields: BTreeMap::new(),
+        engine: LLAMA_METAL_ENGINE_ID.to_string(),
         model_artifact_id: artifact_id,
         gguf_present,
         gguf_valid,
+        llm_runtime_status,
     }
+}
+
+fn run_llama_schema_plan(req: &MapDocumentFieldsRequest) -> Result<LlmSchemaPlan, InferenceError> {
+    let Some(model_path) = req.model_path.as_deref().filter(|p| !p.trim().is_empty()) else {
+        return Err(InferenceError::Session(
+            "missing GGUF model path".to_string(),
+        ));
+    };
+
+    let session = OnDeviceGenerativeSession {
+        artifact_id: GenerativeArtifactId(DEFAULT_ARTIFACT_ID.to_string()),
+        model_path: Some(model_path.to_string()),
+    };
+    let prompt = build_schema_plan_prompt(req);
+    let json = session.generate_schema_plan_json(&prompt)?;
+    serde_json::from_str::<LlmSchemaPlan>(&json).map_err(|e| {
+        InferenceError::Session(format!("llama.cpp returned invalid schema JSON: {e}"))
+    })
+}
+
+fn build_schema_plan_prompt(req: &MapDocumentFieldsRequest) -> String {
+    let schema_keys = if req.profile_schema_keys.is_empty() {
+        "any canonical or document extension key directly supported by the OCR".to_string()
+    } else {
+        req.profile_schema_keys.join(", ")
+    };
+
+    format!(
+        r#"Extract document fields from OCR/layout text.
+
+Rules:
+- Return only JSON.
+- Use exactly this shape:
+  {{"document_type":"string","fields":{{"profile_key":{{"value":"string","label":"string"}}}}}}
+- Allowed profile keys: {schema_keys}
+- Only include values explicitly present in the OCR text.
+- Prefer precise document-specific keys over generic keys.
+- If unsure, omit the field.
+
+OCR/layout text:
+{}"#,
+        req.layout_text
+    )
+}
+
+fn apply_llm_schema_plan(
+    plan: &LlmSchemaPlan,
+    profile_schema_keys: &[String],
+    fields: &mut BTreeMap<String, FieldEntry>,
+) -> usize {
+    let allowed: std::collections::BTreeSet<String> = profile_schema_keys
+        .iter()
+        .map(|key| normalize_field_key(key))
+        .filter(|key| !key.is_empty())
+        .collect();
+    let restrict_keys = !allowed.is_empty();
+    let mut applied = 0;
+
+    for (raw_key, raw_value) in &plan.fields {
+        let key = normalize_field_key(raw_key);
+        if key.is_empty() || (restrict_keys && !allowed.contains(&key)) {
+            continue;
+        }
+
+        let (value, label) = match raw_value {
+            LlmFieldValue::Entry { value, label } => (value.trim(), label.as_deref()),
+            LlmFieldValue::String(value) => (value.trim(), None),
+        };
+        if value.is_empty() {
+            continue;
+        }
+
+        fields.insert(
+            key,
+            FieldEntry {
+                value: value.to_string(),
+                label: label
+                    .map(str::trim)
+                    .filter(|s| !s.is_empty())
+                    .map(str::to_string),
+            },
+        );
+        applied += 1;
+    }
+
+    applied
+}
+
+fn status_reason(err: &InferenceError) -> String {
+    err.to_string()
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.') {
+                c.to_ascii_lowercase()
+            } else {
+                '_'
+            }
+        })
+        .collect::<String>()
+        .trim_matches('_')
+        .chars()
+        .take(96)
+        .collect()
 }
 
 fn inspect_optional_gguf(path: Option<&str>) -> (bool, bool) {
@@ -168,7 +357,12 @@ fn apply_label_value_pairs(text: &str, fields: &mut BTreeMap<String, FieldEntry>
                 continue;
             }
             if let Some(key) = resolve_label_key(label, is_passport) {
-                insert(fields, &key, value.to_string(), Some(title_case_label(label)));
+                insert(
+                    fields,
+                    &key,
+                    value.to_string(),
+                    Some(title_case_label(label)),
+                );
             }
             continue;
         }
@@ -398,25 +592,27 @@ fn is_valid_extension_key(key: &str) -> bool {
 }
 
 fn resolve_label_key(label: &str, is_passport: bool) -> Option<String> {
-    label_to_key(label, is_passport).map(str::to_string).or_else(|| {
-        let slug = slugify_label(label);
-        if is_valid_extension_key(&slug) {
-            Some(slug)
-        } else {
-            None
-        }
-    })
+    label_to_key(label, is_passport)
+        .map(str::to_string)
+        .or_else(|| {
+            let slug = slugify_label(label);
+            if is_valid_extension_key(&slug) {
+                Some(slug)
+            } else {
+                None
+            }
+        })
 }
 
 fn infer_document_type(text: &str, fields: &BTreeMap<String, FieldEntry>) -> String {
     let upper = text.to_uppercase();
-    if fields.contains_key("aadhaar_number") || upper.contains("AADHAAR") || upper.contains("UIDAI") {
+    if fields.contains_key("aadhaar_number") || upper.contains("AADHAAR") || upper.contains("UIDAI")
+    {
         return "aadhaar_card".into();
     }
     if fields.contains_key("pan_number")
         || upper.contains("PERMANENT ACCOUNT NUMBER")
-        || upper.contains("INCOME TAX")
-            && upper.contains("PAN")
+        || upper.contains("INCOME TAX") && upper.contains("PAN")
     {
         return "pan_card".into();
     }
@@ -448,8 +644,7 @@ fn infer_document_type(text: &str, fields: &BTreeMap<String, FieldEntry>) -> Str
         return "employment_document".into();
     }
     if upper.contains("MEDICAL RECORD")
-        || upper.contains("PATIENT")
-            && (upper.contains("DIAGNOSIS") || upper.contains("CHART"))
+        || upper.contains("PATIENT") && (upper.contains("DIAGNOSIS") || upper.contains("CHART"))
     {
         return "medical_record".into();
     }
@@ -466,7 +661,12 @@ fn extract_name_lines(text: &str, fields: &mut BTreeMap<String, FieldEntry>) {
             if let Some(rest) = t.split(']').nth(1) {
                 let name = rest.trim();
                 if looks_like_person_name(name) && !fields.contains_key("display_name") {
-                    insert(fields, "display_name", name.to_string(), Some("Full name".into()));
+                    insert(
+                        fields,
+                        "display_name",
+                        name.to_string(),
+                        Some("Full name".into()),
+                    );
                     let parts: Vec<&str> = name.split_whitespace().collect();
                     if parts.len() >= 2 {
                         insert(
@@ -503,24 +703,28 @@ fn extract_address(text: &str, fields: &mut BTreeMap<String, FieldEntry>) {
             }
         }
         if looks_like_street(t) && !fields.contains_key("address_line1") {
-            insert(fields, "address_line1", t.to_string(), Some("Address".into()));
+            insert(
+                fields,
+                "address_line1",
+                t.to_string(),
+                Some("Address".into()),
+            );
         }
     }
 }
 
-fn insert(fields: &mut BTreeMap<String, FieldEntry>, key: &str, value: String, label: Option<String>) {
+fn insert(
+    fields: &mut BTreeMap<String, FieldEntry>,
+    key: &str,
+    value: String,
+    label: Option<String>,
+) {
     let key = normalize_field_key(key);
     let value = value.trim().to_string();
     if value.is_empty() {
         return;
     }
-    fields.insert(
-        key,
-        FieldEntry {
-            value,
-            label,
-        },
-    );
+    fields.insert(key, FieldEntry { value, label });
 }
 
 fn title_case_label(label: &str) -> String {
@@ -532,7 +736,9 @@ fn title_case_label(label: &str) -> String {
             let mut chars = w.chars();
             match chars.next() {
                 None => String::new(),
-                Some(c) => c.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str(),
+                Some(c) => {
+                    c.to_uppercase().collect::<String>() + chars.as_str().to_lowercase().as_str()
+                }
             }
         })
         .collect::<Vec<_>>()
@@ -544,7 +750,8 @@ fn looks_like_person_name(s: &str) -> bool {
     (2..=4).contains(&words.len())
         && words.iter().all(|w| {
             w.chars().filter(|c| c.is_alphabetic()).count() >= 2
-                && w.chars().all(|c| c.is_alphabetic() || c == '-' || c == '\'')
+                && w.chars()
+                    .all(|c| c.is_alphabetic() || c == '-' || c == '\'')
         })
 }
 
@@ -621,7 +828,12 @@ fn find_aadhaar(text: &str) -> Option<String> {
     let digits: String = text.chars().filter(|c| c.is_ascii_digit()).collect();
     if digits.len() >= 12 {
         let slice = &digits[digits.len() - 12..];
-        return Some(format!("{} {} {}", &slice[0..4], &slice[4..8], &slice[8..12]));
+        return Some(format!(
+            "{} {} {}",
+            &slice[0..4],
+            &slice[4..8],
+            &slice[8..12]
+        ));
     }
     None
 }
@@ -749,7 +961,9 @@ fn find_us_state(text: &str) -> Option<String> {
         "VA", "WA", "WV", "WI", "WY", "DC",
     ];
     for token in text.split_whitespace() {
-        let t = token.trim_matches(|c: char| !c.is_ascii_alphabetic()).to_uppercase();
+        let t = token
+            .trim_matches(|c: char| !c.is_ascii_alphabetic())
+            .to_uppercase();
         if t.len() == 2 && STATES.contains(&t.as_str()) {
             return Some(t);
         }
@@ -757,7 +971,7 @@ fn find_us_state(text: &str) -> Option<String> {
     None
 }
 
-/// Bridge for future llama.cpp-class session — today delegates to heuristics.
+/// Bridge for future llama.cpp-class session.
 pub struct OnDeviceGenerativeSession {
     pub artifact_id: GenerativeArtifactId,
     pub model_path: Option<String>,
@@ -769,16 +983,12 @@ impl GenerativeLlmSession for OnDeviceGenerativeSession {
     }
 
     fn generate_schema_plan_json(&self, user_prompt: &str) -> Result<String, InferenceError> {
-        let req = MapDocumentFieldsRequest {
-            layout_text: user_prompt.to_string(),
-            profile_schema_keys: crate::profile_keys::canonical_profile_keys()
-                .iter()
-                .map(|s| (*s).to_string())
-                .collect(),
-            model_path: self.model_path.clone(),
+        let Some(model_path) = self.model_path.as_deref().filter(|p| !p.trim().is_empty()) else {
+            return Err(InferenceError::Session(
+                "missing GGUF model path".to_string(),
+            ));
         };
-        let resp = map_document_fields(&req);
-        serde_json::to_string(&resp).map_err(|e| InferenceError::Session(e.to_string()))
+        generate_constrained_json(model_path, user_prompt, 384)
     }
 }
 
@@ -794,52 +1004,38 @@ License No | D12345678
 First name | Jane
 Last name | Smith
 "#;
-        let req = MapDocumentFieldsRequest {
-            layout_text: text.into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
-        let resp = map_document_fields(&req);
-        assert_eq!(resp.fields.get("date_of_birth").unwrap().value, "03/15/1985");
+        let mut fields = extract_fields(text);
+        apply_label_value_pairs(text, &mut fields);
+        assert_eq!(fields.get("date_of_birth").unwrap().value, "03/15/1985");
         assert_eq!(
-            resp.fields.get("drivers_license_number").unwrap().value,
+            fields.get("drivers_license_number").unwrap().value,
             "D12345678"
         );
-        assert_eq!(resp.fields.get("legal_first_name").unwrap().value, "Jane");
-        assert!(!resp.gguf_present);
+        assert_eq!(fields.get("legal_first_name").unwrap().value, "Jane");
     }
 
     #[test]
     fn infers_drivers_license_type() {
         let text = "[1] TEXAS\n[2] DRIVER LICENSE\n[3] D12345678";
-        let req = MapDocumentFieldsRequest {
-            layout_text: text.into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
-        let resp = map_document_fields(&req);
-        assert_eq!(resp.document_type, "drivers_license");
+        let fields = extract_fields(text);
+        assert_eq!(infer_document_type(text, &fields), "drivers_license");
     }
 
     #[test]
-    fn json_round_trip() {
+    fn json_round_trip_reports_missing_model_without_heuristic_fields() {
         let json = r#"{"layout_text":"Email | test@example.com","profile_schema_keys":[]}"#;
         let resp = map_document_fields_from_json(json).unwrap();
-        assert_eq!(resp.fields.get("email").unwrap().value, "test@example.com");
+        assert!(resp.fields.is_empty());
+        assert_eq!(resp.llm_runtime_status, LLM_PARSER_MISSING);
     }
 
     #[test]
     fn infers_aadhaar_and_extracts_number() {
         let text = "Government of India\nAADHAAR\n1234 5678 9012\nName | Test User";
-        let req = MapDocumentFieldsRequest {
-            layout_text: text.into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
-        let resp = map_document_fields(&req);
-        assert_eq!(resp.document_type, "aadhaar_card");
+        let fields = extract_fields(text);
+        assert_eq!(infer_document_type(text, &fields), "aadhaar_card");
         assert_eq!(
-            resp.fields.get("aadhaar_number").unwrap().value,
+            fields.get("aadhaar_number").unwrap().value,
             "1234 5678 9012"
         );
     }
@@ -853,41 +1049,27 @@ Due Date | 04/15/2026
 Service Provider | ACME Electric
 Invoice Period | Jan 2026
 "#;
-        let req = MapDocumentFieldsRequest {
-            layout_text: text.into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
-        let resp = map_document_fields(&req);
+        let mut fields = extract_fields(text);
+        apply_label_value_pairs(text, &mut fields);
+        assert_eq!(fields.get("account_number").unwrap().value, "1234567890");
+        assert_eq!(fields.get("amount_due").unwrap().value, "$142.50");
+        assert_eq!(fields.get("due_date").unwrap().value, "04/15/2026");
         assert_eq!(
-            resp.fields.get("account_number").unwrap().value,
-            "1234567890"
-        );
-        assert_eq!(resp.fields.get("amount_due").unwrap().value, "$142.50");
-        assert_eq!(resp.fields.get("due_date").unwrap().value, "04/15/2026");
-        assert_eq!(
-            resp.fields.get("utility_provider").unwrap().value,
+            fields.get("utility_provider").unwrap().value,
             "ACME Electric"
         );
-        assert_eq!(resp.fields.get("invoice_period").unwrap().value, "Jan 2026");
+        assert_eq!(fields.get("invoice_period").unwrap().value, "Jan 2026");
     }
 
     #[test]
     fn ssn_requires_context() {
-        let no_ctx = MapDocumentFieldsRequest {
-            layout_text: "Account 123-45-6789 summary".into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
-        assert!(!map_document_fields(&no_ctx).fields.contains_key("ssn"));
+        assert!(!extract_fields("Account 123-45-6789 summary").contains_key("ssn"));
 
-        let with_ctx = MapDocumentFieldsRequest {
-            layout_text: "Social Security Number\n123-45-6789".into(),
-            profile_schema_keys: vec![],
-            model_path: None,
-        };
         assert_eq!(
-            map_document_fields(&with_ctx).fields.get("ssn").unwrap().value,
+            extract_fields("Social Security Number\n123-45-6789")
+                .get("ssn")
+                .unwrap()
+                .value,
             "123-45-6789"
         );
     }

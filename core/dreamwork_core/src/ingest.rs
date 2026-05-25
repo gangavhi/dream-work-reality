@@ -4,9 +4,7 @@ use std::collections::BTreeMap;
 
 use serde::Deserialize;
 
-use crate::entity_resolution::{
-    self, ExistingPerson, ResolvePersonResult,
-};
+use crate::entity_resolution::{self, ExistingPerson, ResolvePersonResult};
 use crate::runtime;
 use crate::storage_routing::{PlanStorageRequest, StoragePlan};
 
@@ -39,6 +37,10 @@ pub struct PlanStorageJsonRequest {
     pub person_id: Option<String>,
     #[serde(default)]
     pub profile_schema_keys: Option<Vec<String>>,
+    #[serde(default)]
+    pub model_path: Option<String>,
+    #[serde(default)]
+    pub document_type: Option<String>,
 }
 
 pub fn plan_storage_from_json(json: &str) -> Result<StoragePlan, String> {
@@ -48,6 +50,8 @@ pub fn plan_storage_from_json(json: &str) -> Result<StoragePlan, String> {
         fields: req.fields,
         person_id: req.person_id,
         profile_schema_keys: req.profile_schema_keys,
+        model_path: req.model_path,
+        document_type: req.document_type,
     }))
 }
 

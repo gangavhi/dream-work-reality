@@ -5,9 +5,33 @@
       "artifact_id": "llm.schema.lite.v1",
       "filename": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
       "description": "Qwen2.5 3B Instruct Q4_K_M — on-device schema extraction (optional download)",
-      "bytes_approx": 2100000000,
+      "bytes_approx": 1929903264,
+      "sha256": "9c9f56a391a3abbd5b89d0245bf6106081bcc3173119d4229235dd9d23253f94",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    },
+    {
+      "artifact_id": "document.classifier.v1",
+      "filename": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 3B Instruct Q4_K_M — local open-vocabulary OCR document type classifier",
+      "bytes_approx": 1929903264,
+      "sha256": "9c9f56a391a3abbd5b89d0245bf6106081bcc3173119d4229235dd9d23253f94",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+    },
+    {
+      "artifact_id": "sql.storage.planner.v1",
+      "filename": "SS-350M-SQL-Strict.Q8_0.gguf",
+      "description": "SS-350M-SQL-Strict GGUF — small local SQL/storage-planning model for SQLite routing decisions",
+      "bytes_approx": 370000000,
+      "sha256": "9d1b6a05358c5df61f7c7089a382a1890aa9dedd098425d66a6d26f80623a40b",
+      "download_url": "https://huggingface.co/saadxsalman/SS-350M-SQL-Strict-GGUF/resolve/main/SS-350M-SQL-Strict.Q8_0.gguf"
+    },
+    {
+      "artifact_id": "layoutlmv3.v1",
+      "filename": "layoutlmv3.mlmodelc",
+      "description": "HYPJUDY/layoutlmv3-base-finetuned-funsd — model-based document layout/form understanding after CoreML conversion",
+      "bytes_approx": null,
       "sha256": null,
-      "download_url": null
+      "download_url": "https://huggingface.co/HYPJUDY/layoutlmv3-base-finetuned-funsd"
     }
   ]
 }

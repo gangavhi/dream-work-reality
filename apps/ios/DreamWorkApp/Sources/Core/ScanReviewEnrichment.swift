@@ -45,4 +45,7 @@ struct ScanReviewEnrichment: Hashable {
     let mappingNotice: String?
     let usedMachineReadablePayload: Bool
     let usedHeuristicFallback: Bool
+    let identityGraph: StructuredIdentityGraph
+    let autofillPayload: SmartAutofillPayload
+    let pipelineTrace: [String]
 }

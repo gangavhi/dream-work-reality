@@ -30,22 +30,37 @@ enum BundledModelStore {
         return try? JSONDecoder().decode(Manifest.self, from: data)
     }
 
-    static func liteArtifactPath() -> String? {
+    static func artifactPath(artifactID: String) -> String? {
         guard let manifest = manifest(),
-              let artifact = manifest.artifacts.first(where: { $0.artifact_id == "llm.schema.lite.v1" })
+              let artifact = manifest.artifacts.first(where: { $0.artifact_id == artifactID })
         else { return nil }
         let path = modelsDirectory.appendingPathComponent(artifact.filename).path
         return FileManager.default.fileExists(atPath: path) ? path : nil
     }
 
+    static func liteArtifactPath() -> String? {
+        artifactPath(artifactID: "llm.schema.lite.v1")
+    }
+
+    static func documentClassifierArtifactPath() -> String? {
+        artifactPath(artifactID: "document.classifier.v1")
+    }
+
+    static func storagePlannerArtifactPath() -> String? {
+        artifactPath(artifactID: "sql.storage.planner.v1")
+    }
+
     static func installStatusMessage() -> String {
-        if liteArtifactPath() != nil {
-            return "On-device model installed at llm.schema.lite.v1. Heuristic extraction runs today; full GGUF inference ships in a future update."
+        if liteArtifactPath() != nil,
+           documentClassifierArtifactPath() != nil,
+           storagePlannerArtifactPath() != nil
+        {
+            return "Required local ML models are installed. Classification, parsing, and storage planning run locally with no heuristic fallback."
         }
         if let artifact = manifest()?.artifacts.first(where: { $0.artifact_id == "llm.schema.lite.v1" }) {
             let gb = Double(artifact.bytes_approx ?? 0) / 1_000_000_000.0
-            return String(format: "Optional model %@ (~%.1f GB) not installed. Extraction uses built-in on-device heuristics (zero egress).", artifact.filename, gb)
+            return String(format: "Required local ML models are not fully installed. Parser artifact %@ (~%.1f GB) is required, and classifier/storage planner artifacts must also be installed before the strict ML pipeline can complete.", artifact.filename, gb)
         }
-        return "Built-in on-device extraction is active. No network required."
+        return "Required on-device parser model manifest is missing. Document data parsing is unavailable."
     }
 }

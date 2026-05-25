@@ -164,7 +164,26 @@ pub extern "C" fn dreamwork_resolve_person_json(ptr: *const c_char) -> *mut c_ch
     }
 }
 
-/// Stage 2: storage routing plan. Request JSON: `{ "fields": {...}, "person_id"?: "...", "profile_schema_keys"?: [...] }`.
+/// Local ML document classification. Request JSON: `{ "layout_text", "model_path"? }`.
+#[no_mangle]
+pub extern "C" fn dreamwork_classify_document_json(ptr: *const c_char) -> *mut c_char {
+    if ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    match crate::ml_document_classifier::classify_document_from_json(&s) {
+        Ok(result) => match serde_json::to_string(&result) {
+            Ok(j) => match CString::new(j) {
+                Ok(c) => c.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            },
+            Err(_) => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Stage 2: local ML storage routing plan. Request JSON: `{ "fields": {...}, "person_id"?: "...", "model_path"?: "...", ... }`.
 #[no_mangle]
 pub extern "C" fn dreamwork_plan_storage_json(ptr: *const c_char) -> *mut c_char {
     if ptr.is_null() {
@@ -256,10 +275,7 @@ mod tests {
         .unwrap();
         assert!(dreamwork_save_manual_entry_json(json.as_ptr()));
 
-        let req = CString::new(
-            r#"{"fields":{"drivers_license_number":"DL-FFI-1"}}"#,
-        )
-        .unwrap();
+        let req = CString::new(r#"{"fields":{"drivers_license_number":"DL-FFI-1"}}"#).unwrap();
         let out = dreamwork_resolve_person_json(req.as_ptr());
         assert!(!out.is_null());
         let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
@@ -273,8 +289,8 @@ mod tests {
         let out = dreamwork_plan_storage_json(req.as_ptr());
         assert!(!out.is_null());
         let s = unsafe { CStr::from_ptr(out) }.to_string_lossy();
-        assert!(s.contains("upsert_manual_field"));
-        assert!(s.contains("upsert_extension_field"));
+        assert!(s.contains("storage_planner_model_missing"));
+        assert!(s.contains(r#""operations":[]"#));
         dreamwork_string_free(out);
     }
 

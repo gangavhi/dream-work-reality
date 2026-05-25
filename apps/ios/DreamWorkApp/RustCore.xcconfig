@@ -4,6 +4,6 @@
 RUST_PROFILE = debug
 RUST_PROFILE[config=Release] = release
 
-OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64] = $(inherited) -L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/$(RUST_PROFILE) -ldreamwork_core
-OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64] = $(inherited) -L$(SRCROOT)/../../core/target/x86_64-apple-ios/$(RUST_PROFILE) -ldreamwork_core
-OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -L$(SRCROOT)/../../core/target/aarch64-apple-ios/$(RUST_PROFILE) -ldreamwork_core
+OTHER_LDFLAGS[sdk=iphonesimulator*][arch=arm64] = $(inherited) -L$(SRCROOT)/../../core/target/aarch64-apple-ios-sim/$(RUST_PROFILE) -ldreamwork_core -framework Metal -framework Accelerate -framework Foundation -lc++
+OTHER_LDFLAGS[sdk=iphonesimulator*][arch=x86_64] = $(inherited) -L$(SRCROOT)/../../core/target/x86_64-apple-ios/$(RUST_PROFILE) -ldreamwork_core -framework Metal -framework Accelerate -framework Foundation -lc++
+OTHER_LDFLAGS[sdk=iphoneos*] = $(inherited) -L$(SRCROOT)/../../core/target/aarch64-apple-ios/$(RUST_PROFILE) -ldreamwork_core -framework Metal -framework Accelerate -framework Foundation -lc++

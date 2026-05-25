@@ -20,6 +20,32 @@ struct KnowledgeEntity: Hashable, Identifiable {
     let sourceDocumentType: String?
 }
 
+struct SmartAutofillField: Hashable, Identifiable {
+    let profileKey: String
+    let label: String
+    let value: String
+    let entityType: KnowledgeEntityType?
+    let confidenceScore: Double
+    let requiresManualConfirmation: Bool
+
+    var id: String { profileKey }
+}
+
+struct SmartAutofillPayload: Hashable {
+    let documentType: String
+    let canonicalIdentity: CanonicalIdentityProfile
+    let fields: [SmartAutofillField]
+
+    var fieldMap: [String: String] {
+        Dictionary(uniqueKeysWithValues: fields.map { ($0.profileKey, $0.value) })
+    }
+}
+
+struct StructuredIdentityGraph: Hashable {
+    let entities: [KnowledgeEntity]
+    let autofillPayload: SmartAutofillPayload
+}
+
 /// Links extracted profile fields to graph entity types for cross-document queries.
 enum DocumentKnowledgeGraph {
     private static let keyToEntity: [String: KnowledgeEntityType] = [
@@ -63,6 +89,32 @@ enum DocumentKnowledgeGraph {
 
     static func entityType(forProfileKey key: String) -> KnowledgeEntityType? {
         keyToEntity[key] ?? extensionEntityType(key)
+    }
+
+    static func buildIdentityGraph(
+        from suggestions: [OcrFieldSuggestion],
+        documentType: String
+    ) -> StructuredIdentityGraph {
+        let entities = entities(from: suggestions, documentType: documentType)
+        let byKey = Dictionary(uniqueKeysWithValues: entities.map { ($0.profileKey, $0.type) })
+        let autofillFields = ProfileSchema.sortSuggestions(suggestions).map { suggestion in
+            SmartAutofillField(
+                profileKey: suggestion.profileKey,
+                label: suggestion.label,
+                value: suggestion.value,
+                entityType: byKey[suggestion.profileKey] ?? entityType(forProfileKey: suggestion.profileKey),
+                confidenceScore: suggestion.confidenceScore,
+                requiresManualConfirmation: suggestion.requiresManualConfirmation
+            )
+        }
+        return StructuredIdentityGraph(
+            entities: entities,
+            autofillPayload: SmartAutofillPayload(
+                documentType: documentType,
+                canonicalIdentity: CanonicalIdentityProfile.from(suggestions: suggestions),
+                fields: autofillFields
+            )
+        )
     }
 
     private static func extensionEntityType(_ key: String) -> KnowledgeEntityType? {

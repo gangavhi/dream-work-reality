@@ -20,6 +20,9 @@ struct ScanReviewPayload: Identifiable {
     let mappingNotice: String?
     let usedMachineReadablePayload: Bool
     let usedHeuristicFallback: Bool
+    let identityGraph: StructuredIdentityGraph
+    let autofillPayload: SmartAutofillPayload
+    let pipelineTrace: [String]
     /// Pre-filled profile from DL barcode/OCR/GenAI when creating a new household member.
     let prefilledPerson: PersonRecord?
 

@@ -1,92 +1,65 @@
 import Foundation
 
-/// Hybrid extraction for **any** document: open-vocabulary layout → machine-readable boosters → on-device mapper → regex fallback.
+/// Local ML extraction for **any** document. Template extraction, machine-readable boosters, and
+/// learned replay are intentionally excluded from the scan pipeline.
 enum ExtractionAgent {
     struct Result: Hashable {
         var suggestions: [OcrFieldSuggestion]
         var openDocumentType: String?
         var usedAI: Bool
         var usedHeuristicFallback: Bool
+        var usedTemplateExtractor: Bool
+        var usedSemanticExtractor: Bool
+        var learnedSuggestionCount: Int
+        var onDeviceRuntimeStatus: String?
     }
 
     static func extract(
         layout: LayoutIntelligenceAgent.LayoutDocument,
         payloadHints: EmbeddedPayloadHints.Result,
-        schemaKeys: [String]
+        schemaKeys: [String],
+        classification: ClassificationAgent.Result,
+        templateMatch: DocumentTemplateAgent.Match?,
+        strategy: ExtractionStrategyAgent.Result
     ) async -> Result {
-        let typeHint = ProfileSchemaKeysForDocument.inferOpenType(from: layout.layoutText)
+        _ = payloadHints
+        _ = templateMatch
+        _ = strategy
 
-        var suggestions = OpenVocabularyFieldExtractor.suggestions(
-            from: layout,
-            documentTypeHint: typeHint == "other" ? nil : typeHint
-        )
-
-        let machineReadable = MachineReadableFieldExtractor.extract(
-            from: payloadHints,
-            plainOCRText: layout.layoutText
-        )
-        suggestions = mergeSupplemental(primary: machineReadable.suggestions, supplemental: suggestions)
-
-        var usedAI = !suggestions.isEmpty
-        var openType = openDocumentType(from: machineReadable) ?? (typeHint == "other" ? nil : typeHint)
-        var usedHeuristicFallback = false
-
-        let mapperKeys = schemaKeys.isEmpty
-            ? ProfileSchema.allFields.map(\.key)
-            : schemaKeys
+        var suggestions: [OcrFieldSuggestion] = []
+        var usedSemanticExtractor = false
+        var usedAI = false
+        var openType = classification.openDocumentType
+        let usedHeuristicFallback = false
+        var runtimeStatus: String?
 
         switch GenAISettings.provider {
         case .onDevice:
             if let mapped = OnDeviceFieldMapper.mapFields(
                 layoutText: layout.modelInput,
-                profileSchemaKeys: mapperKeys
+                profileSchemaKeys: schemaKeys
             ) {
-                suggestions = mergeSupplemental(primary: suggestions, supplemental: mapped.suggestions)
+                suggestions = mapped.suggestions
                 openType = openType ?? mapped.documentType
-                usedAI = true
-            } else if suggestions.isEmpty {
-                usedHeuristicFallback = true
+                usedAI = usedAI || !mapped.suggestions.isEmpty
+                if !mapped.suggestions.isEmpty { usedSemanticExtractor = true }
+                runtimeStatus = "\(mapped.engine):\(mapped.modelArtifactID):gguf_present=\(mapped.ggufPresent):gguf_valid=\(mapped.ggufValid):\(mapped.llmRuntimeStatus)"
+            } else {
+                runtimeStatus = "llm_document_parser_failed:bridge_or_input_empty"
             }
         case .off:
-            break
-        }
-
-        let plain = layout.layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
-        if suggestions.isEmpty, !plain.isEmpty {
-            suggestions = UniversalDocumentParser.parse(from: plain)
-            usedHeuristicFallback = true
+            runtimeStatus = "llm_document_parser_failed:provider_off"
         }
 
         return Result(
-            suggestions: applyNERStub(layoutText: layout.modelInput, existing: suggestions),
+            suggestions: suggestions,
             openDocumentType: openType,
             usedAI: usedAI,
-            usedHeuristicFallback: usedHeuristicFallback
+            usedHeuristicFallback: usedHeuristicFallback,
+            usedTemplateExtractor: false,
+            usedSemanticExtractor: usedSemanticExtractor,
+            learnedSuggestionCount: 0,
+            onDeviceRuntimeStatus: runtimeStatus
         )
-    }
-
-    private static func openDocumentType(from machineReadable: MachineReadableFieldExtractor.Result) -> String? {
-        if machineReadable.sources.contains("passport") { return "passport" }
-        if machineReadable.sources.contains("pdf417") || machineReadable.sources.contains("drivers_license") {
-            return "drivers_license"
-        }
-        return nil
-    }
-
-    private static func applyNERStub(
-        layoutText: String,
-        existing: [OcrFieldSuggestion]
-    ) -> [OcrFieldSuggestion] {
-        guard case .installed = ModelArtifactRegistry.loadState(for: .nerDistilBERT) else {
-            return existing
-        }
-        return existing
-    }
-
-    private static func mergeSupplemental(
-        primary: [OcrFieldSuggestion],
-        supplemental: [OcrFieldSuggestion]
-    ) -> [OcrFieldSuggestion] {
-        CoreIngestHTTPClient.mergeSuggestions(trusted: primary, supplemental: supplemental)
     }
 }

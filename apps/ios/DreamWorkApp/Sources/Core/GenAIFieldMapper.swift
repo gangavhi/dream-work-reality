@@ -95,9 +95,7 @@ enum GenAIFieldMapper {
         guard ZeroEgressPolicy.allowsLLMEndpoint(baseURL) else { return nil }
 
         let narrowed = profileSchemaKeys.isEmpty
-            ? ProfileSchemaKeysForDocument.keys(
-                forOpenDocumentType: ProfileSchemaKeysForDocument.inferOpenType(from: trimmed)
-            )
+            ? []
             : profileSchemaKeys
         let keysList = narrowed.joined(separator: ", ")
         let system = """

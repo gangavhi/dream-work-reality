@@ -37,10 +37,36 @@ extension CoreBridgeService {
         let storagePlan = CoreIngestFFI.planStorage(
             fields: fieldMap,
             personID: planPersonID,
-            profileSchemaKeys: schemaKeys
+            profileSchemaKeys: schemaKeys,
+            documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
         )
 
         let suggestions = mergeExtensionFields(from: storagePlan, into: extracted.suggestions)
+        let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
+            from: suggestions,
+            documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
+        )
+
+        var mappingNotice = extracted.mappingNotice
+        if let storagePlan,
+           storagePlan.summary.plannerStatus != "storage_planner_active"
+        {
+            mappingNotice = [
+                mappingNotice,
+                "The local ML storage planner failed. No rules-only SQLite routing fallback was used; install the storage planner model or retry after extraction succeeds."
+            ].compactMap { $0 }.joined(separator: "\n")
+        } else if storagePlan == nil {
+            mappingNotice = [
+                mappingNotice,
+                "The local ML storage planner bridge failed. No rules-only SQLite routing fallback was used."
+            ].compactMap { $0 }.joined(separator: "\n")
+        }
+        var pipelineTrace = extracted.pipelineTrace
+        if let storagePlan {
+            pipelineTrace.append("storage:\(storagePlan.summary.plannerEngine):\(storagePlan.summary.plannerStatus)")
+        } else {
+            pipelineTrace.append("storage:\(ModelArtifactSlot.storagePlanner.rawValue):bridge_failed")
+        }
 
         return ScanReviewEnrichment(
             understanding: extracted.understanding,
@@ -51,9 +77,12 @@ extension CoreBridgeService {
             displayDocumentType: extracted.displayType,
             openDocumentTypeLabel: extracted.openDocumentTypeLabel,
             plainText: extracted.plainText,
-            mappingNotice: extracted.mappingNotice,
+            mappingNotice: mappingNotice,
             usedMachineReadablePayload: extracted.usedMachineReadablePayload,
-            usedHeuristicFallback: extracted.usedHeuristicFallback
+            usedHeuristicFallback: extracted.usedHeuristicFallback,
+            identityGraph: identityGraph,
+            autofillPayload: identityGraph.autofillPayload,
+            pipelineTrace: pipelineTrace
         )
     }
 

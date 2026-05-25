@@ -5,10 +5,11 @@ enum ModelArtifactSlot: String, CaseIterable, Identifiable {
     case visionOCR = "vision.en.v1"
     case paddleOCR = "paddle.ocr.v1"
     case layoutLM = "layoutlmv3.v1"
-    case documentClassifier = "llm.schema.lite.v1"
+    case documentClassifier = "document.classifier.v1"
     case nerDistilBERT = "ner.distilbert.v1"
     case fieldEmbedder = "embed.minilm.v1"
     case generativeLLM = "llm.schema.standard.v1"
+    case storagePlanner = "sql.storage.planner.v1"
     case fraudDetector = "fraud.doc.v1"
     case visionLanguage = "vlm.qwen2vl.v1"
 
@@ -19,10 +20,11 @@ enum ModelArtifactSlot: String, CaseIterable, Identifiable {
         case .visionOCR: return "Apple Vision OCR"
         case .paddleOCR: return "PaddleOCR"
         case .layoutLM: return "LayoutLMv3"
-        case .documentClassifier: return "Document classifier (Qwen/Phi)"
+        case .documentClassifier: return "Document classifier (Qwen2.5)"
         case .nerDistilBERT: return "DistilBERT NER"
         case .fieldEmbedder: return "MiniLM field embedder"
         case .generativeLLM: return "Generative LLM"
+        case .storagePlanner: return "Storage planner (SQL SLM)"
         case .fraudDetector: return "Fraud detector"
         case .visionLanguage: return "Vision-language model"
         }
@@ -33,7 +35,7 @@ enum ModelArtifactSlot: String, CaseIterable, Identifiable {
         case .visionOCR: return .appleVision
         case .paddleOCR, .layoutLM, .nerDistilBERT, .fieldEmbedder, .fraudDetector:
             return .coreML
-        case .documentClassifier, .generativeLLM, .visionLanguage:
+        case .documentClassifier, .generativeLLM, .storagePlanner, .visionLanguage:
             return .ggufMetal
         }
     }
@@ -59,11 +61,21 @@ enum ModelArtifactRegistry {
         switch slot {
         case .visionOCR:
             return .active
-        case .documentClassifier, .generativeLLM:
+        case .documentClassifier:
+            if let path = BundledModelStore.documentClassifierArtifactPath() {
+                return .installed(path: path)
+            }
+            return .notInstalled
+        case .generativeLLM:
             if let path = BundledModelStore.liteArtifactPath() {
                 return .installed(path: path)
             }
-            return .heuristicFallback
+            return .notInstalled
+        case .storagePlanner:
+            if let path = BundledModelStore.storagePlannerArtifactPath() {
+                return .installed(path: path)
+            }
+            return .notInstalled
         case .fieldEmbedder, .nerDistilBERT, .layoutLM, .paddleOCR, .fraudDetector, .visionLanguage:
             if let path = bundledCoreMLPath(for: slot) {
                 return .installed(path: path)
@@ -89,7 +101,7 @@ enum ModelArtifactRegistry {
                 switch loadState(for: slot) {
                 case .active: return "active"
                 case .installed: return "installed"
-                case .heuristicFallback: return "heuristic fallback"
+            case .heuristicFallback: return "fallback disabled"
                 case .notInstalled: return "not installed"
                 }
             }()
@@ -98,6 +110,10 @@ enum ModelArtifactRegistry {
     }
 
     private static func bundledCoreMLPath(for slot: ModelArtifactSlot) -> String? {
+        if let installed = BundledModelStore.artifactPath(artifactID: slot.rawValue) {
+            return installed
+        }
+
         let name: String = {
             switch slot {
             case .paddleOCR: return "paddle_ocr"

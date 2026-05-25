@@ -3,6 +3,8 @@ import Foundation
 enum FieldMappingSource: String, Hashable {
     case barcode
     case mrz
+    case template
+    case learned
     case onDevice
     case networkLLM
     case estimated
@@ -11,6 +13,8 @@ enum FieldMappingSource: String, Hashable {
         switch self {
         case .barcode: return "Barcode"
         case .mrz: return "MRZ"
+        case .template: return "Template"
+        case .learned: return "Learned"
         case .onDevice: return "On-device"
         case .networkLLM: return "Network model"
         case .estimated: return "Estimated"

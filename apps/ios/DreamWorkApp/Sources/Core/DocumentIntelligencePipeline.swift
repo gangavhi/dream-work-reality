@@ -14,6 +14,8 @@ enum DocumentIntelligencePipeline {
         let usedMachineReadablePayload: Bool
         let usedHeuristicFallback: Bool
         let knowledgeEntities: [KnowledgeEntity]
+        let identityGraph: StructuredIdentityGraph
+        let autofillPayload: SmartAutofillPayload
         let fraudFindings: [FraudDetectionAgent.Finding]
         let pipelineTrace: [String]
     }
@@ -38,6 +40,8 @@ enum DocumentIntelligencePipeline {
             usedMachineReadablePayload: orchestrated.usedMachineReadablePayload,
             usedHeuristicFallback: orchestrated.usedHeuristicFallback,
             knowledgeEntities: orchestrated.knowledgeEntities,
+            identityGraph: orchestrated.identityGraph,
+            autofillPayload: orchestrated.autofillPayload,
             fraudFindings: orchestrated.fraudFindings,
             pipelineTrace: orchestrated.pipelineTrace
         )
