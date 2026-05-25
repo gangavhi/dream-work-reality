@@ -34,27 +34,6 @@ enum CoreIngestFFI {
         var document_type: String?
     }
 
-    private struct PlanStorageResponse: Decodable {
-        var operations: [StorageOperationDTO]
-        var summary: StoragePlanSummaryDTO
-    }
-
-    private struct StorageOperationDTO: Decodable {
-        var op: String
-        var person_id: String?
-        var key: String
-        var value: String
-        var reason: String
-    }
-
-    private struct StoragePlanSummaryDTO: Decodable {
-        var canonical_count: UInt32
-        var extension_count: UInt32
-        var skipped_empty: UInt32
-        var planner_engine: String?
-        var planner_status: String?
-    }
-
     static func resolvePerson(
         fields: [String: String],
         people: [PersonRecord]
@@ -94,6 +73,7 @@ enum CoreIngestFFI {
         )
     }
 
+    /// Plans persistence (table fit + schema + row ops). Rust injects live `sqlite_schema` when omitted.
     static func planStorage(
         fields: [String: String],
         personID: String?,
@@ -112,7 +92,28 @@ enum CoreIngestFFI {
         else {
             return nil
         }
-        guard let decoded = try? JSONDecoder().decode(PlanStorageResponse.self, from: Data(out.utf8)) else {
+        return decodeStoragePlan(out)
+    }
+
+    /// Executes DDL + row writes from a planner JSON payload.
+    static func applyStoragePlan(_ plan: StoragePlanSuggestion) -> StoragePlanApplyResult? {
+        guard let json = encodeJSON(plan),
+              let out = callRustJSON(json, dreamwork_apply_storage_plan_json)
+        else {
+            return nil
+        }
+        return try? JSONDecoder().decode(StoragePlanApplyResult.self, from: Data(out.utf8))
+    }
+
+    static func peekSQLiteSchemaJSON() -> String? {
+        guard let raw = dreamwork_sqlite_schema_json() else { return nil }
+        defer { dreamwork_string_free(raw) }
+        return String(cString: raw)
+    }
+
+    private static func decodeStoragePlan(_ json: String) -> StoragePlanSuggestion? {
+        guard let data = json.data(using: .utf8) else { return nil }
+        guard let decoded = try? JSONDecoder().decode(StoragePlanWire.self, from: data) else {
             return nil
         }
         let operations = decoded.operations.compactMap { row -> StorageOperationSuggestion? in
@@ -120,12 +121,32 @@ enum CoreIngestFFI {
             return StorageOperationSuggestion(
                 kind: kind,
                 personID: row.person_id,
+                tableName: row.table_name,
                 key: row.key,
                 value: row.value,
+                rowValues: row.row_values ?? [:],
                 reason: row.reason
             )
         }
+        let schemaActions = (decoded.schema_actions ?? []).map { row in
+            SchemaActionSuggestion(
+                op: row.op,
+                tableName: row.table_name,
+                columnName: row.column_name,
+                sqlType: row.sql_type,
+                nullable: row.nullable ?? true,
+                columns: row.columns?.map {
+                    SchemaColumnSpec(name: $0.name, sqlType: $0.sql_type, nullable: $0.nullable)
+                },
+                reason: row.reason
+            )
+        }
+        let target = decoded.storage_target.map {
+            StorageTargetDecision(decision: $0.decision, tableName: $0.table_name, reason: $0.reason)
+        }
         return StoragePlanSuggestion(
+            storageTarget: target,
+            schemaActions: schemaActions,
             operations: operations,
             summary: StoragePlanSummary(
                 canonicalCount: Int(decoded.summary.canonical_count),
@@ -135,6 +156,53 @@ enum CoreIngestFFI {
                 plannerStatus: decoded.summary.planner_status ?? "storage_planner_unknown"
             )
         )
+    }
+
+    private struct StoragePlanWire: Decodable {
+        var storage_target: StorageTargetWire?
+        var schema_actions: [SchemaActionWire]?
+        var operations: [StorageOperationWire]
+        var summary: StoragePlanSummaryWire
+    }
+
+    private struct StorageTargetWire: Decodable {
+        var decision: String
+        var table_name: String
+        var reason: String
+    }
+
+    private struct SchemaActionWire: Decodable {
+        var op: String
+        var table_name: String?
+        var column_name: String?
+        var sql_type: String?
+        var nullable: Bool?
+        var columns: [SchemaColumnWire]?
+        var reason: String
+    }
+
+    private struct SchemaColumnWire: Decodable {
+        var name: String
+        var sql_type: String
+        var nullable: Bool
+    }
+
+    private struct StorageOperationWire: Decodable {
+        var op: String
+        var person_id: String?
+        var table_name: String?
+        var key: String
+        var value: String
+        var row_values: [String: String]?
+        var reason: String
+    }
+
+    private struct StoragePlanSummaryWire: Decodable {
+        var canonical_count: UInt32
+        var extension_count: UInt32
+        var skipped_empty: UInt32
+        var planner_engine: String?
+        var planner_status: String?
     }
 
     private static func encodeJSON<T: Encodable>(_ value: T) -> String? {
@@ -159,6 +227,12 @@ private func dreamwork_resolve_person_json(_ jsonUtf8: UnsafePointer<CChar>) -> 
 
 @_silgen_name("dreamwork_plan_storage_json")
 private func dreamwork_plan_storage_json(_ jsonUtf8: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
+
+@_silgen_name("dreamwork_apply_storage_plan_json")
+private func dreamwork_apply_storage_plan_json(_ jsonUtf8: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
+
+@_silgen_name("dreamwork_sqlite_schema_json")
+private func dreamwork_sqlite_schema_json() -> UnsafeMutablePointer<CChar>?
 
 @_silgen_name("dreamwork_string_free")
 private func dreamwork_string_free(_ pointer: UnsafeMutablePointer<CChar>?)

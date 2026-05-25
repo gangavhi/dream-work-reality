@@ -366,6 +366,9 @@ async fn plan_storage(Json(payload): Json<PlanStorageHttpRequest>) -> Json<Stora
         fields: payload.fields,
         person_id: payload.person_id,
         profile_schema_keys: payload.profile_schema_keys,
+        model_path: None,
+        document_type: None,
+        sqlite_schema: dreamwork_core::runtime::peek_sqlite_schema_snapshot(),
     }))
 }
 

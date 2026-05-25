@@ -9,6 +9,9 @@ use crate::entity_resolution::{manual_entry_to_fields, ExistingPerson};
 use crate::extraction::{default_import_meta, ExtractionRunRecord};
 use crate::ingestion::{ManualEntry, ManualField};
 use crate::memory::{EntryRepository, ExtractionRepository, RepositoryBackend};
+use crate::storage_apply::ApplyStoragePlanResult;
+use crate::storage_routing::StoragePlan;
+use crate::storage_schema::SqliteSchemaSnapshot;
 use crate::ocr::{ExtractionRunMeta, NormalizedDocument};
 
 static PERSISTENT_DB_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -177,4 +180,55 @@ pub fn peek_last_normalized_document_json() -> Option<String> {
         .lock()
         .ok()
         .and_then(|g| g.as_ref().and_then(|doc| serde_json::to_string(doc).ok()))
+}
+
+/// Live SQLite catalog for the storage planner prompt.
+pub fn peek_sqlite_schema_snapshot() -> Option<SqliteSchemaSnapshot> {
+    let mut guard = repository().lock().ok()?;
+    guard
+        .with_sqlite_conn(|conn| {
+            crate::storage_schema::collect_schema_snapshot(conn).map_err(|e| {
+                crate::memory::RepositoryError::Persistence(e.to_string())
+            })
+        })
+        .ok()
+}
+
+pub fn sqlite_schema_snapshot_json() -> Option<String> {
+    let mut guard = repository().lock().ok()?;
+    guard
+        .with_sqlite_conn(|conn| {
+            crate::storage_schema::schema_snapshot_json(conn).map_err(|e| {
+                crate::memory::RepositoryError::Persistence(e.to_string())
+            })
+        })
+        .ok()
+}
+
+/// Execute an ML storage plan (DDL + row writes) in the active SQLite repository.
+pub fn apply_storage_plan(plan: &StoragePlan) -> ApplyStoragePlanResult {
+    let mut guard = match repository().lock() {
+        Ok(g) => g,
+        Err(_) => {
+            return ApplyStoragePlanResult {
+                applied: false,
+                status: "storage_apply_repository_lock_failed".to_string(),
+                ddl_applied: 0,
+                rows_written: 0,
+                profile_fields_written: 0,
+            };
+        }
+    };
+    match guard.with_sqlite_conn(|conn| {
+        Ok(crate::storage_apply::apply_storage_plan(conn, plan))
+    }) {
+        Ok(result) => result,
+        Err(err) => ApplyStoragePlanResult {
+            applied: false,
+            status: format!("storage_apply_{err}"),
+            ddl_applied: 0,
+            rows_written: 0,
+            profile_fields_written: 0,
+        },
+    }
 }

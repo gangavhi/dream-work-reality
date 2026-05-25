@@ -73,6 +73,19 @@ impl RepositoryBackend {
     pub fn memory_only() -> Self {
         Self::Memory(InMemoryRepository::default())
     }
+
+    /// Run a callback against the SQLite connection when this backend is SQLite-backed.
+    pub fn with_sqlite_conn<R, F>(&mut self, f: F) -> Result<R, RepositoryError>
+    where
+        F: FnOnce(&mut rusqlite::Connection) -> Result<R, RepositoryError>,
+    {
+        match self {
+            RepositoryBackend::Sqlite(repo) => f(repo.connection_mut()),
+            RepositoryBackend::Memory(_) => Err(RepositoryError::Persistence(
+                "sqlite_backend_required".to_string(),
+            )),
+        }
+    }
 }
 
 impl ExtractionRepository for RepositoryBackend {

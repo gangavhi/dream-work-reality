@@ -16,4 +16,6 @@ pub mod provenance;
 pub mod proximity;
 pub mod runtime;
 pub mod schema;
+pub mod storage_apply;
 pub mod storage_routing;
+pub mod storage_schema;

@@ -40,6 +40,11 @@ pub struct SqliteEntryRepository {
 }
 
 impl SqliteEntryRepository {
+    /// Borrow the underlying connection for schema introspection and ML storage apply.
+    pub fn connection_mut(&mut self) -> &mut Connection {
+        &mut self.conn
+    }
+
     pub fn open_in_memory() -> rusqlite::Result<Self> {
         Self::open_in_memory_encrypted(None)
     }

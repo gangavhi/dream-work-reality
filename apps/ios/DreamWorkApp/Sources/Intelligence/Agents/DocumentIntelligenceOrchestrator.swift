@@ -85,30 +85,10 @@ enum DocumentIntelligenceOrchestrator {
                 ].compactMap { $0 }.joined(separator: "\n")
         }
 
-        var suggestions = extraction.suggestions
-        suggestions = GenAIFieldMapper.finalizeSuggestions(suggestions, documentType: classification.enumType)
-        suggestions = NameFieldReconciler.reconcile(suggestions)
-
-        let trustedKeys = Set<String>()
-        let ocrCorpus = layout.plainText + "\n" + layout.layoutText
-        suggestions = OcrGroundingValidator.filter(
-            suggestions,
-            ocrCorpus: ocrCorpus,
-            trustedProfileKeys: trustedKeys
-        )
-        trace.append("validate:grounding")
-
-        let avgOCR = averageOCRConfidence(document: document)
-        suggestions = ConfidenceOrchestrator.enrich(
-            suggestions,
-            documentType: classification.enumType,
-            ocrCorpus: ocrCorpus,
-            averageOCRBlockConfidence: avgOCR
-        )
-        trace.append("confidence:orchestrated")
-
-        let fraudFindings = FraudDetectionAgent.analyze(fileURL: fileURL, plainText: layout.plainText)
-        if !fraudFindings.isEmpty { trace.append("fraud:heuristic") }
+        let suggestions = ProfileSchema.sortSuggestions(extraction.suggestions)
+        trace.append("validate:ml_only")
+        trace.append("confidence:model_output")
+        trace.append("fraud:disabled_ml_only_pipeline")
 
         let openTypeLabel = classification.displayLabel
         let understanding: DocumentUnderstandingResult? = {
@@ -148,15 +128,9 @@ enum DocumentIntelligenceOrchestrator {
             knowledgeEntities: identityGraph.entities,
             identityGraph: identityGraph,
             autofillPayload: identityGraph.autofillPayload,
-            fraudFindings: fraudFindings,
+            fraudFindings: [],
             pipelineTrace: trace
         )
-    }
-
-    private static func averageOCRConfidence(document: VisionOcrAdapter.NormalizedDocument) -> Double {
-        let scores = document.pages.flatMap(\.blocks).map { Double($0.confidence) }
-        guard !scores.isEmpty else { return 0.75 }
-        return scores.reduce(0, +) / Double(scores.count)
     }
 
     private static func isDocumentParserFailure(_ runtimeStatus: String) -> Bool {
