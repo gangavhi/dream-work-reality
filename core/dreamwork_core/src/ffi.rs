@@ -183,7 +183,38 @@ pub extern "C" fn dreamwork_classify_document_json(ptr: *const c_char) -> *mut c
     }
 }
 
-/// Stage 2: local ML storage routing plan. Request JSON: `{ "fields": {...}, "person_id"?: "...", "model_path"?: "...", ... }`.
+/// Live SQLite schema catalog JSON for storage planner prompts.
+#[no_mangle]
+pub extern "C" fn dreamwork_sqlite_schema_json() -> *mut c_char {
+    match crate::runtime::sqlite_schema_snapshot_json() {
+        Some(j) => match CString::new(j) {
+            Ok(c) => c.into_raw(),
+            Err(_) => std::ptr::null_mut(),
+        },
+        None => std::ptr::null_mut(),
+    }
+}
+
+/// Apply an ML storage plan JSON (DDL + row writes). Returns result JSON or null.
+#[no_mangle]
+pub extern "C" fn dreamwork_apply_storage_plan_json(ptr: *const c_char) -> *mut c_char {
+    if ptr.is_null() {
+        return std::ptr::null_mut();
+    }
+    let s = unsafe { CStr::from_ptr(ptr) }.to_string_lossy();
+    match crate::ingest::apply_storage_plan_from_json(&s) {
+        Ok(result) => match crate::ingest::apply_storage_plan_result_to_json(&result) {
+            Some(j) => match CString::new(j) {
+                Ok(c) => c.into_raw(),
+                Err(_) => std::ptr::null_mut(),
+            },
+            None => std::ptr::null_mut(),
+        },
+        Err(_) => std::ptr::null_mut(),
+    }
+}
+
+/// Stage 2: local ML storage routing plan. Request JSON: `{ "fields": {...}, "person_id"?: "...", "model_path"?: "...", "sqlite_schema"?: {...}, ... }`.
 #[no_mangle]
 pub extern "C" fn dreamwork_plan_storage_json(ptr: *const c_char) -> *mut c_char {
     if ptr.is_null() {

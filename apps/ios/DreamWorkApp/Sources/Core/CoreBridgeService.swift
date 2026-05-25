@@ -34,14 +34,14 @@ extension CoreBridgeService {
             else { return nil }
             return id
         }()
-        let storagePlan = CoreIngestFFI.planStorage(
+        var storagePlan = CoreIngestFFI.planStorage(
             fields: fieldMap,
             personID: planPersonID,
             profileSchemaKeys: schemaKeys,
             documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
         )
 
-        let suggestions = mergeExtensionFields(from: storagePlan, into: extracted.suggestions)
+        let suggestions = extracted.suggestions
         let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
             from: suggestions,
             documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
@@ -62,8 +62,26 @@ extension CoreBridgeService {
             ].compactMap { $0 }.joined(separator: "\n")
         }
         var pipelineTrace = extracted.pipelineTrace
-        if let storagePlan {
-            pipelineTrace.append("storage:\(storagePlan.summary.plannerEngine):\(storagePlan.summary.plannerStatus)")
+        if var plan = storagePlan {
+            pipelineTrace.append("storage:\(plan.summary.plannerEngine):\(plan.summary.plannerStatus)")
+            if plan.summary.plannerStatus == "storage_planner_active",
+               let apply = CoreIngestFFI.applyStoragePlan(plan)
+            {
+                storagePlan = StoragePlanSuggestion(
+                    storageTarget: plan.storageTarget,
+                    schemaActions: plan.schemaActions,
+                    operations: plan.operations,
+                    summary: plan.summary,
+                    applyResult: apply
+                )
+                pipelineTrace.append("storage_apply:\(apply.status)")
+                if !apply.applied {
+                    mappingNotice = [
+                        mappingNotice,
+                        "The local ML storage planner produced a plan but SQLite apply failed (\(apply.status))."
+                    ].compactMap { $0 }.joined(separator: "\n")
+                }
+            }
         } else {
             pipelineTrace.append("storage:\(ModelArtifactSlot.storagePlanner.rawValue):bridge_failed")
         }
@@ -86,26 +104,6 @@ extension CoreBridgeService {
         )
     }
 
-    private func mergeExtensionFields(
-        from plan: StoragePlanSuggestion?,
-        into suggestions: [OcrFieldSuggestion]
-    ) -> [OcrFieldSuggestion] {
-        guard let plan else { return suggestions }
-        var byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0) })
-        for op in plan.operations where op.kind == .upsertExtensionField {
-            guard !op.key.isEmpty, !op.value.isEmpty else { continue }
-            if byKey[op.key] == nil {
-                byKey[op.key] = OcrFieldSuggestion(
-                    profileKey: op.key,
-                    label: ProfileSchema.label(forExtensionKey: op.key),
-                    value: op.value,
-                    confidence: "Medium",
-                    confidenceScore: 0.68
-                )
-            }
-        }
-        return ProfileSchema.sortSuggestions(Array(byKey.values))
-    }
 }
 
 @_silgen_name("dreamwork_fetch_status")

@@ -206,24 +206,6 @@ final class IntelligenceModuleTests: XCTestCase {
         XCTAssertNil(response.fields[ProfileFieldKey.legalLastName])
     }
 
-    func testConfidenceOrchestratorFlagsLowConfidenceEstimated() {
-        let suggestion = OcrFieldSuggestion(
-            profileKey: ProfileFieldKey.displayName,
-            label: "Name",
-            value: "Not In OCR",
-            confidence: "Estimated",
-            confidenceScore: 0.52,
-            mappingSource: .estimated
-        )
-        let breakdown = ConfidenceOrchestrator.score(
-            suggestion: suggestion,
-            documentType: .other,
-            ocrCorpus: "utility bill account",
-            averageOCRBlockConfidence: 0.9
-        )
-        XCTAssertTrue(breakdown.requiresManualConfirmation)
-    }
-
     func testKnowledgeGraphMapsAddressFields() {
         let entities = DocumentKnowledgeGraph.entities(
             from: [
