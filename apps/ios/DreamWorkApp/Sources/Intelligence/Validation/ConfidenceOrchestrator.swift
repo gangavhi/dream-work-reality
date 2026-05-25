@@ -83,6 +83,8 @@ enum ConfidenceOrchestrator {
     private static func semanticScoreFor(source: FieldMappingSource?, base: Double) -> Double {
         switch source {
         case .barcode, .mrz: return 0.96
+        case .template: return min(0.93, max(base, 0.86))
+        case .learned: return min(0.88, max(base, 0.8))
         case .onDevice: return min(0.9, max(base, 0.78))
         case .networkLLM: return min(0.92, max(base, 0.8))
         case .estimated: return min(0.58, base)

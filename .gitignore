@@ -11,3 +11,4 @@ xcuserdata/
 demo/sample-documents/*-kota*
 demo/sample-documents/indian-passport-*.pdf
 apps/ios/DerivedData/
+apps/ios/Vendor/

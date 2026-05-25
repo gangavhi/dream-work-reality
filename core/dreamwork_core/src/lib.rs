@@ -9,6 +9,7 @@ pub mod ingest;
 pub mod ingestion;
 pub mod local_document_mapper;
 pub mod memory;
+pub mod ml_document_classifier;
 pub mod ocr;
 pub mod profile_keys;
 pub mod provenance;

@@ -38,7 +38,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Sharma")
     }
 
-    func testPipelineSkipsPersonNameResolverTexasOverride() async {
+    func testPipelineDoesNotUseNameResolverFallback() async {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [
             VisionOcrAdapter.Page(blocks: [
                 VisionOcrAdapter.TextBlock(
@@ -59,11 +59,12 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         defer { GenAISettings.provider = previous }
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        let display = result.suggestions.first { $0.profileKey == ProfileFieldKey.displayName }?.value
-        XCTAssertEqual(display, "Jane Utility Company")
+        XCTAssertTrue(result.suggestions.isEmpty)
+        XCTAssertFalse(result.usedHeuristicFallback)
+        XCTAssertFalse(result.usedMachineReadablePayload)
     }
 
-    func testPipelineExtractsIndianPassportFromOCRBlocks() async {
+    func testPipelineDoesNotExtractIndianPassportWithoutLocalML() async {
         let lines = IndianPassportParserTests.sampleIndianPassportOCRText
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -82,14 +83,12 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
-        XCTAssertEqual(byKey[ProfileFieldKey.passportNumber], "M1234567")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Sharma")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Rajesh")
-        XCTAssertTrue(result.usedMachineReadablePayload)
+        XCTAssertTrue(result.suggestions.isEmpty)
+        XCTAssertFalse(result.usedMachineReadablePayload)
+        XCTAssertTrue(result.pipelineTrace.contains("template:disabled:ml_only"))
     }
 
-    func testPipelineExtractsPassportFieldsFromVerticalOCRBlocks() async {
+    func testPipelineDoesNotExtractVerticalPassportWithoutLocalML() async {
         struct Row { let label: String; let value: String; let y: Float }
         let rows: [Row] = [
             Row(label: "REPUBLIC OF INDIA", value: "", y: 0.92),
@@ -130,16 +129,13 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
 
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
 
-        XCTAssertEqual(byKey[ProfileFieldKey.passportNumber], "M1234567")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Sharma")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Rajesh")
-        XCTAssertEqual(byKey[ProfileFieldKey.dateOfBirth], "15/03/1985")
-        XCTAssertEqual(byKey[ProfileFieldKey.passportExpiry], "01/01/2030")
+        XCTAssertTrue(result.suggestions.isEmpty)
+        XCTAssertFalse(result.usedMachineReadablePayload)
+        XCTAssertTrue(result.pipelineTrace.contains("extract:ml_failed"))
     }
 
-    func testPipelineExtractsTexasDriverLicenseFromOCRBlocks() async {
+    func testPipelineDoesNotExtractTexasDriverLicenseWithoutLocalML() async {
         let lines = DriverLicenseParserTests.texasSampleOCRText
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -158,13 +154,9 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
 
-        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseNumber], "D12345678")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Smith")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Jane")
-        XCTAssertEqual(byKey[ProfileFieldKey.dateOfBirth], "03/15/1985")
-        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseState], "TX")
-        XCTAssertEqual(byKey[ProfileFieldKey.city], "Austin")
+        XCTAssertTrue(result.suggestions.isEmpty)
+        XCTAssertFalse(result.usedMachineReadablePayload)
+        XCTAssertFalse(result.usedHeuristicFallback)
     }
 }

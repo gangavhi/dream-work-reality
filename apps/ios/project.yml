@@ -37,6 +37,10 @@ targets:
       - name: Build Rust Core (iOS)
         script: |
           /bin/sh "${SRCROOT}/DreamWorkApp/Scripts/build_rust_core.sh"
+    dependencies:
+      - framework: Vendor/llama.xcframework
+        embed: true
+        codeSign: true
     postBuildScripts:
       - name: Compile Asset Catalog (AppIcon)
         basedOnDependencyAnalysis: false
@@ -99,7 +103,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "34"
+        CURRENT_PROJECT_VERSION: "35"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

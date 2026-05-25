@@ -14,6 +14,8 @@ enum DocumentIntelligenceOrchestrator {
         let usedMachineReadablePayload: Bool
         let usedHeuristicFallback: Bool
         let knowledgeEntities: [KnowledgeEntity]
+        let identityGraph: StructuredIdentityGraph
+        let autofillPayload: SmartAutofillPayload
         let fraudFindings: [FraudDetectionAgent.Finding]
         let pipelineTrace: [String]
     }
@@ -24,44 +26,70 @@ enum DocumentIntelligenceOrchestrator {
     ) async -> Result {
         var trace: [String] = ["ocr:vision.en.v1"]
 
-        let payloadHints = await EmbeddedPayloadHints.collect(
-            fileURL: fileURL,
-            layoutText: OcrLayoutSerializer.serialize(document: document)
-        )
+        let payloadHints = EmbeddedPayloadHints.Result.empty
         let layout = LayoutIntelligenceAgent.analyze(document: document, payloadHints: payloadHints)
         trace.append("layout:\(layout.engineID)")
 
-        let schemaKeys = ProfileSchema.allFields.map(\.key)
-
-        let machineReadable = MachineReadableFieldExtractor.extract(
-            from: payloadHints,
-            plainOCRText: layout.layoutText
+        let classification = ClassificationAgent.classify(
+            modelInput: layout.modelInput,
+            mappedDocumentType: nil,
+            machineReadableSources: []
         )
+        trace.append("classify:\(classification.engineID):\(classification.runtimeStatus)")
+        let schemaKeys: [String] = []
+        trace.append("schema_keys:generic:any")
+
+        let templateMatch: DocumentTemplateAgent.Match? = nil
+        trace.append("template:disabled:ml_only")
+        let strategy = ExtractionStrategyAgent.determine(
+            layout: layout,
+            classification: classification,
+            templateMatch: templateMatch
+        )
+        trace.append("strategy:\(strategy.structure.rawValue)")
+
         let extraction = await ExtractionAgent.extract(
             layout: layout,
             payloadHints: payloadHints,
-            schemaKeys: schemaKeys
+            schemaKeys: schemaKeys,
+            classification: classification,
+            templateMatch: templateMatch,
+            strategy: strategy
         )
-        trace.append("extract:\(extraction.usedAI ? "on_device" : "heuristic")")
-
-        let classification = ClassificationAgent.classify(
-            modelInput: layout.modelInput,
-            mappedDocumentType: extraction.openDocumentType,
-            machineReadableSources: machineReadable.sources
-        )
-        trace.append("classify:\(classification.engineID)")
+        if extraction.usedTemplateExtractor {
+            trace.append("extract:template")
+        } else if extraction.usedSemanticExtractor {
+            trace.append("extract:semantic")
+        } else {
+            trace.append("extract:\(extraction.usedAI ? "on_device" : "ml_failed")")
+        }
+        if extraction.learnedSuggestionCount > 0 {
+            trace.append("learning:applied:\(extraction.learnedSuggestionCount)")
+        }
+        if let runtimeStatus = extraction.onDeviceRuntimeStatus {
+            trace.append("runtime:\(runtimeStatus)")
+        }
 
         var mappingNotice: String?
-        if extraction.usedHeuristicFallback, !machineReadable.decodedPayload, GenAISettings.provider == .onDevice {
+        if isClassifierFailure(classification.runtimeStatus) {
             mappingNotice =
-                "Fields are estimated from text patterns. Review each value against the scan — accuracy improves when labels are clear on the document."
+                "The local ML model meant for document type classification failed. No machine-readable or keyword classifier fallback was used; install the classifier model or scan again."
+        }
+        if let runtimeStatus = extraction.onDeviceRuntimeStatus,
+           isDocumentParserFailure(runtimeStatus)
+        {
+            mappingNotice =
+                [
+                    mappingNotice,
+                    "The on-device LLM model meant for document data parsing failed. No heuristic fallback was used; try reinstalling the model or scanning again."
+                ].compactMap { $0 }.joined(separator: "\n")
         }
 
         var suggestions = extraction.suggestions
         suggestions = GenAIFieldMapper.finalizeSuggestions(suggestions, documentType: classification.enumType)
         suggestions = NameFieldReconciler.reconcile(suggestions)
 
-        let trustedKeys = Set(machineReadable.suggestions.map(\.profileKey))
+        let trustedKeys = Set<String>()
         let ocrCorpus = layout.plainText + "\n" + layout.layoutText
         suggestions = OcrGroundingValidator.filter(
             suggestions,
@@ -84,9 +112,9 @@ enum DocumentIntelligenceOrchestrator {
 
         let openTypeLabel = classification.displayLabel
         let understanding: DocumentUnderstandingResult? = {
-            guard extraction.usedAI || machineReadable.decodedPayload else { return nil }
+            guard extraction.usedAI else { return nil }
             return DocumentUnderstandingResult(
-                documentType: classification.openDocumentType ?? openTypeLabel,
+                documentType: extraction.openDocumentType ?? classification.openDocumentType ?? openTypeLabel,
                 documentTypeConfidence: classification.confidence,
                 issuerRegion: suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
                 displayNameHint: suggestions.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
@@ -94,12 +122,14 @@ enum DocumentIntelligenceOrchestrator {
             )
         }()
 
-        let entities = DocumentKnowledgeGraph.entities(
+        let graphDocumentType = extraction.openDocumentType ?? classification.openDocumentType ?? "other"
+        let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
             from: suggestions,
-            documentType: classification.openDocumentType ?? "other"
+            documentType: graphDocumentType
         )
+        trace.append("identity_graph:\(identityGraph.entities.count)")
         VectorDocumentMemory.index(
-            documentType: classification.openDocumentType ?? "other",
+            documentType: graphDocumentType,
             plainText: layout.plainText
         )
         trace.append("memory:vector_index")
@@ -113,9 +143,11 @@ enum DocumentIntelligenceOrchestrator {
             understanding: understanding,
             usedAI: extraction.usedAI,
             mappingNotice: mappingNotice,
-            usedMachineReadablePayload: machineReadable.decodedPayload,
+            usedMachineReadablePayload: false,
             usedHeuristicFallback: extraction.usedHeuristicFallback,
-            knowledgeEntities: entities,
+            knowledgeEntities: identityGraph.entities,
+            identityGraph: identityGraph,
+            autofillPayload: identityGraph.autofillPayload,
             fraudFindings: fraudFindings,
             pipelineTrace: trace
         )
@@ -125,6 +157,16 @@ enum DocumentIntelligenceOrchestrator {
         let scores = document.pages.flatMap(\.blocks).map { Double($0.confidence) }
         guard !scores.isEmpty else { return 0.75 }
         return scores.reduce(0, +) / Double(scores.count)
+    }
+
+    private static func isDocumentParserFailure(_ runtimeStatus: String) -> Bool {
+        runtimeStatus.contains("llm_document_parser_failed")
+            || runtimeStatus.contains("gguf_valid_llama_cpp_generation_failed")
+            || runtimeStatus.contains("gguf_valid_llama_cpp_no_fields")
+    }
+
+    private static func isClassifierFailure(_ runtimeStatus: String) -> Bool {
+        runtimeStatus != "classifier_active"
     }
 }
 

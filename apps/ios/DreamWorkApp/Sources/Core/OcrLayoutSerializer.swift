@@ -42,7 +42,7 @@ enum OcrLayoutSerializer {
             .joined(separator: "\n")
     }
 
-    /// Prompt body: layout lines plus optional generic label|value pairs from spatial neighbors.
+    /// Prompt body: layout lines only. Label/value pairing must come from a model, not heuristics.
     static func modelInput(
         document: VisionOcrAdapter.NormalizedDocument,
         payloadHints: EmbeddedPayloadHints.Result = .empty
@@ -56,14 +56,6 @@ enum OcrLayoutSerializer {
         } else {
             for (index, block) in blocks.enumerated() {
                 sections.append("[\(index + 1)] \(block.text)")
-            }
-            let pairs = labelValuePairs(from: blocks)
-            if !pairs.isEmpty {
-                sections.append("")
-                sections.append("## Spatial label | value pairs (heuristic)")
-                for pair in pairs {
-                    sections.append("\(pair.label) | \(pair.value)")
-                }
             }
         }
 
@@ -273,8 +265,11 @@ enum OcrLayoutSerializer {
         "date of issue", "date of expiry", "date of expiration", "expiry", "expiration",
         "passport no", "passport number", "nationality", "sex", "gender",
         "place of birth", "place of issue", "address", "city", "state", "zip", "postal",
-        "license no", "license number", "dl no", "member id", "policy number", "ssn",
-        "email", "phone", "mobile", "employer", "country",
+        "license no", "license number", "dl no", "member id", "member number", "subscriber id",
+        "policy number", "group number", "carrier", "provider", "ssn",
+        "account number", "statement period", "opening balance", "ending balance", "balance due",
+        "amount due", "due date", "billing period", "service period", "meter number",
+        "email", "phone", "mobile", "employer", "country", "visa number", "visa type",
     ]
 
     private static func looksLikeLabel(_ text: String) -> Bool {

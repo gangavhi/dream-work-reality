@@ -15,6 +15,8 @@ enum DocumentTypePresentation {
                 return .driversLicense
             case "passport":
                 return .passport
+            case "visa":
+                return .other
             case "state_id", "state_identification", "identification_card":
                 return .stateId
             case "insurance_card", "health_insurance_card":

@@ -98,9 +98,7 @@ pub fn resolve_person(
             c.reasons.iter().any(|r| {
                 matches!(
                     r.as_str(),
-                    "drivers_license_number_exact"
-                        | "passport_number_exact"
-                        | "ssn_last4_exact"
+                    "drivers_license_number_exact" | "passport_number_exact" | "ssn_last4_exact"
                 )
             })
         })
@@ -216,7 +214,8 @@ fn score_pair(query: &NormalizedFields, existing: &NormalizedFields) -> (f64, Ve
         reasons.push("date_of_birth_exact".to_string());
     }
 
-    let has_address = if let (Some(qa), Some(ea)) = (&query.address_line1, &existing.address_line1) {
+    let has_address = if let (Some(qa), Some(ea)) = (&query.address_line1, &existing.address_line1)
+    {
         name_similarity(qa, ea) >= 0.90
     } else {
         false
@@ -307,13 +306,19 @@ fn normalize_fields(fields: &BTreeMap<String, String>) -> NormalizedFields {
     );
 
     let ssn_raw = get(&["ssn_last4", "ssn"]);
-    let ssn_last4 = ssn_raw.as_deref().map(normalize_ssn_last4).filter(|s| s.len() == 4);
+    let ssn_last4 = ssn_raw
+        .as_deref()
+        .map(normalize_ssn_last4)
+        .filter(|s| s.len() == 4);
 
     NormalizedFields {
         drivers_license_number: get(&["drivers_license_number", "dl_number"]).map(normalize_id),
         passport_number: get(&["passport_number"]).map(normalize_id),
         ssn_last4,
-        legal_last_name: legal_last.as_deref().map(normalize_name).filter(|s| !s.is_empty()),
+        legal_last_name: legal_last
+            .as_deref()
+            .map(normalize_name)
+            .filter(|s| !s.is_empty()),
         name_key,
         date_of_birth: get(&["date_of_birth", "dob", "dob_mmddyyyy"]),
         address_line1: get(&["address_line1", "address1", "address"]).map(normalize_address),
@@ -392,7 +397,9 @@ fn dob_forms_from_raw(value: &str) -> Vec<String> {
     let trimmed = value.trim();
     let mut forms = Vec::new();
 
-    let parts: Vec<&str> = trimmed.split(|c| c == '/' || c == '-' || c == '.').collect();
+    let parts: Vec<&str> = trimmed
+        .split(|c| c == '/' || c == '-' || c == '.')
+        .collect();
     if parts.len() == 3 {
         if let (Ok(a), Ok(b), Ok(y)) = (
             parts[0].parse::<u32>(),
@@ -451,7 +458,9 @@ fn dob_canonical_forms(digits8: &str) -> Vec<String> {
     let mm_lead = d[0..2].parse::<u32>().unwrap_or(0);
     let dd_mid = d[2..4].parse::<u32>().unwrap_or(0);
     let yyyy_tail = d[4..8].parse::<u32>().unwrap_or(0);
-    if (1..=12).contains(&mm_lead) && (1..=31).contains(&dd_mid) && (1900..2100).contains(&yyyy_tail)
+    if (1..=12).contains(&mm_lead)
+        && (1..=31).contains(&dd_mid)
+        && (1900..2100).contains(&yyyy_tail)
     {
         out.push(format!("{yyyy_tail:04}{mm_lead:02}{dd_mid:02}"));
     }
@@ -511,9 +520,7 @@ fn levenshtein(a: &[u8], b: &[u8]) -> usize {
         curr[0] = i + 1;
         for (j, &cb) in b.iter().enumerate() {
             let cost = if ca == cb { 0 } else { 1 };
-            curr[j + 1] = (prev[j + 1] + 1)
-                .min(curr[j] + 1)
-                .min(prev[j] + cost);
+            curr[j + 1] = (prev[j + 1] + 1).min(curr[j] + 1).min(prev[j] + cost);
         }
         std::mem::swap(&mut prev, &mut curr);
     }
@@ -584,10 +591,7 @@ mod tests {
     fn weak_signals_suggest_new_person() {
         let existing = vec![person(
             "person-c",
-            &[
-                ("display_name", "Sam Taylor"),
-                ("postal_code", "90210"),
-            ],
+            &[("display_name", "Sam Taylor"), ("postal_code", "90210")],
         )];
         let query = fields(&[("display_name", "Riley Morgan"), ("postal_code", "10001")]);
         let result = resolve_person(&query, &existing);
@@ -710,10 +714,7 @@ mod tests {
     fn profile_key_low_weight_match() {
         let existing = vec![person(
             "person-g",
-            &[
-                ("display_name", "Unrelated"),
-                ("profile_key", "casey-lee"),
-            ],
+            &[("display_name", "Unrelated"), ("profile_key", "casey-lee")],
         )];
         let query = fields(&[("profile_key", "casey-lee")]);
         let result = resolve_person(&query, &existing);

@@ -5,7 +5,7 @@
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
-use crate::entity_resolution::{ExistingPerson, manual_entry_to_fields};
+use crate::entity_resolution::{manual_entry_to_fields, ExistingPerson};
 use crate::extraction::{default_import_meta, ExtractionRunRecord};
 use crate::ingestion::{ManualEntry, ManualField};
 use crate::memory::{EntryRepository, ExtractionRepository, RepositoryBackend};

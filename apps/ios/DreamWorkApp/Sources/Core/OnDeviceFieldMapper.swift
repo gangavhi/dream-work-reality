@@ -22,13 +22,24 @@ enum OnDeviceFieldMapper {
         var model_artifact_id: String
         var gguf_present: Bool
         var gguf_valid: Bool
+        var llm_runtime_status: String?
     }
 
-    /// Maps layout OCR text using the Rust on-device engine (heuristics + optional GGUF validation).
+    /// Maps layout OCR text using the Rust on-device GGUF parser. Empty suggestions with a
+    /// failure status are intentional and must be surfaced to the user.
     static func mapFields(
         layoutText: String,
         profileSchemaKeys: [String]
-    ) -> (suggestions: [OcrFieldSuggestion], documentType: String?, usedOnDevice: Bool)? {
+    ) -> (
+        suggestions: [OcrFieldSuggestion],
+        documentType: String?,
+        usedOnDevice: Bool,
+        engine: String,
+        modelArtifactID: String,
+        ggufPresent: Bool,
+        ggufValid: Bool,
+        llmRuntimeStatus: String
+    )? {
         let trimmed = layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
 
@@ -39,8 +50,7 @@ enum OnDeviceFieldMapper {
         )
         guard let json = encodeJSON(body),
               let out = callRustJSON(json, dreamwork_map_document_fields_json),
-              let decoded = try? JSONDecoder().decode(MapResponse.self, from: Data(out.utf8)),
-              !decoded.fields.isEmpty
+              let decoded = try? JSONDecoder().decode(MapResponse.self, from: Data(out.utf8))
         else {
             return nil
         }
@@ -62,13 +72,20 @@ enum OnDeviceFieldMapper {
                 extraction.labels[key] = label
             }
         }
-        guard !extraction.values.isEmpty else { return nil }
-
         let suggestions = GenAIFieldMapper.suggestions(
             from: extraction,
             documentType: presentation.enumType
         ).map { $0.withMappingSource(.onDevice) }
-        return (suggestions, decoded.document_type, true)
+        return (
+            suggestions,
+            decoded.document_type,
+            true,
+            decoded.engine,
+            decoded.model_artifact_id,
+            decoded.gguf_present,
+            decoded.gguf_valid,
+            decoded.llm_runtime_status ?? "unknown"
+        )
     }
 
     private static func encodeJSON<T: Encodable>(_ value: T) -> String? {

@@ -213,6 +213,8 @@ enum CoreIngestHTTPClient {
         switch suggestion.mappingSource {
         case .barcode, .mrz:
             return suggestion.confidenceScore >= 0.85
+        case .template:
+            return suggestion.confidenceScore >= 0.88
         case .onDevice:
             return suggestion.confidenceScore >= 0.9
         default:

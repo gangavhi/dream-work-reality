@@ -153,6 +153,9 @@ final class AppState: ObservableObject {
             mappingNotice: enrichment.mappingNotice,
             usedMachineReadablePayload: enrichment.usedMachineReadablePayload,
             usedHeuristicFallback: enrichment.usedHeuristicFallback,
+            identityGraph: enrichment.identityGraph,
+            autofillPayload: enrichment.autofillPayload,
+            pipelineTrace: enrichment.pipelineTrace,
             prefilledPerson: nil
         )
     }

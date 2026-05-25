@@ -27,7 +27,7 @@ enum SemanticFieldLabelMapper {
         (["member id", "member number", "subscriber id"], ProfileFieldKey.insuranceMemberId),
         (["policy number", "policy no", "policy #"], ProfileFieldKey.insuranceMemberId),
         (["passport no", "passport number", "passport #"], ProfileFieldKey.passportNumber),
-        (["dl no", "license number", "driver license", "drivers license number", "lic no"], ProfileFieldKey.driversLicenseNumber),
+        (["dl no", "license no", "license number", "driver license", "drivers license number", "lic no"], ProfileFieldKey.driversLicenseNumber),
         (["vin", "vehicle id"], "vehicle_vin"),
         (["employer", "company name"], ProfileFieldKey.employerName),
         (["provider", "utility company", "carrier"], ProfileFieldKey.utilityProvider),
@@ -47,7 +47,19 @@ enum SemanticFieldLabelMapper {
         let trimmedLabel = rawLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedLabel.isEmpty else { return nil }
 
+        if let key = contextualCanonicalKey(for: trimmedLabel, documentTypeHint: documentTypeHint) {
+            let display = ProfileSchema.definition(for: key)?.label
+                ?? ProfileSchema.label(forExtensionKey: key)
+            return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
+        }
+
         if let key = canonicalKey(for: trimmedLabel) {
+            let display = ProfileSchema.definition(for: key)?.label
+                ?? ProfileSchema.label(forExtensionKey: key)
+            return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
+        }
+
+        if let key = LocalEmbeddingFieldMatcher.canonicalKey(for: trimmedLabel) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
@@ -78,6 +90,58 @@ enum SemanticFieldLabelMapper {
             }
         }
         return best?.key
+    }
+
+    private static func contextualCanonicalKey(for rawLabel: String, documentTypeHint: String?) -> String? {
+        let normalized = normalize(rawLabel)
+        let doc = documentTypeHint?.lowercased().replacingOccurrences(of: "-", with: "_") ?? ""
+
+        if doc.contains("insurance") {
+            if normalized.contains("carrier") || normalized.contains("provider") || normalized.contains("payer") {
+                return ProfileFieldKey.insuranceCarrier
+            }
+            if normalized.contains("member") || normalized.contains("subscriber") || normalized.contains("policy") {
+                return ProfileFieldKey.insuranceMemberId
+            }
+        }
+
+        if doc.contains("utility") {
+            if normalized.contains("provider") || normalized.contains("utility") || normalized.contains("carrier") {
+                return ProfileFieldKey.utilityProvider
+            }
+        }
+
+        if doc.contains("bank") {
+            if normalized.contains("bank") || normalized.contains("financial institution") {
+                return ProfileFieldKey.bankName
+            }
+            if normalized.contains("last 4") || normalized.contains("last four") {
+                return ProfileFieldKey.bankAccountLast4
+            }
+        }
+
+        if doc.contains("passport") || doc == "visa" {
+            if normalized.contains("issue") && normalized.contains("date") {
+                return doc == "visa" ? "visa_issue_date" : "passport_issue_date"
+            }
+            if normalized.contains("expir") || normalized.contains("valid until") {
+                return doc == "visa" ? "visa_expiry" : ProfileFieldKey.passportExpiry
+            }
+            if normalized.contains("number") && normalized.contains("visa") {
+                return "visa_number"
+            }
+        }
+
+        if doc.contains("driver") || doc.contains("license") {
+            if normalized.contains("expir") || normalized.contains("valid until") {
+                return ProfileFieldKey.driversLicenseExpiry
+            }
+            if normalized.contains("issue") && normalized.contains("date") {
+                return ProfileFieldKey.driversLicenseIssueDate
+            }
+        }
+
+        return nil
     }
 
     static func extensionKey(from label: String) -> String {

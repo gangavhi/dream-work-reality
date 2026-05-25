@@ -2,9 +2,8 @@ import XCTest
 @testable import DreamWorkApp
 
 final class OnDeviceFieldMapperTests: XCTestCase {
-    func testMapsLabelValuePairsViaRustFFI() {
+    func testMissingGGUFReturnsFailVisibleEmptySuggestions() {
         let layout = """
-        ## Spatial label | value pairs (heuristic)
         DOB | 03/15/1985
         License No | D12345678
         First name | Jane
@@ -19,9 +18,7 @@ final class OnDeviceFieldMapperTests: XCTestCase {
             profileSchemaKeys: ProfileSchema.allFields.map(\.key)
         )
         XCTAssertNotNil(result)
-        let keys = Set(result!.suggestions.map(\.profileKey))
-        XCTAssertTrue(keys.contains(ProfileFieldKey.dateOfBirth))
-        XCTAssertTrue(keys.contains(ProfileFieldKey.driversLicenseNumber))
-        XCTAssertTrue(keys.contains(ProfileFieldKey.legalFirstName))
+        XCTAssertTrue(result!.suggestions.isEmpty)
+        XCTAssertEqual(result!.llmRuntimeStatus, "llm_document_parser_failed:model_missing")
     }
 }

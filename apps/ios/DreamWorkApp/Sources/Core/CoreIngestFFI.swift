@@ -30,6 +30,8 @@ enum CoreIngestFFI {
         var fields: [String: String]
         var person_id: String?
         var profile_schema_keys: [String]?
+        var model_path: String?
+        var document_type: String?
     }
 
     private struct PlanStorageResponse: Decodable {
@@ -49,6 +51,8 @@ enum CoreIngestFFI {
         var canonical_count: UInt32
         var extension_count: UInt32
         var skipped_empty: UInt32
+        var planner_engine: String?
+        var planner_status: String?
     }
 
     static func resolvePerson(
@@ -93,12 +97,15 @@ enum CoreIngestFFI {
     static func planStorage(
         fields: [String: String],
         personID: String?,
-        profileSchemaKeys: [String]
+        profileSchemaKeys: [String],
+        documentType: String?
     ) -> StoragePlanSuggestion? {
         let body = PlanStorageRequest(
             fields: fields,
             person_id: personID,
-            profile_schema_keys: profileSchemaKeys.isEmpty ? nil : profileSchemaKeys
+            profile_schema_keys: profileSchemaKeys.isEmpty ? nil : profileSchemaKeys,
+            model_path: BundledModelStore.storagePlannerArtifactPath(),
+            document_type: documentType
         )
         guard let json = encodeJSON(body),
               let out = callRustJSON(json, dreamwork_plan_storage_json)
@@ -123,7 +130,9 @@ enum CoreIngestFFI {
             summary: StoragePlanSummary(
                 canonicalCount: Int(decoded.summary.canonical_count),
                 extensionCount: Int(decoded.summary.extension_count),
-                skippedEmpty: Int(decoded.summary.skipped_empty)
+                skippedEmpty: Int(decoded.summary.skipped_empty),
+                plannerEngine: decoded.summary.planner_engine ?? ModelArtifactSlot.storagePlanner.rawValue,
+                plannerStatus: decoded.summary.planner_status ?? "storage_planner_unknown"
             )
         )
     }

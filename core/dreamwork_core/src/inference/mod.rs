@@ -3,11 +3,13 @@
 //! Concrete accelerators (Core ML, NNAPI, Metal, Vulkan) stay in platform shims; this crate defines **portable traits**.
 
 mod gguf;
+mod llama_cpp;
 
 #[cfg(feature = "onnx")]
 mod onnx_ort;
 
 pub use gguf::{parse_gguf_header_prefix, GgufHeader, GgufLoadError};
+pub use llama_cpp::generate_constrained_json;
 
 #[cfg(feature = "onnx")]
 pub use onnx_ort::OrtIdentityOnnxSession;

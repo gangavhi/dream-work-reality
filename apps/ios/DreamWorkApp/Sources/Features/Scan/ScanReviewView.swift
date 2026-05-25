@@ -16,6 +16,9 @@ struct ScanReviewView: View {
         NavigationStack {
             List {
                 documentSummarySection
+                if shouldShowTelemetry {
+                    telemetrySection
+                }
                 profileTargetSection
 
                 if payload.suggestions.isEmpty {
@@ -81,6 +84,14 @@ struct ScanReviewView: View {
         ProfileSchema.groupedSuggestions(payload.suggestions)
     }
 
+    private var shouldShowTelemetry: Bool {
+        #if DEBUG
+        return true
+        #else
+        return payload.suggestions.isEmpty
+        #endif
+    }
+
     @ViewBuilder
     private var documentSummarySection: some View {
         Section {
@@ -110,6 +121,44 @@ struct ScanReviewView: View {
         } header: {
             Text("Document")
         }
+    }
+
+    @ViewBuilder
+    private var telemetrySection: some View {
+        Section {
+            if payload.suggestions.isEmpty {
+                Text("No fields reached review. Pipeline trace below shows where extraction stopped or fell back.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if mappingSourceSummary.isEmpty {
+                Text("Mapping sources: none")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Mapping sources: \(mappingSourceSummary)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if !payload.pipelineTrace.isEmpty {
+                Text(payload.pipelineTrace.joined(separator: " → "))
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Pipeline telemetry")
+        }
+    }
+
+    private var mappingSourceSummary: String {
+        let counts = Dictionary(grouping: payload.suggestions) { suggestion in
+            suggestion.mappingSource?.displayLabel ?? "Unknown"
+        }
+        return counts
+            .map { "\($0.key): \($0.value.count)" }
+            .sorted()
+            .joined(separator: ", ")
     }
 
     @ViewBuilder

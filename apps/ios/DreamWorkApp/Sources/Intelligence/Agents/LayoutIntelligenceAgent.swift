@@ -1,10 +1,11 @@
 import Foundation
 
-/// Layout intelligence — heuristic blocks today; LayoutLMv3 CoreML slot when bundled.
+/// Layout intelligence — model-only label/value pairing. Heuristic spatial pairing is intentionally disabled.
 enum LayoutIntelligenceAgent {
     struct LayoutDocument: Hashable {
         let layoutText: String
         let modelInput: String
+        let blocks: [OcrLayoutSerializer.LayoutBlock]
         let labelValuePairs: [OcrLayoutSerializer.LabelValuePair]
         let engineID: String
     }
@@ -24,29 +25,40 @@ enum LayoutIntelligenceAgent {
                 height: block.bounds.height
             )
         }
-        let pairs = OcrLayoutSerializer.labelValuePairs(from: blocks)
+        let modelState = ModelArtifactRegistry.loadState(for: .layoutLM)
+        let inference: LayoutLMv3CoreMLAdapter.Result? = {
+            switch modelState {
+            case .installed(let path):
+                return LayoutLMv3CoreMLAdapter.inferPairs(blocks: blocks, modelPath: path)
+            default:
+                return nil
+            }
+        }()
+        let pairs = inference?.pairs ?? []
         let engineID: String = {
-            switch ModelArtifactRegistry.loadState(for: .layoutLM) {
-            case .installed: return ModelArtifactSlot.layoutLM.rawValue
-            default: return "layout.heuristic.v1"
+            switch modelState {
+            case .installed: return inference?.status ?? "\(ModelArtifactSlot.layoutLM.rawValue):failed:no_result"
+            default: return "layout.model_missing"
             }
         }()
 
         return LayoutDocument(
             layoutText: layoutText,
             modelInput: OcrLayoutSerializer.modelInput(document: document, payloadHints: payloadHints),
+            blocks: blocks,
             labelValuePairs: pairs,
             engineID: engineID
         )
     }
 
-    /// When LayoutLM ships, map pairs through semantic label keys first.
+    /// Model-produced LayoutLM pairs can be mapped through semantic label keys first.
     static func suggestionsFromLayoutPairs(_ pairs: [OcrLayoutSerializer.LabelValuePair]) -> [OcrFieldSuggestion] {
         let stub = LayoutDocument(
             layoutText: pairs.map { "\($0.label) | \($0.value)" }.joined(separator: "\n"),
             modelInput: "",
+            blocks: [],
             labelValuePairs: pairs,
-            engineID: "layout.heuristic.v1"
+            engineID: ModelArtifactSlot.layoutLM.rawValue
         )
         return OpenVocabularyFieldExtractor.suggestions(from: stub)
     }

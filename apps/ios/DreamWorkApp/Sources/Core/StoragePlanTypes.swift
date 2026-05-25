@@ -26,6 +26,8 @@ struct StoragePlanSummary: Hashable {
     let canonicalCount: Int
     let extensionCount: Int
     let skippedEmpty: Int
+    let plannerEngine: String
+    let plannerStatus: String
 }
 
 struct StoragePlanSuggestion: Hashable {
