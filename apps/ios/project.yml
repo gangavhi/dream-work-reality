@@ -42,6 +42,36 @@ targets:
         embed: true
         codeSign: true
     postBuildScripts:
+      - name: Embed Required Local ML Models
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          APP="${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}"
+          SOURCE_DIR="${DREAMWORK_MODEL_DIR:-${HOME}/Library/Application Support/DreamWork/models}"
+          DEST_DIR="${APP}/Models"
+          REQUIRED_MODELS=(
+            "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+            "SS-350M-SQL-Strict.Q8_0.gguf"
+          )
+          if [[ "${CONFIGURATION}" != "Release" || "${PLATFORM_NAME}" != "iphoneos" ]]; then
+            echo "Skipping GGUF model embedding for ${CONFIGURATION}/${PLATFORM_NAME}"
+            exit 0
+          fi
+          if [[ ! -d "${APP}" ]]; then
+            echo "error: app bundle not found at ${APP}" >&2
+            exit 1
+          fi
+          mkdir -p "${DEST_DIR}"
+          for model in "${REQUIRED_MODELS[@]}"; do
+            src="${SOURCE_DIR}/${model}"
+            if [[ ! -f "${src}" ]]; then
+              echo "error: required local ML model missing: ${src}" >&2
+              echo "Run apps/ios/scripts/download-qwen-gguf-model.sh and apps/ios/scripts/download-storage-planner-gguf-model.sh before archiving." >&2
+              exit 1
+            fi
+            echo "Embedding local ML model ${model}"
+            rsync -a "${src}" "${DEST_DIR}/${model}"
+          done
       - name: Compile Asset Catalog (AppIcon)
         basedOnDependencyAnalysis: false
         script: |
@@ -103,7 +133,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "36"
+        CURRENT_PROJECT_VERSION: "37"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

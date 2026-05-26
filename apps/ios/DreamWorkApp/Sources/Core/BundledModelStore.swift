@@ -1,6 +1,7 @@
 import Foundation
 
-/// Locates optional on-device GGUF weights under Application Support (user-approved download or sideload).
+/// Locates required on-device model weights. TestFlight builds can ship models inside the app
+/// bundle, while local/dev installs may sideload them under Application Support.
 enum BundledModelStore {
     struct Manifest: Decodable {
         struct Artifact: Decodable {
@@ -34,8 +35,21 @@ enum BundledModelStore {
         guard let manifest = manifest(),
               let artifact = manifest.artifacts.first(where: { $0.artifact_id == artifactID })
         else { return nil }
-        let path = modelsDirectory.appendingPathComponent(artifact.filename).path
-        return FileManager.default.fileExists(atPath: path) ? path : nil
+        let installedPath = modelsDirectory.appendingPathComponent(artifact.filename).path
+        if FileManager.default.fileExists(atPath: installedPath) {
+            return installedPath
+        }
+        if let bundled = Bundle.main.url(
+            forResource: artifact.filename,
+            withExtension: nil,
+            subdirectory: "Models"
+        ) {
+            return bundled.path
+        }
+        if let bundled = Bundle.main.url(forResource: artifact.filename, withExtension: nil) {
+            return bundled.path
+        }
+        return nil
     }
 
     static func liteArtifactPath() -> String? {
