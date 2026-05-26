@@ -773,7 +773,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "set -euo pipefail\nAPP=\"${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}\"\nSOURCE_DIR=\"${DREAMWORK_MODEL_DIR:-${HOME}/Library/Application Support/DreamWork/models}\"\nDEST_DIR=\"${APP}/Models\"\nREQUIRED_MODELS=(\n  \"Qwen2.5-3B-Instruct-Q4_K_M.gguf\"\n  \"SS-350M-SQL-Strict.Q8_0.gguf\"\n)\nif [[ \"${CONFIGURATION}\" != \"Release\" || \"${PLATFORM_NAME}\" != \"iphoneos\" ]]; then\n  echo \"Skipping GGUF model embedding for ${CONFIGURATION}/${PLATFORM_NAME}\"\n  exit 0\nfi\nif [[ ! -d \"${APP}\" ]]; then\n  echo \"error: app bundle not found at ${APP}\" >&2\n  exit 1\nfi\nmkdir -p \"${DEST_DIR}\"\nfor model in \"${REQUIRED_MODELS[@]}\"; do\n  src=\"${SOURCE_DIR}/${model}\"\n  if [[ ! -f \"${src}\" ]]; then\n    echo \"error: required local ML model missing: ${src}\" >&2\n    echo \"Run apps/ios/scripts/download-qwen-gguf-model.sh and apps/ios/scripts/download-storage-planner-gguf-model.sh before archiving.\" >&2\n    exit 1\n  fi\n  echo \"Embedding local ML model ${model}\"\n  rsync -a \"${src}\" \"${DEST_DIR}/${model}\"\ndone\n";
+			shellScript = "set -euo pipefail\nAPP=\"${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}\"\nSOURCE_DIR=\"${DREAMWORK_MODEL_DIR:-${HOME}/Library/Application Support/DreamWork/models}\"\nDEST_DIR=\"${APP}/Models\"\nREQUIRED_MODELS=(\n  \"Qwen2.5-0.5B-Instruct-Q4_K_M.gguf\"\n  \"SS-350M-SQL-Strict.Q8_0.gguf\"\n)\nif [[ \"${CONFIGURATION}\" != \"Release\" || \"${PLATFORM_NAME}\" != \"iphoneos\" ]]; then\n  echo \"Skipping GGUF model embedding for ${CONFIGURATION}/${PLATFORM_NAME}\"\n  exit 0\nfi\nif [[ ! -d \"${APP}\" ]]; then\n  echo \"error: app bundle not found at ${APP}\" >&2\n  exit 1\nfi\nmkdir -p \"${DEST_DIR}\"\nfor model in \"${REQUIRED_MODELS[@]}\"; do\n  src=\"${SOURCE_DIR}/${model}\"\n  if [[ ! -f \"${src}\" ]]; then\n    echo \"error: required local ML model missing: ${src}\" >&2\n    echo \"Run apps/ios/scripts/download-qwen-gguf-model.sh and apps/ios/scripts/download-storage-planner-gguf-model.sh before archiving.\" >&2\n    exit 1\n  fi\n  echo \"Embedding local ML model ${model}\"\n  rsync -a \"${src}\" \"${DEST_DIR}/${model}\"\ndone\n";
 		};
 		9F8406884421D6425865233F /* Compile Asset Catalog (AppIcon) */ = {
 			isa = PBXShellScriptBuildPhase;
@@ -1111,7 +1111,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
@@ -1150,7 +1150,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 37;
+				CURRENT_PROJECT_VERSION = 38;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
