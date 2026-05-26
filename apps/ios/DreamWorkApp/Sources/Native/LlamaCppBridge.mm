@@ -142,7 +142,9 @@ int32_t ensureModel(const char *modelPath, char *err, uintptr_t errLen) {
     }
 
     llama_model_params modelParams = llama_model_default_params();
-    modelParams.n_gpu_layers = 99;
+    // Keep the TestFlight runtime inside iOS memory limits. Full offload of larger
+    // GGUFs can trigger jetsam instead of a recoverable model-load failure.
+    modelParams.n_gpu_layers = 16;
     modelParams.use_mmap = true;
     modelParams.use_mlock = false;
 
@@ -180,11 +182,11 @@ extern "C" int32_t dreamwork_llama_generate_json(
     }
 
     llama_context_params ctxParams = llama_context_default_params();
-    ctxParams.n_ctx = 2048;
-    ctxParams.n_batch = 512;
-    ctxParams.n_ubatch = 512;
-    ctxParams.n_threads = 4;
-    ctxParams.n_threads_batch = 4;
+    ctxParams.n_ctx = 1024;
+    ctxParams.n_batch = 128;
+    ctxParams.n_ubatch = 128;
+    ctxParams.n_threads = 2;
+    ctxParams.n_threads_batch = 2;
     ctxParams.offload_kqv = true;
     ctxParams.no_perf = true;
 

@@ -3,19 +3,19 @@
   "artifacts": [
     {
       "artifact_id": "llm.schema.lite.v1",
-      "filename": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-      "description": "Qwen2.5 3B Instruct Q4_K_M — on-device schema extraction (optional download)",
-      "bytes_approx": 1929903264,
-      "sha256": "9c9f56a391a3abbd5b89d0245bf6106081bcc3173119d4229235dd9d23253f94",
-      "download_url": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+      "filename": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 0.5B Instruct Q4_K_M — mobile-safe on-device schema extraction",
+      "bytes_approx": 397410816,
+      "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     },
     {
       "artifact_id": "document.classifier.v1",
-      "filename": "Qwen2.5-3B-Instruct-Q4_K_M.gguf",
-      "description": "Qwen2.5 3B Instruct Q4_K_M — local open-vocabulary OCR document type classifier",
-      "bytes_approx": 1929903264,
-      "sha256": "9c9f56a391a3abbd5b89d0245bf6106081bcc3173119d4229235dd9d23253f94",
-      "download_url": "https://huggingface.co/bartowski/Qwen2.5-3B-Instruct-GGUF/resolve/main/Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+      "filename": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 0.5B Instruct Q4_K_M — mobile-safe local open-vocabulary OCR document type classifier",
+      "bytes_approx": 397410816,
+      "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
     },
     {
       "artifact_id": "sql.storage.planner.v1",

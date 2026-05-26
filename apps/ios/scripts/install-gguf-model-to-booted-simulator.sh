@@ -8,7 +8,7 @@ set -euo pipefail
 BUNDLE_ID="${BUNDLE_ID:-com.dream.nestledger.dev}"
 MODEL_DIR="${HOME}/Library/Application Support/DreamWork/models"
 MODEL_FILES=(
-  "Qwen2.5-3B-Instruct-Q4_K_M.gguf"
+  "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
   "SS-350M-SQL-Strict.Q8_0.gguf"
 )
 
