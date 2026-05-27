@@ -9,7 +9,8 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::inference::{
-    generate_constrained_json, parse_gguf_header_prefix, GenerativeArtifactId,
+    generate_constrained_json, parse_gguf_header_prefix, truncate_prompt_input,
+    DEFAULT_PROMPT_INPUT_CHARS, GenerativeArtifactId,
     GenerativeLlmSession, InferenceError,
 };
 use crate::profile_keys::normalize_field_key;
@@ -189,6 +190,7 @@ fn build_schema_plan_prompt(req: &MapDocumentFieldsRequest) -> String {
     } else {
         req.profile_schema_keys.join(", ")
     };
+    let layout_text = truncate_prompt_input(&req.layout_text, DEFAULT_PROMPT_INPUT_CHARS);
 
     format!(
         r#"Extract document fields from OCR/layout text.
@@ -204,7 +206,7 @@ Rules:
 
 OCR/layout text:
 {}"#,
-        req.layout_text
+        layout_text
     )
 }
 
@@ -988,7 +990,7 @@ impl GenerativeLlmSession for OnDeviceGenerativeSession {
                 "missing GGUF model path".to_string(),
             ));
         };
-        generate_constrained_json(model_path, user_prompt, 384)
+        generate_constrained_json(model_path, user_prompt, 256)
     }
 }
 

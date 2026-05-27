@@ -142,9 +142,8 @@ int32_t ensureModel(const char *modelPath, char *err, uintptr_t errLen) {
     }
 
     llama_model_params modelParams = llama_model_default_params();
-    // Keep the TestFlight runtime inside iOS memory limits. Full offload of larger
-    // GGUFs can trigger jetsam instead of a recoverable model-load failure.
-    modelParams.n_gpu_layers = 16;
+    // CPU-only inference avoids Metal allocator spikes that jetsam TestFlight builds.
+    modelParams.n_gpu_layers = 0;
     modelParams.use_mmap = true;
     modelParams.use_mlock = false;
 
@@ -158,7 +157,20 @@ int32_t ensureModel(const char *modelPath, char *err, uintptr_t errLen) {
     return kOk;
 }
 
+void releaseCachedModelLocked() {
+    if (gCachedModel != nullptr) {
+        llama_model_free(gCachedModel);
+        gCachedModel = nullptr;
+        gCachedModelPath.clear();
+    }
+}
+
 } // namespace
+
+extern "C" void dreamwork_llama_release_cached_model(void) {
+    std::lock_guard<std::mutex> lock(gLlamaMutex);
+    releaseCachedModelLocked();
+}
 
 extern "C" int32_t dreamwork_llama_generate_json(
     const char *modelPath,
@@ -169,6 +181,7 @@ extern "C" int32_t dreamwork_llama_generate_json(
     char *err,
     uintptr_t errLen
 ) {
+    @autoreleasepool {
     if (modelPath == nullptr || userPrompt == nullptr || out == nullptr || outLen == 0) {
         copyCString("invalid llama generation arguments", err, errLen);
         return kInvalidArgument;
@@ -182,12 +195,12 @@ extern "C" int32_t dreamwork_llama_generate_json(
     }
 
     llama_context_params ctxParams = llama_context_default_params();
-    ctxParams.n_ctx = 1024;
-    ctxParams.n_batch = 128;
-    ctxParams.n_ubatch = 128;
+    ctxParams.n_ctx = 768;
+    ctxParams.n_batch = 64;
+    ctxParams.n_ubatch = 64;
     ctxParams.n_threads = 2;
     ctxParams.n_threads_batch = 2;
-    ctxParams.offload_kqv = true;
+    ctxParams.offload_kqv = false;
     ctxParams.no_perf = true;
 
     llama_context *ctx = llama_init_from_model(gCachedModel, ctxParams);
@@ -261,7 +274,7 @@ extern "C" int32_t dreamwork_llama_generate_json(
     llama_sampler_chain_add(sampler, llama_sampler_init_greedy());
 
     std::string generated;
-    const uint32_t limit = std::max<uint32_t>(1, std::min<uint32_t>(maxTokens, 512));
+    const uint32_t limit = std::max<uint32_t>(1, std::min<uint32_t>(maxTokens, 384));
     for (uint32_t i = 0; i < limit; ++i) {
         const llama_token token = llama_sampler_sample(sampler, ctx, -1);
         if (llama_vocab_is_eog(vocab, token)) {
@@ -300,4 +313,5 @@ extern "C" int32_t dreamwork_llama_generate_json(
 
     copyCString(json, out, outLen);
     return kOk;
+    }
 }

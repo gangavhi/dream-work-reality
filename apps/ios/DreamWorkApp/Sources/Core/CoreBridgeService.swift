@@ -16,30 +16,19 @@ protocol CoreBridgeService {
 
 extension CoreBridgeService {
     /// General-purpose ingest: layout OCR → on-device LLM (when enabled) → validators → Rust FFI.
+    /// Storage ML is deferred during scan review to avoid loading a second GGUF on device (jetsam).
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        runStoragePipeline: Bool = false
     ) async -> ScanReviewEnrichment {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
         let extracted = await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
+        LlamaRuntime.releaseCachedModel()
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
-
-        let planPersonID: String? = {
-            guard let resolution = personResolution,
-                  resolution.resolution == .matchExisting,
-                  let id = resolution.personID
-            else { return nil }
-            return id
-        }()
-        var storagePlan = CoreIngestFFI.planStorage(
-            fields: fieldMap,
-            personID: planPersonID,
-            profileSchemaKeys: schemaKeys,
-            documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
-        )
 
         let suggestions = extracted.suggestions
         let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
@@ -48,42 +37,61 @@ extension CoreBridgeService {
         )
 
         var mappingNotice = extracted.mappingNotice
-        if let storagePlan,
-           storagePlan.summary.plannerStatus != "storage_planner_active"
-        {
-            mappingNotice = [
-                mappingNotice,
-                "The local ML storage planner failed. No rules-only SQLite routing fallback was used; install the storage planner model or retry after extraction succeeds."
-            ].compactMap { $0 }.joined(separator: "\n")
-        } else if storagePlan == nil {
-            mappingNotice = [
-                mappingNotice,
-                "The local ML storage planner bridge failed. No rules-only SQLite routing fallback was used."
-            ].compactMap { $0 }.joined(separator: "\n")
-        }
+        var storagePlan: StoragePlanSuggestion?
         var pipelineTrace = extracted.pipelineTrace
-        if var plan = storagePlan {
-            pipelineTrace.append("storage:\(plan.summary.plannerEngine):\(plan.summary.plannerStatus)")
-            if plan.summary.plannerStatus == "storage_planner_active",
-               let apply = CoreIngestFFI.applyStoragePlan(plan)
+
+        if runStoragePipeline {
+            let planPersonID: String? = {
+                guard let resolution = personResolution,
+                      resolution.resolution == .matchExisting,
+                      let id = resolution.personID
+                else { return nil }
+                return id
+            }()
+            storagePlan = CoreIngestFFI.planStorage(
+                fields: fieldMap,
+                personID: planPersonID,
+                profileSchemaKeys: schemaKeys,
+                documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
+            )
+            LlamaRuntime.releaseCachedModel()
+
+            if let plan = storagePlan,
+               plan.summary.plannerStatus != "storage_planner_active"
             {
-                storagePlan = StoragePlanSuggestion(
-                    storageTarget: plan.storageTarget,
-                    schemaActions: plan.schemaActions,
-                    operations: plan.operations,
-                    summary: plan.summary,
-                    applyResult: apply
-                )
-                pipelineTrace.append("storage_apply:\(apply.status)")
-                if !apply.applied {
-                    mappingNotice = [
-                        mappingNotice,
-                        "The local ML storage planner produced a plan but SQLite apply failed (\(apply.status))."
-                    ].compactMap { $0 }.joined(separator: "\n")
+                mappingNotice = [
+                    mappingNotice,
+                    "The local ML storage planner failed. No rules-only SQLite routing fallback was used; install the storage planner model or retry after extraction succeeds."
+                ].compactMap { $0 }.joined(separator: "\n")
+            } else if storagePlan == nil {
+                mappingNotice = [
+                    mappingNotice,
+                    "The local ML storage planner bridge failed. No rules-only SQLite routing fallback was used."
+                ].compactMap { $0 }.joined(separator: "\n")
+            }
+            if var plan = storagePlan {
+                pipelineTrace.append("storage:\(plan.summary.plannerEngine):\(plan.summary.plannerStatus)")
+                if plan.summary.plannerStatus == "storage_planner_active",
+                   let apply = CoreIngestFFI.applyStoragePlan(plan)
+                {
+                    storagePlan = StoragePlanSuggestion(
+                        storageTarget: plan.storageTarget,
+                        schemaActions: plan.schemaActions,
+                        operations: plan.operations,
+                        summary: plan.summary,
+                        applyResult: apply
+                    )
+                    pipelineTrace.append("storage_apply:\(apply.status)")
+                    if !apply.applied {
+                        mappingNotice = [
+                            mappingNotice,
+                            "The local ML storage planner produced a plan but SQLite apply failed (\(apply.status))."
+                        ].compactMap { $0 }.joined(separator: "\n")
+                    }
                 }
             }
         } else {
-            pipelineTrace.append("storage:\(ModelArtifactSlot.storagePlanner.rawValue):bridge_failed")
+            pipelineTrace.append("storage:deferred:scan_review")
         }
 
         return ScanReviewEnrichment(
