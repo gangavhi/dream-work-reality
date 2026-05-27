@@ -39,6 +39,10 @@ final class DocumentIntelligencePipelineTests: XCTestCase {
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
         XCTAssertTrue(result.pipelineTrace.contains { $0.hasPrefix("classify:") })
+        XCTAssertTrue(
+            result.pipelineTrace.contains("classify:document.classifier.v1:classifier_skipped:provider_off")
+                || result.pipelineTrace.contains("classify:skipped:single_pass_parser")
+        )
         XCTAssertTrue(result.pipelineTrace.contains("template:disabled:ml_only"))
         XCTAssertTrue(result.pipelineTrace.contains("extract:ml_failed"))
         XCTAssertTrue(result.pipelineTrace.contains { $0.hasPrefix("identity_graph:") })

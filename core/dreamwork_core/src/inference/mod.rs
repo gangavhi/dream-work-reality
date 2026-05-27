@@ -19,7 +19,7 @@ pub fn truncate_prompt_input(text: &str, max_chars: usize) -> String {
     text.chars().take(max_chars).collect::<String>()
 }
 
-pub const DEFAULT_PROMPT_INPUT_CHARS: usize = 2_400;
+pub const DEFAULT_PROMPT_INPUT_CHARS: usize = 1_200;
 
 #[cfg(feature = "onnx")]
 pub use onnx_ort::OrtIdentityOnnxSession;

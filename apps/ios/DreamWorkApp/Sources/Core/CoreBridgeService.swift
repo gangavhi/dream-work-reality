@@ -24,7 +24,9 @@ extension CoreBridgeService {
     ) async -> ScanReviewEnrichment {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-        let extracted = await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
+        let extracted = await Task.detached(priority: .utility) {
+            await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
+        }.value
         LlamaRuntime.releaseCachedModel()
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)

@@ -30,12 +30,18 @@ enum DocumentIntelligenceOrchestrator {
         let layout = LayoutIntelligenceAgent.analyze(document: document, payloadHints: payloadHints)
         trace.append("layout:\(layout.engineID)")
 
-        let classification = ClassificationAgent.classify(
-            modelInput: layout.modelInput,
-            mappedDocumentType: nil,
-            machineReadableSources: []
-        )
-        trace.append("classify:\(classification.engineID):\(classification.runtimeStatus)")
+        let classification: ClassificationAgent.Result
+        if GenAISettings.provider == .onDevice {
+            classification = ClassificationAgent.pendingParserClassification()
+            trace.append("classify:skipped:single_pass_parser")
+        } else {
+            classification = ClassificationAgent.classify(
+                modelInput: layout.modelInput,
+                mappedDocumentType: nil,
+                machineReadableSources: []
+            )
+            trace.append("classify:\(classification.engineID):\(classification.runtimeStatus)")
+        }
         let schemaKeys: [String] = []
         trace.append("schema_keys:generic:any")
 
@@ -70,8 +76,16 @@ enum DocumentIntelligenceOrchestrator {
             trace.append("runtime:\(runtimeStatus)")
         }
 
+        let resolvedClassification = classificationFromExtraction(
+            extraction: extraction,
+            fallback: classification
+        )
+        if GenAISettings.provider == .onDevice {
+            trace.append("classify:resolved:\(resolvedClassification.runtimeStatus)")
+        }
+
         var mappingNotice: String?
-        if isClassifierFailure(classification.runtimeStatus) {
+        if isClassifierFailure(resolvedClassification.runtimeStatus) {
             mappingNotice =
                 "The local ML model meant for document type classification failed. No machine-readable or keyword classifier fallback was used; install the classifier model or scan again."
         }
@@ -90,19 +104,19 @@ enum DocumentIntelligenceOrchestrator {
         trace.append("confidence:model_output")
         trace.append("fraud:disabled_ml_only_pipeline")
 
-        let openTypeLabel = classification.displayLabel
+        let openTypeLabel = resolvedClassification.displayLabel
         let understanding: DocumentUnderstandingResult? = {
             guard extraction.usedAI else { return nil }
             return DocumentUnderstandingResult(
-                documentType: extraction.openDocumentType ?? classification.openDocumentType ?? openTypeLabel,
-                documentTypeConfidence: classification.confidence,
+                documentType: extraction.openDocumentType ?? resolvedClassification.openDocumentType ?? openTypeLabel,
+                documentTypeConfidence: resolvedClassification.confidence,
                 issuerRegion: suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
                 displayNameHint: suggestions.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
                 usedAI: extraction.usedAI
             )
         }()
 
-        let graphDocumentType = extraction.openDocumentType ?? classification.openDocumentType ?? "other"
+        let graphDocumentType = extraction.openDocumentType ?? resolvedClassification.openDocumentType ?? "other"
         let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
             from: suggestions,
             documentType: graphDocumentType
@@ -117,7 +131,7 @@ enum DocumentIntelligenceOrchestrator {
         return Result(
             layoutText: layout.layoutText,
             plainText: layout.plainText,
-            displayType: classification.enumType,
+            displayType: resolvedClassification.enumType,
             openDocumentTypeLabel: openTypeLabel,
             suggestions: suggestions,
             understanding: understanding,
@@ -141,6 +155,30 @@ enum DocumentIntelligenceOrchestrator {
 
     private static func isClassifierFailure(_ runtimeStatus: String) -> Bool {
         runtimeStatus != "classifier_active"
+            && runtimeStatus != "classifier_pending_parser"
+    }
+
+    private static func classificationFromExtraction(
+        extraction: ExtractionAgent.Result,
+        fallback: ClassificationAgent.Result
+    ) -> ClassificationAgent.Result {
+        guard GenAISettings.provider == .onDevice,
+              let openType = extraction.openDocumentType?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !openType.isEmpty
+        else {
+            return fallback
+        }
+        let presentation = DocumentTypePresentation.resolve(openType)
+        return ClassificationAgent.Result(
+            openDocumentType: openType,
+            displayLabel: presentation.displayLabel,
+            enumType: presentation.enumType,
+            confidence: extraction.usedAI ? 0.72 : 0,
+            engineID: ModelArtifactSlot.generativeLLM.rawValue,
+            issuerRegion: nil,
+            country: nil,
+            runtimeStatus: extraction.usedAI ? "classifier_active" : "classifier_pending_parser"
+        )
     }
 }
 
