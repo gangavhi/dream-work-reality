@@ -11,6 +11,16 @@ mod onnx_ort;
 pub use gguf::{parse_gguf_header_prefix, GgufHeader, GgufLoadError};
 pub use llama_cpp::generate_constrained_json;
 
+/// Keeps on-device prompts within a small llama context window (TestFlight memory budget).
+pub fn truncate_prompt_input(text: &str, max_chars: usize) -> String {
+    if text.chars().count() <= max_chars {
+        return text.to_string();
+    }
+    text.chars().take(max_chars).collect::<String>()
+}
+
+pub const DEFAULT_PROMPT_INPUT_CHARS: usize = 2_400;
+
 #[cfg(feature = "onnx")]
 pub use onnx_ort::OrtIdentityOnnxSession;
 

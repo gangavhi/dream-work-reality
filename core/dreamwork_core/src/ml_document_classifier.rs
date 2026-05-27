@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::inference::{generate_constrained_json, InferenceError};
+use crate::inference::{
+    generate_constrained_json, truncate_prompt_input, DEFAULT_PROMPT_INPUT_CHARS, InferenceError,
+};
 
 pub const CLASSIFIER_ENGINE_ID: &str = "llm.document_classifier.v1";
 
@@ -43,7 +45,8 @@ pub fn classify_document(req: &ClassifyDocumentRequest) -> ClassifyDocumentRespo
         return failed("classifier_model_missing");
     }
 
-    match generate_constrained_json(model_path, &classification_prompt(&req.layout_text), 192)
+    let layout_text = truncate_prompt_input(&req.layout_text, DEFAULT_PROMPT_INPUT_CHARS);
+    match generate_constrained_json(model_path, &classification_prompt(&layout_text), 128)
         .and_then(|json| parse_response(&json))
     {
         Ok(mut response) => {

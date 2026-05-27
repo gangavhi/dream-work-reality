@@ -130,7 +130,7 @@ pub fn plan_storage(req: &PlanStorageRequest) -> StoragePlan {
         return failed_plan(skipped_empty, "storage_planner_model_missing");
     }
 
-    match generate_constrained_json(model_path, &storage_prompt(req), 512)
+    match generate_constrained_json(model_path, &storage_prompt(req), 256)
         .and_then(|json| parse_storage_plan(&json))
     {
         Ok(parsed) => {

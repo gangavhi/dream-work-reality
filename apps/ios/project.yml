@@ -133,7 +133,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "38"
+        CURRENT_PROJECT_VERSION: "39"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

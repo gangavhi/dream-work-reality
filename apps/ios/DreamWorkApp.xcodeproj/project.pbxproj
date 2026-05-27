@@ -31,6 +31,7 @@
 		231150B231E6F54DCB81251C /* PersonProfile.swift in Sources */ = {isa = PBXBuildFile; fileRef = D2101157B480B4669EEDF2CB /* PersonProfile.swift */; };
 		235923552CC00AC71CE66CAE /* DocumentTextExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */; };
 		26137192181791222128C102 /* EmbeddedPayloadHints.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4618FF2BC591CF28CE7ED4E3 /* EmbeddedPayloadHints.swift */; };
+		268AD31CDBED597B2C9A37E0 /* LlamaRuntime.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1919E2465053062F9F62666 /* LlamaRuntime.swift */; };
 		26FC3543360D3C75CC7B583A /* LocalEmbeddingFieldMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63AA443D671D2E7B0E29C752 /* LocalEmbeddingFieldMatcher.swift */; };
 		2A30549431BF6F4F2AEBE9F7 /* BundledModelStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51A7757EE489D18065A3242E /* BundledModelStore.swift */; };
 		2B9EDC85B40F3BF17705E56E /* ProfileFieldInputTraits.swift in Sources */ = {isa = PBXBuildFile; fileRef = 906A9539626888BBB20C3C4D /* ProfileFieldInputTraits.swift */; };
@@ -253,6 +254,7 @@
 		B92354231869E2A1914CA66E /* SimulatorLaptopImportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulatorLaptopImportView.swift; sourceTree = "<group>"; };
 		BB3E46821CB96DD270B863AF /* ExtractionAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractionAgent.swift; sourceTree = "<group>"; };
 		BE7A8B91F39ACCDA4436AA99 /* PersonProfileMatcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonProfileMatcherTests.swift; sourceTree = "<group>"; };
+		C1919E2465053062F9F62666 /* LlamaRuntime.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LlamaRuntime.swift; sourceTree = "<group>"; };
 		C2E74E680A04FB21B00070BC /* PersonNameResolverTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonNameResolverTests.swift; sourceTree = "<group>"; };
 		C30D2D35F92B43C82235896D /* NameFieldReconcilerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NameFieldReconcilerTests.swift; sourceTree = "<group>"; };
 		C7DF95B3280ECA3992716879 /* DriverLicenseFieldMapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseFieldMapper.swift; sourceTree = "<group>"; };
@@ -594,6 +596,7 @@
 			isa = PBXGroup;
 			children = (
 				6AFBE8FBE89A69ED6443B5B4 /* LlamaCppBridge.mm */,
+				C1919E2465053062F9F62666 /* LlamaRuntime.swift */,
 			);
 			path = Native;
 			sourceTree = "<group>";
@@ -873,6 +876,7 @@
 				D1EEC17E1404DA3C2F727577 /* LayoutIntelligenceAgent.swift in Sources */,
 				852EF97126EEA6A0332E1960 /* LayoutLMv3CoreMLAdapter.swift in Sources */,
 				E7D43CFEAC9B655E5C175728 /* LlamaCppBridge.mm in Sources */,
+				268AD31CDBED597B2C9A37E0 /* LlamaRuntime.swift in Sources */,
 				26FC3543360D3C75CC7B583A /* LocalEmbeddingFieldMatcher.swift in Sources */,
 				31A7E3391D4AEE801FB7DA0C /* MachineReadableFieldExtractor.swift in Sources */,
 				E5A4B56F591D2DDDC1D1DD63 /* ModelArtifactRegistry.swift in Sources */,
@@ -1111,7 +1115,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 39;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
@@ -1150,7 +1154,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 38;
+				CURRENT_PROJECT_VERSION = 39;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
