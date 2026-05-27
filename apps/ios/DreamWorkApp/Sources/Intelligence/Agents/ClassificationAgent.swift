@@ -27,6 +27,20 @@ enum ClassificationAgent {
         var status: String
     }
 
+    /// Placeholder until the single on-device parser pass returns `document_type`.
+    static func pendingParserClassification() -> Result {
+        Result(
+            openDocumentType: nil,
+            displayLabel: "Document",
+            enumType: .other,
+            confidence: 0,
+            engineID: ModelArtifactSlot.generativeLLM.rawValue,
+            issuerRegion: nil,
+            country: nil,
+            runtimeStatus: "classifier_pending_parser"
+        )
+    }
+
     static func classify(
         modelInput: String,
         mappedDocumentType: String?,
@@ -38,6 +52,10 @@ enum ClassificationAgent {
         let trimmed = modelInput.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return failed(status: "classifier_input_empty")
+        }
+
+        guard GenAISettings.provider == .onDevice else {
+            return failed(status: "classifier_skipped:provider_off")
         }
 
         let body = ClassifyRequest(

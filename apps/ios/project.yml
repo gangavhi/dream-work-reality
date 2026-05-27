@@ -49,9 +49,10 @@ targets:
           APP="${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}"
           SOURCE_DIR="${DREAMWORK_MODEL_DIR:-${HOME}/Library/Application Support/DreamWork/models}"
           DEST_DIR="${APP}/Models"
+          # Only embed the scan-time Qwen model. The storage planner GGUF is deferred off the
+          # scan path; bundling both files increases jetsam risk on first launch.
           REQUIRED_MODELS=(
             "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
-            "SS-350M-SQL-Strict.Q8_0.gguf"
           )
           if [[ "${CONFIGURATION}" != "Release" || "${PLATFORM_NAME}" != "iphoneos" ]]; then
             echo "Skipping GGUF model embedding for ${CONFIGURATION}/${PLATFORM_NAME}"
@@ -133,7 +134,7 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "39"
+        CURRENT_PROJECT_VERSION: "40"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

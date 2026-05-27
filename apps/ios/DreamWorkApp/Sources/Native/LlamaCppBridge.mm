@@ -20,6 +20,10 @@ constexpr int32_t kTokenizeFailed = 4;
 constexpr int32_t kDecodeFailed = 5;
 constexpr int32_t kSamplerFailed = 6;
 constexpr int32_t kNoJsonObject = 7;
+constexpr int32_t kPromptTooLong = 8;
+
+constexpr uint32_t kContextTokens = 512;
+constexpr uint32_t kReservedGenerationTokens = 96;
 
 std::mutex gLlamaMutex;
 bool gBackendInitialized = false;
@@ -96,18 +100,6 @@ std::string firstBalancedJsonObject(const std::string &text) {
         }
     }
     return "";
-}
-
-const char *jsonGrammar() {
-    return R"(
-root   ::= object
-value  ::= object | array | string | number | ("true" | "false" | "null") ws
-object ::= "{" ws (string ":" ws value ("," ws string ":" ws value)*)? "}" ws
-array  ::= "[" ws (value ("," ws value)*)? "]" ws
-string ::= "\"" ([^"\\] | "\\" (["\\/bfnrt] | "u" [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F] [0-9a-fA-F]))* "\"" ws
-number ::= ("-"? ([0-9] | [1-9] [0-9]*)) ("." [0-9]+)? ([eE] [-+]? [0-9]+)? ws
-ws     ::= ([ \t\n\r])*
-)";
 }
 
 std::string buildPrompt(const char *userPrompt) {
@@ -194,12 +186,16 @@ extern "C" int32_t dreamwork_llama_generate_json(
         return modelStatus;
     }
 
+    struct ReleaseModelAfterCall {
+        ~ReleaseModelAfterCall() { releaseCachedModelLocked(); }
+    } releaseAfterCall;
+
     llama_context_params ctxParams = llama_context_default_params();
-    ctxParams.n_ctx = 768;
-    ctxParams.n_batch = 64;
-    ctxParams.n_ubatch = 64;
-    ctxParams.n_threads = 2;
-    ctxParams.n_threads_batch = 2;
+    ctxParams.n_ctx = kContextTokens;
+    ctxParams.n_batch = 32;
+    ctxParams.n_ubatch = 32;
+    ctxParams.n_threads = 1;
+    ctxParams.n_threads_batch = 1;
     ctxParams.offload_kqv = false;
     ctxParams.no_perf = true;
 
@@ -247,6 +243,14 @@ extern "C" int32_t dreamwork_llama_generate_json(
     }
     promptTokens.resize(static_cast<size_t>(nPrompt));
 
+    const uint32_t generationBudget =
+        std::max<uint32_t>(1, std::min<uint32_t>(maxTokens, kContextTokens - kReservedGenerationTokens));
+    if (static_cast<uint32_t>(nPrompt) + generationBudget > kContextTokens) {
+        llama_free(ctx);
+        copyCString("prompt exceeds llama context budget", err, errLen);
+        return kPromptTooLong;
+    }
+
     llama_batch batch = llama_batch_get_one(promptTokens.data(), nPrompt);
     if (llama_decode(ctx, batch) != 0) {
         llama_free(ctx);
@@ -263,18 +267,11 @@ extern "C" int32_t dreamwork_llama_generate_json(
         return kSamplerFailed;
     }
 
-    llama_sampler *grammar = llama_sampler_init_grammar(vocab, jsonGrammar(), "root");
-    if (grammar == nullptr) {
-        llama_sampler_free(sampler);
-        llama_free(ctx);
-        copyCString("llama_sampler_init_grammar returned null", err, errLen);
-        return kSamplerFailed;
-    }
-    llama_sampler_chain_add(sampler, grammar);
+    // Grammar-constrained sampling allocates large auxiliary tables and can jetsam on device.
     llama_sampler_chain_add(sampler, llama_sampler_init_greedy());
 
     std::string generated;
-    const uint32_t limit = std::max<uint32_t>(1, std::min<uint32_t>(maxTokens, 384));
+    const uint32_t limit = generationBudget;
     for (uint32_t i = 0; i < limit; ++i) {
         const llama_token token = llama_sampler_sample(sampler, ctx, -1);
         if (llama_vocab_is_eog(vocab, token)) {
