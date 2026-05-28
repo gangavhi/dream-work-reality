@@ -129,13 +129,57 @@ final class AppState: ObservableObject {
         pageCount: Int,
         blockCount: Int
     ) async {
-        let enrichment = await coreService.enrichScanReview(document: document, fileURL: fileURL)
+        let preview = await coreService.enrichScanReview(
+            document: document,
+            fileURL: fileURL,
+            runOnDeviceLLM: false
+        )
+        applyScanReviewEnrichment(
+            preview,
+            pageCount: pageCount,
+            blockCount: blockCount
+        )
+
+        guard GenAISettings.provider == .onDevice,
+              OnDeviceMemoryGuard.mayRunHeavyInference()
+        else {
+            return
+        }
+
+        let enrichment = await coreService.enrichScanReview(
+            document: document,
+            fileURL: fileURL,
+            runOnDeviceLLM: true
+        )
+        guard scanReviewPayload != nil else { return }
 
         var signals: [String] = []
         if enrichment.usedMachineReadablePayload { signals.append("barcode or MRZ") }
         if enrichment.usedAI { signals.append("on-device extraction") }
         if enrichment.usedHeuristicFallback { signals.append("estimated heuristics") }
         if signals.isEmpty { signals = ["layout heuristics"] }
+
+        applyScanReviewEnrichment(
+            enrichment,
+            pageCount: pageCount,
+            blockCount: blockCount,
+            classificationSignals: signals
+        )
+    }
+
+    private func applyScanReviewEnrichment(
+        _ enrichment: ScanReviewEnrichment,
+        pageCount: Int,
+        blockCount: Int,
+        classificationSignals: [String]? = nil
+    ) {
+        var signals = classificationSignals ?? []
+        if signals.isEmpty {
+            if enrichment.usedMachineReadablePayload { signals.append("barcode or MRZ") }
+            if enrichment.usedAI { signals.append("on-device extraction") }
+            if enrichment.usedHeuristicFallback { signals.append("estimated heuristics") }
+            if signals.isEmpty { signals = ["layout heuristics"] }
+        }
 
         scanReviewPayload = ScanReviewPayload(
             detectedDocumentType: enrichment.displayDocumentType,

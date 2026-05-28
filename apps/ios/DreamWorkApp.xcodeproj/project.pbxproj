@@ -57,6 +57,7 @@
 		554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */; };
 		58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68738A430A8101DCF0386A0C /* FormTemplates.swift */; };
 		5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */; };
+		5B5A1C4B293EB9863F366652 /* OnDeviceMemoryGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */; };
 		5DA8C3B5093C47921D0EE460 /* DocumentIntelligencePipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7EC7D0BDAF68587C216C71DB /* DocumentIntelligencePipeline.swift */; };
 		5F2D01C32DC003A47D7C1BF4 /* DriverLicenseParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DDDD5F947481B0B59175B540 /* DriverLicenseParserTests.swift */; };
 		63055CCD47778F4D8E8CEF50 /* DocumentFingerprintStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E005FA6FFAE8999C411F565 /* DocumentFingerprintStore.swift */; };
@@ -187,6 +188,7 @@
 		4618FF2BC591CF28CE7ED4E3 /* EmbeddedPayloadHints.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddedPayloadHints.swift; sourceTree = "<group>"; };
 		467373352198BE2BD6ABC73D /* FraudDetectionAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FraudDetectionAgent.swift; sourceTree = "<group>"; };
 		46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelper.swift; sourceTree = "<group>"; };
+		48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceMemoryGuard.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
 		4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
@@ -597,6 +599,7 @@
 			children = (
 				6AFBE8FBE89A69ED6443B5B4 /* LlamaCppBridge.mm */,
 				C1919E2465053062F9F62666 /* LlamaRuntime.swift */,
+				48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */,
 			);
 			path = Native;
 			sourceTree = "<group>";
@@ -887,6 +890,7 @@
 				4A33F6063D6D74A7641F78C6 /* OcrGroundingValidator.swift in Sources */,
 				45027B6BC73D7C19280909FB /* OcrLayoutSerializer.swift in Sources */,
 				7ED23D6DEF9EF64395D1DE4E /* OnDeviceFieldMapper.swift in Sources */,
+				5B5A1C4B293EB9863F366652 /* OnDeviceMemoryGuard.swift in Sources */,
 				E25956FBDBF5EC811EF5C5D9 /* OpenVocabularyFieldExtractor.swift in Sources */,
 				71520BD3631EC4F282DDE360 /* PassportParser.swift in Sources */,
 				5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */,
@@ -1115,7 +1119,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
@@ -1154,7 +1158,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 40;
+				CURRENT_PROJECT_VERSION = 41;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",

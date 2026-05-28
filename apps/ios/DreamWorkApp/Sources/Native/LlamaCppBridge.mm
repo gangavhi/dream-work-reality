@@ -157,6 +157,32 @@ void releaseCachedModelLocked() {
     }
 }
 
+int32_t decodePromptInChunks(
+    llama_context *ctx,
+    const llama_token *tokens,
+    int32_t nTokens,
+    uint32_t chunkSize,
+    char *err,
+    uintptr_t errLen
+) {
+    if (chunkSize == 0) {
+        chunkSize = 32;
+    }
+    for (int32_t offset = 0; offset < nTokens;) {
+        const int32_t chunk = std::min<int32_t>(chunkSize, nTokens - offset);
+        llama_batch batch = llama_batch_get_one(
+            const_cast<llama_token *>(&tokens[offset]),
+            chunk
+        );
+        if (llama_decode(ctx, batch) != 0) {
+            copyCString("llama_decode failed for prompt chunk", err, errLen);
+            return kDecodeFailed;
+        }
+        offset += chunk;
+    }
+    return kOk;
+}
+
 } // namespace
 
 extern "C" void dreamwork_llama_release_cached_model(void) {
@@ -192,8 +218,8 @@ extern "C" int32_t dreamwork_llama_generate_json(
 
     llama_context_params ctxParams = llama_context_default_params();
     ctxParams.n_ctx = kContextTokens;
-    ctxParams.n_batch = 32;
-    ctxParams.n_ubatch = 32;
+    ctxParams.n_batch = kContextTokens;
+    ctxParams.n_ubatch = kContextTokens;
     ctxParams.n_threads = 1;
     ctxParams.n_threads_batch = 1;
     ctxParams.offload_kqv = false;
@@ -241,6 +267,11 @@ extern "C" int32_t dreamwork_llama_generate_json(
         copyCString("llama_tokenize failed", err, errLen);
         return kTokenizeFailed;
     }
+    const int32_t maxPromptTokens =
+        static_cast<int32_t>(kContextTokens - kReservedGenerationTokens);
+    if (nPrompt > maxPromptTokens) {
+        nPrompt = maxPromptTokens;
+    }
     promptTokens.resize(static_cast<size_t>(nPrompt));
 
     const uint32_t generationBudget =
@@ -251,11 +282,17 @@ extern "C" int32_t dreamwork_llama_generate_json(
         return kPromptTooLong;
     }
 
-    llama_batch batch = llama_batch_get_one(promptTokens.data(), nPrompt);
-    if (llama_decode(ctx, batch) != 0) {
+    const int32_t promptStatus = decodePromptInChunks(
+        ctx,
+        promptTokens.data(),
+        nPrompt,
+        kContextTokens,
+        err,
+        errLen
+    );
+    if (promptStatus != kOk) {
         llama_free(ctx);
-        copyCString("llama_decode failed for prompt", err, errLen);
-        return kDecodeFailed;
+        return promptStatus;
     }
 
     llama_sampler_chain_params samplerParams = llama_sampler_chain_default_params();

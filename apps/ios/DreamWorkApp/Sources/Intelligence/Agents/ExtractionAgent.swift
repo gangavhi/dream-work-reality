@@ -35,6 +35,11 @@ enum ExtractionAgent {
 
         switch GenAISettings.provider {
         case .onDevice:
+            guard OnDeviceMemoryGuard.mayRunHeavyInference() else {
+                runtimeStatus =
+                    "llm_document_parser_failed:memory_guard:\(OnDeviceMemoryGuard.skipTraceToken)"
+                break
+            }
             if let mapped = OnDeviceFieldMapper.mapFields(
                 layoutText: layout.modelInput,
                 profileSchemaKeys: schemaKeys

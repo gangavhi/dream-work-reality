@@ -90,7 +90,14 @@ enum DocumentIntelligenceOrchestrator {
                 "The local ML model meant for document type classification failed. No machine-readable or keyword classifier fallback was used; install the classifier model or scan again."
         }
         if let runtimeStatus = extraction.onDeviceRuntimeStatus,
-           isDocumentParserFailure(runtimeStatus)
+           runtimeStatus.contains("memory_guard")
+        {
+            mappingNotice = [
+                mappingNotice,
+                OnDeviceMemoryGuard.userFacingSkipNotice
+            ].compactMap { $0 }.joined(separator: "\n")
+        } else if let runtimeStatus = extraction.onDeviceRuntimeStatus,
+                  isDocumentParserFailure(runtimeStatus)
         {
             mappingNotice =
                 [
