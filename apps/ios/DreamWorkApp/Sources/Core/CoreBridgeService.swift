@@ -20,14 +20,55 @@ extension CoreBridgeService {
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
         fileURL: URL? = nil,
-        runStoragePipeline: Bool = false
+        runStoragePipeline: Bool = false,
+        runOnDeviceLLM: Bool = true
     ) async -> ScanReviewEnrichment {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-        let extracted = await Task.detached(priority: .utility) {
-            await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
-        }.value
-        LlamaRuntime.releaseCachedModel()
+
+        let shouldRunLLM = runOnDeviceLLM
+            && GenAISettings.provider == .onDevice
+            && OnDeviceMemoryGuard.mayRunHeavyInference()
+
+        let extracted: DocumentIntelligencePipeline.Result
+        if shouldRunLLM {
+            extracted = await Task.detached(priority: .utility) {
+                await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
+            }.value
+            LlamaRuntime.releaseCachedModel()
+        } else {
+            let layoutText = OcrLayoutSerializer.serialize(document: document)
+            let plainText = layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
+            var trace = ["ocr:vision.en.v1", "llm:skipped:\(OnDeviceMemoryGuard.skipTraceToken)"]
+            if !runOnDeviceLLM {
+                trace.append("llm:phase:ocr_preview")
+            }
+            trace.append("storage:deferred:scan_review")
+            let emptyGraph = DocumentKnowledgeGraph.buildIdentityGraph(
+                from: [],
+                documentType: "other"
+            )
+            var notice: String?
+            if runOnDeviceLLM, GenAISettings.provider == .onDevice {
+                notice = OnDeviceMemoryGuard.userFacingSkipNotice
+            }
+            return ScanReviewEnrichment(
+                understanding: nil,
+                personResolution: nil,
+                storagePlan: nil,
+                suggestions: [],
+                usedAI: false,
+                displayDocumentType: .other,
+                openDocumentTypeLabel: "Document",
+                plainText: plainText,
+                mappingNotice: notice,
+                usedMachineReadablePayload: false,
+                usedHeuristicFallback: false,
+                identityGraph: emptyGraph,
+                autofillPayload: emptyGraph.autofillPayload,
+                pipelineTrace: trace
+            )
+        }
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
