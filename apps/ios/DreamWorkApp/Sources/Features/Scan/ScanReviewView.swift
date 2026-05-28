@@ -16,6 +16,7 @@ struct ScanReviewView: View {
         NavigationStack {
             List {
                 documentSummarySection
+                onDeviceExtractionSection
                 if shouldShowTelemetry {
                     telemetrySection
                 }
@@ -41,7 +42,10 @@ struct ScanReviewView: View {
             .appListChrome()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        appState.clearPendingScanSession()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -70,6 +74,7 @@ struct ScanReviewView: View {
             ) {
                 Button("OK") {
                     saveMessage = nil
+                    appState.clearPendingScanSession()
                     dismiss()
                 }
             } message: {
@@ -90,6 +95,30 @@ struct ScanReviewView: View {
         #else
         return payload.suggestions.isEmpty
         #endif
+    }
+
+    @ViewBuilder
+    private var onDeviceExtractionSection: some View {
+        if GenAISettings.provider == .onDevice, OnDeviceMLPolicy.requiresManualExtractionTrigger {
+            Section {
+                if appState.isRunningOnDeviceExtraction {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text("Running on-device extraction…")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button(OnDeviceMLPolicy.manualExtractionButtonTitle) {
+                        Task { await appState.runOnDeviceExtractionForCurrentScan() }
+                    }
+                }
+                if payload.suggestions.isEmpty {
+                    Text(OnDeviceMLPolicy.manualExtractionExplanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
     }
 
     @ViewBuilder

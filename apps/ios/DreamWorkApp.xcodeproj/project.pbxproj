@@ -63,6 +63,7 @@
 		63055CCD47778F4D8E8CEF50 /* DocumentFingerprintStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E005FA6FFAE8999C411F565 /* DocumentFingerprintStore.swift */; };
 		659AC6F7556D500D7D8C6822 /* DocumentTypePresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CCF328376839D4609814041 /* DocumentTypePresentation.swift */; };
 		66B7B61FC78993DAFC54979D /* CoreIngestHTTPClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB7452A73BBD7D7AE36CA270 /* CoreIngestHTTPClient.swift */; };
+		67CF64E9BEFCDD017B36FA0E /* OnDeviceMLPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D18688358A83B5E07FCE969 /* OnDeviceMLPolicy.swift */; };
 		68842BBE8A6344D121C97418 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66EF2FD3F5AFABAD8A98ADE9 /* HomeView.swift */; };
 		69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 745E4C56058DAA99A6F82FC0 /* SettingsView.swift */; };
 		6A37A7537776442050A43C5C /* AppIcon60x60@2x.png in Resources */ = {isa = PBXBuildFile; fileRef = 9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */; };
@@ -191,6 +192,7 @@
 		48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceMemoryGuard.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
+		4D18688358A83B5E07FCE969 /* OnDeviceMLPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceMLPolicy.swift; sourceTree = "<group>"; };
 		4D683A193E3ED0F7A7F5BCDA /* DocumentTextExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTextExtractor.swift; sourceTree = "<group>"; };
 		4D855109CD3830514DE12083 /* EditPersonProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditPersonProfileView.swift; sourceTree = "<group>"; };
 		4EE6DEA5C6210419D6CB7BE5 /* MachineReadableFieldExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MachineReadableFieldExtractor.swift; sourceTree = "<group>"; };
@@ -600,6 +602,7 @@
 				6AFBE8FBE89A69ED6443B5B4 /* LlamaCppBridge.mm */,
 				C1919E2465053062F9F62666 /* LlamaRuntime.swift */,
 				48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */,
+				4D18688358A83B5E07FCE969 /* OnDeviceMLPolicy.swift */,
 			);
 			path = Native;
 			sourceTree = "<group>";
@@ -890,6 +893,7 @@
 				4A33F6063D6D74A7641F78C6 /* OcrGroundingValidator.swift in Sources */,
 				45027B6BC73D7C19280909FB /* OcrLayoutSerializer.swift in Sources */,
 				7ED23D6DEF9EF64395D1DE4E /* OnDeviceFieldMapper.swift in Sources */,
+				67CF64E9BEFCDD017B36FA0E /* OnDeviceMLPolicy.swift in Sources */,
 				5B5A1C4B293EB9863F366652 /* OnDeviceMemoryGuard.swift in Sources */,
 				E25956FBDBF5EC811EF5C5D9 /* OpenVocabularyFieldExtractor.swift in Sources */,
 				71520BD3631EC4F282DDE360 /* PassportParser.swift in Sources */,
@@ -1119,7 +1123,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 42;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
@@ -1158,7 +1162,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 41;
+				CURRENT_PROJECT_VERSION = 42;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",

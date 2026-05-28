@@ -42,6 +42,9 @@ extension CoreBridgeService {
             var trace = ["ocr:vision.en.v1", "llm:skipped:\(OnDeviceMemoryGuard.skipTraceToken)"]
             if !runOnDeviceLLM {
                 trace.append("llm:phase:ocr_preview")
+                if OnDeviceMLPolicy.requiresManualExtractionTrigger {
+                    trace.append("llm:policy:manual_trigger_required")
+                }
             }
             trace.append("storage:deferred:scan_review")
             let emptyGraph = DocumentKnowledgeGraph.buildIdentityGraph(
@@ -49,7 +52,12 @@ extension CoreBridgeService {
                 documentType: "other"
             )
             var notice: String?
-            if runOnDeviceLLM, GenAISettings.provider == .onDevice {
+            if !runOnDeviceLLM,
+               GenAISettings.provider == .onDevice,
+               OnDeviceMLPolicy.requiresManualExtractionTrigger
+            {
+                notice = OnDeviceMLPolicy.manualExtractionExplanation
+            } else if runOnDeviceLLM, GenAISettings.provider == .onDevice {
                 notice = OnDeviceMemoryGuard.userFacingSkipNotice
             }
             return ScanReviewEnrichment(
