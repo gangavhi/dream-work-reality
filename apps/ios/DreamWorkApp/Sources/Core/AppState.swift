@@ -19,8 +19,13 @@ final class AppState: ObservableObject {
     @Published private(set) var isImportingDocument = false
     @Published var documentImportMessage: String?
     @Published var scanReviewPayload: ScanReviewPayload?
+    @Published private(set) var isRunningOnDeviceExtraction = false
     @Published var showDocumentScanner = false
     @Published var showFileImporter = false
+
+    private var pendingScanDocument: VisionOcrAdapter.NormalizedDocument?
+    private var pendingScanPageCount: Int = 0
+    private var pendingScanBlockCount: Int = 0
 
     private let coreService: CoreBridgeService
 
@@ -129,6 +134,10 @@ final class AppState: ObservableObject {
         pageCount: Int,
         blockCount: Int
     ) async {
+        pendingScanDocument = document
+        pendingScanPageCount = pageCount
+        pendingScanBlockCount = blockCount
+
         let preview = await coreService.enrichScanReview(
             document: document,
             fileURL: fileURL,
@@ -141,14 +150,26 @@ final class AppState: ObservableObject {
         )
 
         guard GenAISettings.provider == .onDevice,
+              OnDeviceMLPolicy.allowsAutomaticInferenceOnScan,
               OnDeviceMemoryGuard.mayRunHeavyInference()
         else {
             return
         }
 
+        await runOnDeviceExtractionForCurrentScan()
+    }
+
+    /// User-initiated on-device extraction (safe default on physical iPhone).
+    func runOnDeviceExtractionForCurrentScan() async {
+        guard let document = pendingScanDocument else { return }
+        guard GenAISettings.provider == .onDevice else { return }
+        guard !isRunningOnDeviceExtraction else { return }
+
+        isRunningOnDeviceExtraction = true
+        defer { isRunningOnDeviceExtraction = false }
+
         let enrichment = await coreService.enrichScanReview(
             document: document,
-            fileURL: fileURL,
             runOnDeviceLLM: true
         )
         guard scanReviewPayload != nil else { return }
@@ -161,10 +182,16 @@ final class AppState: ObservableObject {
 
         applyScanReviewEnrichment(
             enrichment,
-            pageCount: pageCount,
-            blockCount: blockCount,
+            pageCount: pendingScanPageCount,
+            blockCount: pendingScanBlockCount,
             classificationSignals: signals
         )
+    }
+
+    func clearPendingScanSession() {
+        pendingScanDocument = nil
+        pendingScanPageCount = 0
+        pendingScanBlockCount = 0
     }
 
     private func applyScanReviewEnrichment(
