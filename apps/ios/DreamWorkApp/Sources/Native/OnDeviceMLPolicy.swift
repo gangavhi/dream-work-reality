@@ -30,6 +30,9 @@ enum OnDeviceMLPolicy {
 
     static let manualExtractionButtonTitle = "Extract fields on this device"
 
+    static let manualExtractionExplanationWhenFieldsPresent =
+        "Basic field mapping ran on this device. Tap below to run the full local model for additional fields, or edit values manually."
+
     static let manualExtractionExplanation =
-        "On iPhone, on-device AI does not start automatically after a scan because loading the local model can exceed available memory and crash the app. Tap the button below when you want to run extraction, or enter fields manually."
+        "On iPhone, the full on-device AI model does not start automatically after a scan because loading it can exceed available memory and crash the app. Basic field mapping still runs on device. Tap the button below for deeper extraction, or enter fields manually."
 }

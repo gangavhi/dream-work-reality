@@ -19,6 +19,19 @@ targets:
       Release: DreamWorkApp/RustCore.xcconfig
     sources:
       - path: DreamWorkApp/Sources
+      - path: Vendor/onnxruntime-bindings
+        excludes:
+          - docs
+          - test
+          - format_objc.sh
+          - ReadMe.md
+          - ort_checkpoint.mm
+          - ort_checkpoint_internal.h
+          - ort_training_session.mm
+          - ort_training_session_internal.h
+          - include/ort_checkpoint.h
+          - include/ort_training_session.h
+          - include/onnxruntime_training.h
       # Raw .xcassets is not copied into the .app.
       - path: DreamWorkApp/Resources/Assets.xcassets
         buildPhase: none
@@ -38,6 +51,8 @@ targets:
         script: |
           /bin/sh "${SRCROOT}/DreamWorkApp/Scripts/build_rust_core.sh"
     dependencies:
+      - framework: Vendor/onnxruntime.xcframework
+        embed: false
       - framework: Vendor/llama.xcframework
         embed: true
         codeSign: true
@@ -54,7 +69,23 @@ targets:
           REQUIRED_MODELS=(
             "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
           )
+          ONNX_MODELS=(
+            "minilm_field_embed_int8.onnx"
+            "minilm_tokenizer.json"
+          )
           if [[ "${CONFIGURATION}" != "Release" || "${PLATFORM_NAME}" != "iphoneos" ]]; then
+            echo "Embedding ONNX field mapper for ${CONFIGURATION}/${PLATFORM_NAME}"
+            mkdir -p "${DEST_DIR}"
+            for model in "${ONNX_MODELS[@]}"; do
+              src="${SOURCE_DIR}/${model}"
+              if [[ ! -f "${src}" ]]; then
+                echo "error: required ONNX field mapper missing: ${src}" >&2
+                echo "Run apps/ios/scripts/download-minilm-onnx-model.sh before building." >&2
+                exit 1
+              fi
+              echo "Embedding ONNX artifact ${model}"
+              rsync -a "${src}" "${DEST_DIR}/${model}"
+            done
             echo "Skipping GGUF model embedding for ${CONFIGURATION}/${PLATFORM_NAME}"
             exit 0
           fi
@@ -71,6 +102,16 @@ targets:
               exit 1
             fi
             echo "Embedding local ML model ${model}"
+            rsync -a "${src}" "${DEST_DIR}/${model}"
+          done
+          for model in "${ONNX_MODELS[@]}"; do
+            src="${SOURCE_DIR}/${model}"
+            if [[ ! -f "${src}" ]]; then
+              echo "error: required ONNX field mapper missing: ${src}" >&2
+              echo "Run apps/ios/scripts/download-minilm-onnx-model.sh before archiving." >&2
+              exit 1
+            fi
+            echo "Embedding ONNX artifact ${model}"
             rsync -a "${src}" "${DEST_DIR}/${model}"
           done
       - name: Compile Asset Catalog (AppIcon)
@@ -127,14 +168,35 @@ targets:
             echo "error: ${ICON_120} missing after actool — upload will fail with missing 120×120 icon. Ensure BundleAppIcons is in Copy Bundle Resources and the post-build actool phase runs." >&2
             exit 1
           fi
+      - name: Sign Embedded Frameworks
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          APP="${CODESIGNING_FOLDER_PATH:-${TARGET_BUILD_DIR}/${FULL_PRODUCT_NAME}}"
+          if [[ ! -d "${APP}/Frameworks" ]]; then
+            exit 0
+          fi
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:-}"
+          if [[ -z "${IDENTITY}" || "${IDENTITY}" == "-" ]]; then
+            exit 0
+          fi
+          /bin/sh "${SRCROOT}/scripts/sign-embedded-frameworks.sh" "${APP}" "${IDENTITY}"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
+        SWIFT_OBJC_BRIDGING_HEADER: DreamWorkApp/Sources/DreamWorkApp-Bridging-Header.h
+        CLANG_CXX_LANGUAGE_STANDARD: gnu++17
+        GCC_PREPROCESSOR_DEFINITIONS:
+          - "$(inherited)"
+          - SPM_BUILD=1
+        HEADER_SEARCH_PATHS:
+          - "$(inherited)"
+          - "$(SRCROOT)/Vendor/onnxruntime-bindings/include"
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "42"
+        CURRENT_PROJECT_VERSION: "47"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

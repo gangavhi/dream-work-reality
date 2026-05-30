@@ -23,6 +23,10 @@ struct ScanReviewPayload: Identifiable {
     let identityGraph: StructuredIdentityGraph
     let autofillPayload: SmartAutofillPayload
     let pipelineTrace: [String]
+    /// Numbered OCR blocks (same format fed to on-device models).
+    let ocrModelInput: String
+    /// Label→value pairs detected from layout (input to field mapping).
+    let ocrLabelValuePairs: String
     /// Pre-filled profile from DL barcode/OCR/GenAI when creating a new household member.
     let prefilledPerson: PersonRecord?
 

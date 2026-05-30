@@ -64,6 +64,10 @@ enum BundledModelStore {
         artifactPath(artifactID: "sql.storage.planner.v1")
     }
 
+    static func fieldEmbedderOnnxPath() -> String? {
+        artifactPath(artifactID: "embed.minilm.v1")
+    }
+
     static func installStatusMessage() -> String {
         if liteArtifactPath() != nil,
            documentClassifierArtifactPath() != nil,

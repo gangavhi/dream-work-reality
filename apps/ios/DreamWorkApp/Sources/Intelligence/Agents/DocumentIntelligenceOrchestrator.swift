@@ -18,11 +18,14 @@ enum DocumentIntelligenceOrchestrator {
         let autofillPayload: SmartAutofillPayload
         let fraudFindings: [FraudDetectionAgent.Finding]
         let pipelineTrace: [String]
+        let ocrModelInput: String
+        let ocrLabelValuePairs: String
     }
 
     static func process(
         document: VisionOcrAdapter.NormalizedDocument,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        allowHeavyLLM: Bool = true
     ) async -> Result {
         var trace: [String] = ["ocr:vision.en.v1"]
 
@@ -60,7 +63,8 @@ enum DocumentIntelligenceOrchestrator {
             schemaKeys: schemaKeys,
             classification: classification,
             templateMatch: templateMatch,
-            strategy: strategy
+            strategy: strategy,
+            allowHeavyLLM: allowHeavyLLM
         )
         if extraction.usedTemplateExtractor {
             trace.append("extract:template")
@@ -135,6 +139,10 @@ enum DocumentIntelligenceOrchestrator {
         )
         trace.append("memory:vector_index")
 
+        let labelValuePairsText = layout.labelValuePairs
+            .map { "\($0.label) → \($0.value)" }
+            .joined(separator: "\n")
+
         return Result(
             layoutText: layout.layoutText,
             plainText: layout.plainText,
@@ -150,7 +158,9 @@ enum DocumentIntelligenceOrchestrator {
             identityGraph: identityGraph,
             autofillPayload: identityGraph.autofillPayload,
             fraudFindings: [],
-            pipelineTrace: trace
+            pipelineTrace: trace,
+            ocrModelInput: layout.modelInput,
+            ocrLabelValuePairs: labelValuePairsText
         )
     }
 

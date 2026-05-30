@@ -15,7 +15,7 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// General-purpose ingest: layout OCR → on-device LLM (when enabled) → validators → Rust FFI.
+    /// General-purpose ingest: layout OCR → ONNX field mapping (always on device) → optional GGUF → validators → Rust FFI.
     /// Storage ML is deferred during scan review to avoid loading a second GGUF on device (jetsam).
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
@@ -26,40 +26,20 @@ extension CoreBridgeService {
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
 
-        let shouldRunLLM = runOnDeviceLLM
-            && GenAISettings.provider == .onDevice
-            && OnDeviceMemoryGuard.mayRunHeavyInference()
+        let shouldRunOnDevicePipeline = GenAISettings.provider == .onDevice
+        let allowHeavyLLM = runOnDeviceLLM && OnDeviceMemoryGuard.mayRunHeavyInference()
 
-        let extracted: DocumentIntelligencePipeline.Result
-        if shouldRunLLM {
-            extracted = await Task.detached(priority: .utility) {
-                await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
-            }.value
-            LlamaRuntime.releaseCachedModel()
-        } else {
+        guard shouldRunOnDevicePipeline else {
             let layoutText = OcrLayoutSerializer.serialize(document: document)
             let plainText = layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
-            var trace = ["ocr:vision.en.v1", "llm:skipped:\(OnDeviceMemoryGuard.skipTraceToken)"]
-            if !runOnDeviceLLM {
-                trace.append("llm:phase:ocr_preview")
-                if OnDeviceMLPolicy.requiresManualExtractionTrigger {
-                    trace.append("llm:policy:manual_trigger_required")
-                }
-            }
-            trace.append("storage:deferred:scan_review")
+            let blocks = OcrLayoutSerializer.orderedBlocks(from: document)
+            let labelValuePairsText = OcrLayoutSerializer.labelValuePairs(from: blocks)
+                .map { "\($0.label) → \($0.value)" }
+                .joined(separator: "\n")
             let emptyGraph = DocumentKnowledgeGraph.buildIdentityGraph(
                 from: [],
                 documentType: "other"
             )
-            var notice: String?
-            if !runOnDeviceLLM,
-               GenAISettings.provider == .onDevice,
-               OnDeviceMLPolicy.requiresManualExtractionTrigger
-            {
-                notice = OnDeviceMLPolicy.manualExtractionExplanation
-            } else if runOnDeviceLLM, GenAISettings.provider == .onDevice {
-                notice = OnDeviceMemoryGuard.userFacingSkipNotice
-            }
             return ScanReviewEnrichment(
                 understanding: nil,
                 personResolution: nil,
@@ -69,13 +49,26 @@ extension CoreBridgeService {
                 displayDocumentType: .other,
                 openDocumentTypeLabel: "Document",
                 plainText: plainText,
-                mappingNotice: notice,
+                mappingNotice: nil,
                 usedMachineReadablePayload: false,
                 usedHeuristicFallback: false,
                 identityGraph: emptyGraph,
                 autofillPayload: emptyGraph.autofillPayload,
-                pipelineTrace: trace
+                pipelineTrace: ["ocr:vision.en.v1", "extract:skipped:provider_off", "storage:deferred:scan_review"],
+                ocrModelInput: OcrLayoutSerializer.modelInput(document: document),
+                ocrLabelValuePairs: labelValuePairsText
             )
+        }
+
+        let extracted = await Task.detached(priority: .utility) {
+            await DocumentIntelligencePipeline.extract(
+                document: document,
+                fileURL: fileURL,
+                allowHeavyLLM: allowHeavyLLM
+            )
+        }.value
+        if allowHeavyLLM {
+            LlamaRuntime.releaseCachedModel()
         }
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
@@ -90,6 +83,31 @@ extension CoreBridgeService {
         var mappingNotice = extracted.mappingNotice
         var storagePlan: StoragePlanSuggestion?
         var pipelineTrace = extracted.pipelineTrace
+
+        if !runOnDeviceLLM {
+            pipelineTrace.append("llm:phase:ocr_preview")
+            if OnDeviceMLPolicy.requiresManualExtractionTrigger {
+                pipelineTrace.append("llm:policy:manual_trigger_required")
+                pipelineTrace.append("llm:heavy:deferred:user_trigger")
+                if suggestions.isEmpty {
+                    mappingNotice = [
+                        mappingNotice,
+                        OnDeviceMLPolicy.manualExtractionExplanation
+                    ].compactMap { $0 }.joined(separator: "\n")
+                } else {
+                    mappingNotice = [
+                        mappingNotice,
+                        OnDeviceMLPolicy.manualExtractionExplanationWhenFieldsPresent
+                    ].compactMap { $0 }.joined(separator: "\n")
+                }
+            }
+        } else if !allowHeavyLLM {
+            pipelineTrace.append("llm:heavy:skipped:\(OnDeviceMemoryGuard.skipTraceToken)")
+            mappingNotice = [
+                mappingNotice,
+                OnDeviceMemoryGuard.userFacingSkipNotice
+            ].compactMap { $0 }.joined(separator: "\n")
+        }
 
         if runStoragePipeline {
             let planPersonID: String? = {
@@ -159,7 +177,9 @@ extension CoreBridgeService {
             usedHeuristicFallback: extracted.usedHeuristicFallback,
             identityGraph: identityGraph,
             autofillPayload: identityGraph.autofillPayload,
-            pipelineTrace: pipelineTrace
+            pipelineTrace: pipelineTrace,
+            ocrModelInput: extracted.ocrModelInput,
+            ocrLabelValuePairs: extracted.ocrLabelValuePairs
         )
     }
 

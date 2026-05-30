@@ -11,11 +11,13 @@ struct ScanReviewView: View {
     @State private var originalValues: [String: String] = [:]
     @State private var editingFieldKey: String?
     @State private var saveMessage: String?
+    @State private var showOcrRaw = true
 
     var body: some View {
         NavigationStack {
             List {
                 documentSummarySection
+                ocrRawSection
                 onDeviceExtractionSection
                 if shouldShowTelemetry {
                     telemetrySection
@@ -112,7 +114,9 @@ struct ScanReviewView: View {
                         Task { await appState.runOnDeviceExtractionForCurrentScan() }
                     }
                 }
-                if payload.suggestions.isEmpty {
+                if payload.suggestions.isEmpty,
+                   payload.mappingNotice?.isEmpty ?? true
+                {
                     Text(OnDeviceMLPolicy.manualExtractionExplanation)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -150,6 +154,56 @@ struct ScanReviewView: View {
         } header: {
             Text("Document")
         }
+    }
+
+    @ViewBuilder
+    private var ocrRawSection: some View {
+        Section {
+            DisclosureGroup("Show OCR raw text", isExpanded: $showOcrRaw) {
+                Text("\(payload.pageCount) page(s), \(payload.ocrBlockCount) text block(s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if payload.ocrLabelValuePairs.isEmpty {
+                    Text("No label→value pairs detected from layout. Mapping relies on inline lines like “DOB: 03/15/1985”.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else {
+                    ocrDebugSubsection(
+                        title: "Label → value pairs (mapping input)",
+                        body: payload.ocrLabelValuePairs
+                    )
+                }
+
+                ocrDebugSubsection(
+                    title: "Reading order (raw lines)",
+                    body: payload.fullText.isEmpty ? "(no text detected)" : payload.fullText
+                )
+
+                ocrDebugSubsection(
+                    title: "Numbered OCR blocks",
+                    body: payload.ocrModelInput.isEmpty ? "(unavailable)" : payload.ocrModelInput
+                )
+            }
+        } header: {
+            Text("OCR raw")
+        } footer: {
+            Text("Use this to verify what Vision OCR captured and which label/value pairs the mapper received. Long-press to copy.")
+                .font(.caption)
+        }
+    }
+
+    private func ocrDebugSubsection(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(body)
+                .font(.caption2.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 4)
     }
 
     @ViewBuilder

@@ -34,11 +34,21 @@ enum LayoutIntelligenceAgent {
                 return nil
             }
         }()
-        let pairs = inference?.pairs ?? []
+        let pairs: [OcrLayoutSerializer.LabelValuePair] = {
+            if let inference, !inference.pairs.isEmpty {
+                return inference.pairs
+            }
+            return OcrLayoutSerializer.labelValuePairs(from: blocks)
+        }()
         let engineID: String = {
             switch modelState {
-            case .installed: return inference?.status ?? "\(ModelArtifactSlot.layoutLM.rawValue):failed:no_result"
-            default: return "layout.model_missing"
+            case .installed:
+                if let inference, !inference.pairs.isEmpty {
+                    return inference.status ?? ModelArtifactSlot.layoutLM.rawValue
+                }
+                return "layout.heuristic_pairs:\(pairs.count)"
+            default:
+                return pairs.isEmpty ? "layout.heuristic_pairs:0" : "layout.heuristic_pairs:\(pairs.count)"
             }
         }()
 
