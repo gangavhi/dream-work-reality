@@ -33,7 +33,9 @@ enum ModelArtifactSlot: String, CaseIterable, Identifiable {
     var runtimeKind: ModelRuntimeKind {
         switch self {
         case .visionOCR: return .appleVision
-        case .paddleOCR, .layoutLM, .nerDistilBERT, .fieldEmbedder, .fraudDetector:
+        case .fieldEmbedder:
+            return .onnx
+        case .paddleOCR, .layoutLM, .nerDistilBERT, .fraudDetector:
             return .coreML
         case .documentClassifier, .generativeLLM, .storagePlanner, .visionLanguage:
             return .ggufMetal
@@ -44,6 +46,7 @@ enum ModelArtifactSlot: String, CaseIterable, Identifiable {
 enum ModelRuntimeKind: String {
     case appleVision
     case coreML
+    case onnx
     case ggufMetal
     case heuristicFallback
 }
@@ -76,7 +79,12 @@ enum ModelArtifactRegistry {
                 return .installed(path: path)
             }
             return .notInstalled
-        case .fieldEmbedder, .nerDistilBERT, .layoutLM, .paddleOCR, .fraudDetector, .visionLanguage:
+        case .fieldEmbedder:
+            if let path = BundledModelStore.fieldEmbedderOnnxPath() {
+                return .installed(path: path)
+            }
+            return .notInstalled
+        case .nerDistilBERT, .layoutLM, .paddleOCR, .fraudDetector, .visionLanguage:
             if let path = bundledCoreMLPath(for: slot) {
                 return .installed(path: path)
             }

@@ -47,6 +47,10 @@ if ! command -v xcodegen >/dev/null 2>&1; then
   exit 1
 fi
 
+echo "==> install ONNX Runtime xcframework (App Store signable)"
+chmod +x "${SCRIPT_DIR}/install-onnxruntime-xcframework.sh"
+"${SCRIPT_DIR}/install-onnxruntime-xcframework.sh"
+
 ARCHIVE="${IOS_DIR}/build/DreamWorkApp.xcarchive"
 EXPORT="${IOS_DIR}/build/ipa-export"
 PLIST_TEMPLATE="${IOS_DIR}/ExportOptions-ipa.plist"
@@ -94,6 +98,24 @@ FINAL_IPA="${IOS_DIR}/build/DreamWorkApp.ipa"
 mv -f "${IPA}" "${FINAL_IPA}"
 rm -rf "${ARCHIVE}" "${EXPORT}" "${EXPORT_PLIST}"
 
+echo "==> verify ONNX Runtime is statically linked (not embedded)"
+VERIFY_TMP="$(mktemp -d)"
+unzip -q "${FINAL_IPA}" -d "${VERIFY_TMP}"
+VERIFY_APP="${VERIFY_TMP}/Payload/DreamWorkApp.app"
+if [[ -d "${VERIFY_APP}/Frameworks/onnxruntime.framework" ]]; then
+  echo "error: onnxruntime.framework must not be embedded — it is a static library" >&2
+  rm -rf "${VERIFY_TMP}"
+  exit 1
+fi
+if ! otool -L "${VERIFY_APP}/DreamWorkApp" 2>/dev/null | grep -q onnxruntime; then
+  if ! nm "${VERIFY_APP}/DreamWorkApp" 2>/dev/null | grep -q Ort; then
+    echo "warning: could not confirm ORT symbols in main binary (may still be linked)" >&2
+  fi
+fi
+codesign --verify --deep --strict --verbose=2 "${VERIFY_APP}"
+rm -rf "${VERIFY_TMP}"
+echo "OK: no unsigned onnxruntime.framework in bundle; app signature valid"
+
 echo ""
 echo "Done."
 echo "  IPA (upload this file only): ${FINAL_IPA}"
@@ -101,5 +123,10 @@ echo ""
 echo "Verify before upload:"
 echo "  ${SCRIPT_DIR}/verify-ipa-icons.sh ${FINAL_IPA}"
 echo ""
-echo "Next: Open Transporter (Mac), sign in, and deliver the .ipa above."
+if [[ -d "/Applications/Transporter.app" ]]; then
+  echo "Opening Transporter — sign in and click Deliver."
+  open -a Transporter "${FINAL_IPA}"
+else
+  echo "Next: Open Transporter (Mac App Store), sign in, and deliver the .ipa above."
+fi
 echo "Then App Store Connect → TestFlight → Internal Testing → add testers."

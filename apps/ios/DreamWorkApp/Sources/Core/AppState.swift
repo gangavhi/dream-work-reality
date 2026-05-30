@@ -227,6 +227,8 @@ final class AppState: ObservableObject {
             identityGraph: enrichment.identityGraph,
             autofillPayload: enrichment.autofillPayload,
             pipelineTrace: enrichment.pipelineTrace,
+            ocrModelInput: enrichment.ocrModelInput,
+            ocrLabelValuePairs: enrichment.ocrLabelValuePairs,
             prefilledPerson: nil
         )
     }

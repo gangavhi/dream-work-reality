@@ -8,6 +8,10 @@ enum SemanticFieldLabelMapper {
         let isExtension: Bool
     }
 
+    static let synonymGroupsForEmbedding: [(profileKey: String, phrases: [String])] = synonymGroups.map {
+        (profileKey: $0.profileKey, phrases: $0.keys)
+    }
+
     private static let synonymGroups: [(keys: [String], profileKey: String)] = [
         (["surname", "family name", "last name", "familyname", "sur name"], ProfileFieldKey.legalLastName),
         (["given name", "given names", "first name", "forename", "legal name", "legal first"], ProfileFieldKey.legalFirstName),
@@ -54,6 +58,12 @@ enum SemanticFieldLabelMapper {
         }
 
         if let key = canonicalKey(for: trimmedLabel) {
+            let display = ProfileSchema.definition(for: key)?.label
+                ?? ProfileSchema.label(forExtensionKey: key)
+            return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
+        }
+
+        if let key = OnnxFieldLabelMapper.canonicalKey(for: trimmedLabel) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))

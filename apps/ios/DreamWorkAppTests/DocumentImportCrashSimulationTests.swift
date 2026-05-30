@@ -82,12 +82,17 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
 
         let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
         XCTAssertTrue(preview.pipelineTrace.contains("llm:policy:manual_trigger_required"))
-        XCTAssertFalse(preview.usedAI)
+        XCTAssertTrue(preview.pipelineTrace.contains("llm:heavy:deferred:user_trigger"))
+        XCTAssertFalse(preview.pipelineTrace.contains { $0.contains("gguf") })
+
+        if MiniLMOnnxFieldEmbedder.shared.isAvailable {
+            XCTAssertFalse(preview.suggestions.isEmpty, "ONNX preview should map label/value pairs on device")
+        }
 
         XCTAssertFalse(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
     }
 
-    func testMemoryPressureBlocksLLMLikePhysicalDevice() async throws {
+    func testMemoryPressureBlocksHeavyLLMLikePhysicalDevice() async throws {
         OnDeviceMemoryGuard.testTreatSimulatorLikeDevice = true
         OnDeviceMemoryGuard.testForceLowMemory = true
         defer { OnDeviceMemoryGuard.testForceLowMemory = false }
@@ -97,9 +102,9 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
         let bridge = RustCoreBridgeService()
         let doc = syntheticNormalizedDocument()
         let result = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: true)
-        XCTAssertFalse(result.usedAI)
         XCTAssertTrue(
-            result.pipelineTrace.contains { $0.contains("llm:skipped:available_memory_low") }
+            result.pipelineTrace.contains { $0.contains("llm:heavy:skipped:available_memory_low") }
+                || result.pipelineTrace.contains { $0.contains("llm:heavy:deferred:available_memory_low") }
         )
     }
 

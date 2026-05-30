@@ -18,15 +18,19 @@ enum DocumentIntelligencePipeline {
         let autofillPayload: SmartAutofillPayload
         let fraudFindings: [FraudDetectionAgent.Finding]
         let pipelineTrace: [String]
+        let ocrModelInput: String
+        let ocrLabelValuePairs: String
     }
 
     static func extract(
         document: VisionOcrAdapter.NormalizedDocument,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        allowHeavyLLM: Bool = true
     ) async -> Result {
         let orchestrated = await DocumentIntelligenceOrchestrator.process(
             document: document,
-            fileURL: fileURL
+            fileURL: fileURL,
+            allowHeavyLLM: allowHeavyLLM
         )
         return Result(
             layoutText: orchestrated.layoutText,
@@ -43,7 +47,9 @@ enum DocumentIntelligencePipeline {
             identityGraph: orchestrated.identityGraph,
             autofillPayload: orchestrated.autofillPayload,
             fraudFindings: orchestrated.fraudFindings,
-            pipelineTrace: orchestrated.pipelineTrace
+            pipelineTrace: orchestrated.pipelineTrace,
+            ocrModelInput: orchestrated.ocrModelInput,
+            ocrLabelValuePairs: orchestrated.ocrLabelValuePairs
         )
     }
 }

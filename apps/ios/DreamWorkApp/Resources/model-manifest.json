@@ -26,6 +26,14 @@
       "download_url": "https://huggingface.co/saadxsalman/SS-350M-SQL-Strict-GGUF/resolve/main/SS-350M-SQL-Strict.Q8_0.gguf"
     },
     {
+      "artifact_id": "embed.minilm.v1",
+      "filename": "minilm_field_embed_int8.onnx",
+      "description": "sentence-transformers/all-MiniLM-L6-v2 INT8 ONNX — label→profile_key semantic field mapper (~23 MB)",
+      "bytes_approx": 23000000,
+      "sha256": "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+      "download_url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model_int8.onnx"
+    },
+    {
       "artifact_id": "layoutlmv3.v1",
       "filename": "layoutlmv3.mlmodelc",
       "description": "HYPJUDY/layoutlmv3-base-finetuned-funsd — model-based document layout/form understanding after CoreML conversion",
