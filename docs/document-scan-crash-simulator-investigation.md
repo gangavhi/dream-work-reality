@@ -162,6 +162,21 @@ cp ~/Library/Application\ Support/DreamWork/models/Qwen2.5-0.5B-Instruct-Q4_K_M.
 
 ---
 
+## Measured memory timeline (iPhone 17 Pro Simulator)
+
+From `testPostUploadPipelineTimelineLogsMemoryAtEachPhase`:
+
+```text
+0_import_start:        mem avail=6144.0MB  resident=289.3MB   llm_allowed=true
+1_after_ocr_and_sqlite: mem avail=6144.0MB  resident=1170.6MB  llm_allowed=true
+2_after_ocr_only:       mem avail=6144.0MB  resident=1129.4MB  llm_allowed=true
+3_llm_skipped:          no GGUF in simulator app container (+380MB estimated if loaded)
+```
+
+**Takeaway:** OCR alone added **~880 MB resident** on a single synthetic image. On iPhone, available memory after OCR is often **far below 6144 MB**; adding **~380 MB GGUF + llama context** triggers jetsam. Simulator `avail` stays flat, so crashes are easy to miss without device policy tests or a physical device.
+
+---
+
 ## Current mitigation (build 42)
 
 | Control | File |
