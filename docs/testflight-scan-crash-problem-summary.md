@@ -124,10 +124,9 @@ Until then, **manual extract on iPhone is the recommended production behavior.**
 
 ## Related documentation
 
-- [testflight-crash-fixes-build-36-42.md](./testflight-crash-fixes-build-36-42.md) — detailed changelog per build, files, checklist, deliver steps
-- [local-ml-only-pipeline-implementation.md](./local-ml-only-pipeline-implementation.md) — ML-only pipeline design
-- [current-state-gguf-layout-schema-telemetry.md](./current-state-gguf-layout-schema-telemetry.md) — GGUF / llama integration
-
+- [testflight-scan-crash-problem-summary.md](./testflight-scan-crash-problem-summary.md) — problem summary
+- [document-scan-crash-simulator-investigation.md](./document-scan-crash-simulator-investigation.md) — simulator reproduction, post-upload flow, measured memory timeline
+- [testflight-crash-fixes-build-36-42.md](./testflight-crash-fixes-build-36-42.md) — per-build fix log
 ---
 
 ## Git reference (crash-fix commits)

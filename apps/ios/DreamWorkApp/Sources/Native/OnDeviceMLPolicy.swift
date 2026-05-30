@@ -5,8 +5,18 @@ import Foundation
 /// TestFlight crashes traced to automatic llama inference during scan (jetsam + native batch
 /// pressure). On real devices we only run the model when the user explicitly requests it.
 enum OnDeviceMLPolicy {
+    #if DEBUG
+    /// When true, simulator follows the physical-iPhone policy (no automatic LLM after scan).
+    static var testSimulatePhysicalIPhone = false
+    #endif
+
     /// Simulator/dev may still auto-run for faster iteration.
     static var allowsAutomaticInferenceOnScan: Bool {
+        #if DEBUG
+        if testSimulatePhysicalIPhone {
+            return false
+        }
+        #endif
         #if targetEnvironment(simulator)
         return true
         #else
