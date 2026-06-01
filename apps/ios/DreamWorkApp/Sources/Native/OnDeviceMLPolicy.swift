@@ -17,9 +17,18 @@ enum OnDeviceMLPolicy {
         return GenAISettings.provider == .onDevice
     }
 
-    /// Show manual extraction when auto GGUF may be skipped (low memory) or for a second pass.
-    static var requiresManualExtractionTrigger: Bool {
-        GenAISettings.provider == .onDevice
+    /// Show manual retry only when automatic full pipeline could not run or produced no fields.
+    static func shouldShowManualExtractionRetry(
+        heavyLLMDeferred: Bool,
+        suggestionsEmpty: Bool
+    ) -> Bool {
+        guard GenAISettings.provider == .onDevice else { return false }
+        #if DEBUG
+        if testSimulatePhysicalIPhone {
+            return true
+        }
+        #endif
+        return heavyLLMDeferred || suggestionsEmpty
     }
 
     static let manualExtractionButtonTitle = "Run full on-device extraction"

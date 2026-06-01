@@ -77,14 +77,26 @@ enum ExtractionAgent {
             from: payloadHints,
             plainOCRText: layout.layoutText
         )
+        let specialized = SpecializedDocumentExtractors.suggestions(
+            layout: layout,
+            openDocumentType: documentTypeHint,
+            classification: classification
+        )
         let onnxSuggestions = OpenVocabularyFieldExtractor.suggestions(
             from: layout,
             documentTypeHint: documentTypeHint
         )
         var suggestions = CoreIngestHTTPClient.mergeSuggestions(
             trusted: machineReadable.suggestions,
+            supplemental: specialized
+        )
+        suggestions = CoreIngestHTTPClient.mergeSuggestions(
+            trusted: suggestions,
             supplemental: onnxSuggestions
         )
+        if !specialized.isEmpty {
+            runtimeStatus = "known_fast:specialized:\(specialized.count)"
+        }
 
         if !onnxSuggestions.isEmpty {
             usedSemanticExtractor = true
@@ -97,7 +109,10 @@ enum ExtractionAgent {
             runtimeStatus = "known_fast:onnx:\(OnnxFieldLabelMapper.runtimeStatus()):no_pairs_mapped"
         }
 
-        if suggestions.count < 2, allowHeavyLLM, OnDeviceMemoryGuard.mayRunHeavyInference() {
+        if needsMoreExtraction(suggestions, schemaKeys: schemaKeys),
+           allowHeavyLLM,
+           OnDeviceMemoryGuard.mayRunHeavyInference()
+        {
             if let mapped = OnDeviceFieldMapper.mapFields(
                 layoutText: layout.modelInput,
                 profileSchemaKeys: schemaKeys
@@ -110,7 +125,7 @@ enum ExtractionAgent {
             }
         }
 
-        if suggestions.count < 2, layout.labelValuePairs.count < 2 {
+        if needsMoreExtraction(suggestions, schemaKeys: schemaKeys) {
             let heuristic = UniversalDocumentParser.parse(from: layout.layoutText)
             if !heuristic.isEmpty {
                 suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: heuristic)
@@ -152,9 +167,19 @@ enum ExtractionAgent {
             from: payloadHints,
             plainOCRText: layout.layoutText
         )
-        var suggestions = machineReadable.suggestions
+        let specialized = SpecializedDocumentExtractors.suggestions(
+            layout: layout,
+            openDocumentType: openType,
+            classification: classification
+        )
+        var suggestions = CoreIngestHTTPClient.mergeSuggestions(
+            trusted: machineReadable.suggestions,
+            supplemental: specialized
+        )
         if !machineReadable.suggestions.isEmpty {
             runtimeStatus = "unknown_semantic:machine_readable:\(machineReadable.sources.joined(separator: ","))"
+        } else if !specialized.isEmpty {
+            runtimeStatus = "unknown_semantic:specialized:\(specialized.count)"
         }
 
         let onnxSuggestions = OpenVocabularyFieldExtractor.suggestions(
@@ -193,7 +218,7 @@ enum ExtractionAgent {
             runtimeStatus = "unknown_semantic:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)"
         }
 
-        if suggestions.count < 2 {
+        if needsMoreExtraction(suggestions, schemaKeys: schemaKeys) {
             let heuristic = UniversalDocumentParser.parse(from: layout.layoutText)
             if !heuristic.isEmpty {
                 suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: heuristic)
@@ -203,7 +228,7 @@ enum ExtractionAgent {
         }
 
         if case .installed = ModelArtifactRegistry.loadState(for: .visionLanguage),
-           suggestions.count < 2,
+           needsMoreExtraction(suggestions, schemaKeys: schemaKeys),
            allowHeavyLLM,
            OnDeviceMemoryGuard.mayRunHeavyInference()
         {
@@ -288,5 +313,14 @@ enum ExtractionAgent {
     private static func inferredDocumentType(from layout: LayoutIntelligenceAgent.LayoutDocument) -> String? {
         let inferred = ProfileSchemaKeysForDocument.inferOpenType(from: layout.layoutText + "\n" + layout.modelInput)
         return inferred == "other" ? nil : inferred
+    }
+
+    /// Continue extraction until a reasonable fraction of document-specific schema keys are filled.
+    private static func needsMoreExtraction(_ suggestions: [OcrFieldSuggestion], schemaKeys: [String]) -> Bool {
+        let keys = schemaKeys.isEmpty ? ProfileSchema.allFields.map(\.key) : schemaKeys
+        guard !keys.isEmpty else { return suggestions.count < 4 }
+        let filled = Set(suggestions.map(\.profileKey)).intersection(keys).count
+        let target = max(4, Int(ceil(Double(keys.count) * 0.45)))
+        return filled < target
     }
 }

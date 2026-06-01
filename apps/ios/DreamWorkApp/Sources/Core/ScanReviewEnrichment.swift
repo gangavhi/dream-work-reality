@@ -54,4 +54,8 @@ struct ScanReviewEnrichment: Hashable {
     let ocrLabelValuePairs: String
     let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
     let fieldsRequiringReview: [String]
+    /// True when Qwen GGUF was skipped (memory/policy) but user may retry manually.
+    let heavyLLMDeferred: Bool
+    /// True when the scan ran the full on-device pipeline including GGUF when allowed.
+    let ranFullOnDevicePipeline: Bool
 }

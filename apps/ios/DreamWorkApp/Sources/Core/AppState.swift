@@ -138,25 +138,21 @@ final class AppState: ObservableObject {
         pendingScanPageCount = pageCount
         pendingScanBlockCount = blockCount
 
-        let preview = await coreService.enrichScanReview(
+        isRunningOnDeviceExtraction = GenAISettings.provider == .onDevice
+        defer { isRunningOnDeviceExtraction = false }
+
+        let runAutomaticFullPipeline = GenAISettings.provider == .onDevice
+            && OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
+        let enrichment = await coreService.enrichScanReview(
             document: document,
             fileURL: fileURL,
-            runOnDeviceLLM: false
+            runOnDeviceLLM: runAutomaticFullPipeline
         )
         applyScanReviewEnrichment(
-            preview,
+            enrichment,
             pageCount: pageCount,
             blockCount: blockCount
         )
-
-        guard GenAISettings.provider == .onDevice,
-              OnDeviceMLPolicy.allowsAutomaticInferenceOnScan,
-              OnDeviceMemoryGuard.mayRunHeavyInference()
-        else {
-            return
-        }
-
-        await runOnDeviceExtractionForCurrentScan()
     }
 
     /// User-initiated on-device extraction (safe default on physical iPhone).
@@ -231,7 +227,11 @@ final class AppState: ObservableObject {
             ocrLabelValuePairs: enrichment.ocrLabelValuePairs,
             standardizedOutput: enrichment.standardizedOutput,
             fieldsRequiringReview: enrichment.fieldsRequiringReview,
-            prefilledPerson: nil
+            prefilledPerson: nil,
+            showManualExtractionRetry: OnDeviceMLPolicy.shouldShowManualExtractionRetry(
+                heavyLLMDeferred: enrichment.heavyLLMDeferred,
+                suggestionsEmpty: enrichment.suggestions.isEmpty
+            )
         )
     }
 

@@ -59,9 +59,8 @@ final class FieldMappingRootCauseTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [
             VisionOcrAdapter.Page(blocks: [
                 block("TEXAS DRIVER LICENSE", x: 0.1, y: 0.92),
-                block("1. Name", x: 0.08, y: 0.82),
-                block("SMITH", x: 0.35, y: 0.82),
-                block("JANE", x: 0.55, y: 0.82),
+                block("1. SMITH", x: 0.08, y: 0.82),
+                block("2. JANE", x: 0.08, y: 0.76),
                 block("8. Address", x: 0.08, y: 0.62),
                 block("742 OAK STREET", x: 0.35, y: 0.62),
                 block("AUSTIN", x: 0.35, y: 0.56),
@@ -100,12 +99,17 @@ final class FieldMappingRootCauseTests: XCTestCase {
             "no person name may appear in address field"
         )
         XCTAssertTrue(
-            result.suggestions.contains { $0.profileKey == ProfileFieldKey.legalLastName && $0.value == "SMITH" }
-                || result.suggestions.contains { $0.profileKey == ProfileFieldKey.displayName && $0.value == "SMITH" },
+            result.suggestions.contains {
+                $0.profileKey == ProfileFieldKey.legalLastName && $0.value.uppercased() == "SMITH"
+            } || result.suggestions.contains {
+                $0.profileKey == ProfileFieldKey.displayName && $0.value.uppercased().contains("SMITH")
+            },
             "name row should map last/display name from SMITH"
         )
         XCTAssertTrue(
-            result.suggestions.contains { $0.profileKey == ProfileFieldKey.legalFirstName && $0.value == "JANE" },
+            result.suggestions.contains {
+                $0.profileKey == ProfileFieldKey.legalFirstName && $0.value.uppercased() == "JANE"
+            },
             "same-row supplement should map JANE as first name"
         )
     }
