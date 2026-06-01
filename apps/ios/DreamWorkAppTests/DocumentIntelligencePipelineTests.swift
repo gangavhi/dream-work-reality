@@ -42,6 +42,7 @@ final class DocumentIntelligencePipelineTests: XCTestCase {
         XCTAssertTrue(
             result.pipelineTrace.contains("classify:document.classifier.v1:classifier_skipped:provider_off")
                 || result.pipelineTrace.contains("classify:skipped:single_pass_parser")
+                || result.pipelineTrace.contains("classify:keyword:classifier_active:keyword")
         )
         XCTAssertTrue(result.pipelineTrace.contains("template:disabled:ml_only"))
         XCTAssertTrue(result.pipelineTrace.contains("extract:ml_failed"))

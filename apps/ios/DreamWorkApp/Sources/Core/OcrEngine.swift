@@ -101,6 +101,15 @@ enum OcrEngine {
         return mergeRecognizedLines(batches)
     }
 
+    /// Primary Vision OCR with optional PaddleOCR fallback when average block confidence is low.
+    static func recognizePageBlocksWithFallback(from cgImage: CGImage) async throws -> [VisionOcrAdapter.TextBlock] {
+        let visionBlocks = try await recognizePageBlocks(from: cgImage)
+        if let paddleBlocks = PaddleOcrAdapter.recognizePageBlocksIfNeeded(from: cgImage, visionBlocks: visionBlocks) {
+            return paddleBlocks
+        }
+        return visionBlocks
+    }
+
     private static func recognizeLines(
         on cgImage: CGImage,
         minimumTextHeight: Float,

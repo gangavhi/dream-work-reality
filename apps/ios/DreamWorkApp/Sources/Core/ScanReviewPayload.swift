@@ -27,6 +27,9 @@ struct ScanReviewPayload: Identifiable {
     let ocrModelInput: String
     /// Label→value pairs detected from layout (input to field mapping).
     let ocrLabelValuePairs: String
+    /// Standardized schema output (document-type-specific JSON fields + confidence).
+    let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
+    let fieldsRequiringReview: [String]
     /// Pre-filled profile from DL barcode/OCR/GenAI when creating a new household member.
     let prefilledPerson: PersonRecord?
 

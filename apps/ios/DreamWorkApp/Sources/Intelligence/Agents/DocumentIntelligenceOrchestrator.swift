@@ -20,6 +20,7 @@ enum DocumentIntelligenceOrchestrator {
         let pipelineTrace: [String]
         let ocrModelInput: String
         let ocrLabelValuePairs: String
+        let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
     }
 
     static func process(
@@ -29,32 +30,41 @@ enum DocumentIntelligenceOrchestrator {
     ) async -> Result {
         var trace: [String] = ["ocr:vision.en.v1"]
 
-        let payloadHints = EmbeddedPayloadHints.Result.empty
+        let layoutText = OcrLayoutSerializer.serialize(document: document)
+        let payloadHints = await EmbeddedPayloadHints.collect(fileURL: fileURL, layoutText: layoutText)
+        if !payloadHints.mrzLines.isEmpty {
+            trace.append("mrz:detected:\(payloadHints.mrzLines.count)")
+        }
+        if !payloadHints.barcodePayloads.isEmpty {
+            trace.append("barcode:detected:\(payloadHints.barcodePayloads.count)")
+        }
+
         let layout = LayoutIntelligenceAgent.analyze(document: document, payloadHints: payloadHints)
         trace.append("layout:\(layout.engineID)")
 
-        let classification: ClassificationAgent.Result
-        if GenAISettings.provider == .onDevice {
-            classification = ClassificationAgent.pendingParserClassification()
-            trace.append("classify:skipped:single_pass_parser")
-        } else {
-            classification = ClassificationAgent.classify(
-                modelInput: layout.modelInput,
-                mappedDocumentType: nil,
-                machineReadableSources: []
-            )
-            trace.append("classify:\(classification.engineID):\(classification.runtimeStatus)")
-        }
-        let schemaKeys: [String] = []
-        trace.append("schema_keys:generic:any")
+        let classification = LocalDocumentClassifier.classify(
+            layoutText: layout.layoutText,
+            modelInput: layout.modelInput,
+            payloadHints: payloadHints,
+            allowHeavyLLM: allowHeavyLLM
+        )
+        trace.append("classify:\(classification.engineID):\(classification.runtimeStatus)")
+
+        let schemaKeys = ProfileSchemaKeysForDocument.keys(
+            forOpenDocumentType: classification.openDocumentType,
+            fallbackToAll: true
+        )
+        trace.append("schema_keys:\(schemaKeys.count)")
 
         let templateMatch: DocumentTemplateAgent.Match? = nil
         trace.append("template:disabled:ml_only")
         let strategy = ExtractionStrategyAgent.determine(
             layout: layout,
             classification: classification,
+            payloadHints: payloadHints,
             templateMatch: templateMatch
         )
+        trace.append("route:\(strategy.route.rawValue)")
         trace.append("strategy:\(strategy.structure.rawValue)")
 
         let extraction = await ExtractionAgent.extract(
@@ -76,6 +86,10 @@ enum DocumentIntelligenceOrchestrator {
         if extraction.learnedSuggestionCount > 0 {
             trace.append("learning:applied:\(extraction.learnedSuggestionCount)")
         }
+        if extraction.usedHeuristicFallback {
+            trace.append("extract:heuristic_fallback")
+        }
+        trace.append("extract:route:\(extraction.extractionRoute.rawValue)")
         if let runtimeStatus = extraction.onDeviceRuntimeStatus {
             trace.append("runtime:\(runtimeStatus)")
         }
@@ -89,9 +103,11 @@ enum DocumentIntelligenceOrchestrator {
         }
 
         var mappingNotice: String?
-        if isClassifierFailure(resolvedClassification.runtimeStatus) {
+        if isClassifierFailure(resolvedClassification.runtimeStatus),
+           !resolvedClassification.runtimeStatus.hasPrefix("classifier_active:")
+        {
             mappingNotice =
-                "The local ML model meant for document type classification failed. No machine-readable or keyword classifier fallback was used; install the classifier model or scan again."
+                "Document type could not be classified with high confidence. Review detected fields before saving."
         }
         if let runtimeStatus = extraction.onDeviceRuntimeStatus,
            runtimeStatus.contains("memory_guard")
@@ -110,9 +126,52 @@ enum DocumentIntelligenceOrchestrator {
                 ].compactMap { $0 }.joined(separator: "\n")
         }
 
-        let suggestions = ProfileSchema.sortSuggestions(extraction.suggestions)
-        trace.append("validate:ml_only")
-        trace.append("confidence:model_output")
+        let suggestionsBeforeGrounding = ProfileSchema.sortSuggestions(extraction.suggestions)
+        let validation = DocumentValidationPipeline.validate(
+            suggestionsBeforeGrounding,
+            documentType: resolvedClassification.enumType,
+            ocrCorpus: layout.layoutText
+        )
+        if !validation.warnings.isEmpty {
+            trace.append("validate:pipeline:\(validation.warnings.joined(separator: "|"))")
+        }
+        if !validation.rejectedKeys.isEmpty {
+            trace.append("validate:rejected:\(validation.rejectedKeys.count)")
+        }
+        let grounded = validation.suggestions
+        if grounded.count < suggestionsBeforeGrounding.count {
+            trace.append("validate:grounding:filtered=\(suggestionsBeforeGrounding.count - grounded.count)")
+        } else {
+            trace.append("validate:grounding")
+        }
+        let mergedAddress = AddressFieldMerger.enrich(grounded, layout: layout)
+        if mergedAddress.count > grounded.count {
+            trace.append("address:merged:\(mergedAddress.count - grounded.count)")
+        }
+
+        let normalized = FieldNormalizationEngine.normalize(mergedAddress)
+        trace.append("normalize:\(normalized.count)")
+
+        let avgOCRConfidence = DocumentUnderstandingService.averageOCRConfidence(document: document)
+        let confidenceScored = ConfidenceOrchestrator.enrich(
+            normalized,
+            documentType: resolvedClassification.enumType,
+            ocrCorpus: layout.layoutText,
+            averageOCRBlockConfidence: avgOCRConfidence
+        )
+        let reviewCount = confidenceScored.filter(\.requiresManualConfirmation).count
+        trace.append("confidence:orchestrated:review=\(reviewCount)")
+
+        let suggestions = confidenceScored
+        let openTypeForSchema = extraction.openDocumentType
+            ?? classification.openDocumentType
+            ?? resolvedClassification.openDocumentType
+            ?? "other"
+        let standardizedOutput = SchemaMappingEngine.map(
+            openDocumentType: openTypeForSchema,
+            suggestions: suggestions
+        )
+        trace.append("schema:mapped:\(standardizedOutput.fields.filter { !$0.value.isEmpty }.count)")
         trace.append("fraud:disabled_ml_only_pipeline")
 
         let openTypeLabel = resolvedClassification.displayLabel
@@ -152,7 +211,7 @@ enum DocumentIntelligenceOrchestrator {
             understanding: understanding,
             usedAI: extraction.usedAI,
             mappingNotice: mappingNotice,
-            usedMachineReadablePayload: false,
+            usedMachineReadablePayload: extraction.usedMachineReadablePayload,
             usedHeuristicFallback: extraction.usedHeuristicFallback,
             knowledgeEntities: identityGraph.entities,
             identityGraph: identityGraph,
@@ -160,7 +219,8 @@ enum DocumentIntelligenceOrchestrator {
             fraudFindings: [],
             pipelineTrace: trace,
             ocrModelInput: layout.modelInput,
-            ocrLabelValuePairs: labelValuePairsText
+            ocrLabelValuePairs: labelValuePairsText,
+            standardizedOutput: standardizedOutput
         )
     }
 
@@ -173,6 +233,7 @@ enum DocumentIntelligenceOrchestrator {
     private static func isClassifierFailure(_ runtimeStatus: String) -> Bool {
         runtimeStatus != "classifier_active"
             && runtimeStatus != "classifier_pending_parser"
+            && !runtimeStatus.hasPrefix("classifier_active:")
     }
 
     private static func classificationFromExtraction(

@@ -229,6 +229,8 @@ final class AppState: ObservableObject {
             pipelineTrace: enrichment.pipelineTrace,
             ocrModelInput: enrichment.ocrModelInput,
             ocrLabelValuePairs: enrichment.ocrLabelValuePairs,
+            standardizedOutput: enrichment.standardizedOutput,
+            fieldsRequiringReview: enrichment.fieldsRequiringReview,
             prefilledPerson: nil
         )
     }

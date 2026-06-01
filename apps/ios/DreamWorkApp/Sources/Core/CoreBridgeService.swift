@@ -56,7 +56,9 @@ extension CoreBridgeService {
                 autofillPayload: emptyGraph.autofillPayload,
                 pipelineTrace: ["ocr:vision.en.v1", "extract:skipped:provider_off", "storage:deferred:scan_review"],
                 ocrModelInput: OcrLayoutSerializer.modelInput(document: document),
-                ocrLabelValuePairs: labelValuePairsText
+                ocrLabelValuePairs: labelValuePairsText,
+                standardizedOutput: nil,
+                fieldsRequiringReview: []
             )
         }
 
@@ -86,20 +88,25 @@ extension CoreBridgeService {
 
         if !runOnDeviceLLM {
             pipelineTrace.append("llm:phase:ocr_preview")
-            if OnDeviceMLPolicy.requiresManualExtractionTrigger {
-                pipelineTrace.append("llm:policy:manual_trigger_required")
-                pipelineTrace.append("llm:heavy:deferred:user_trigger")
-                if suggestions.isEmpty {
+            if OnDeviceMLPolicy.allowsAutomaticInferenceOnScan {
+                pipelineTrace.append("llm:policy:auto_followup_pending")
+                if !OnDeviceMemoryGuard.mayRunHeavyInference() {
+                    pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
                     mappingNotice = [
                         mappingNotice,
-                        OnDeviceMLPolicy.manualExtractionExplanation
-                    ].compactMap { $0 }.joined(separator: "\n")
-                } else {
-                    mappingNotice = [
-                        mappingNotice,
-                        OnDeviceMLPolicy.manualExtractionExplanationWhenFieldsPresent
+                        OnDeviceMLPolicy.autoGGUFDeferredNotice,
+                        OnDeviceMemoryGuard.userFacingSkipNotice
                     ].compactMap { $0 }.joined(separator: "\n")
                 }
+            } else {
+                pipelineTrace.append("llm:policy:manual_trigger_required")
+                pipelineTrace.append("llm:heavy:deferred:user_trigger")
+                mappingNotice = [
+                    mappingNotice,
+                    suggestions.isEmpty
+                        ? OnDeviceMLPolicy.manualExtractionExplanation
+                        : OnDeviceMLPolicy.manualExtractionExplanationWhenFieldsPresent
+                ].compactMap { $0 }.joined(separator: "\n")
             }
         } else if !allowHeavyLLM {
             pipelineTrace.append("llm:heavy:skipped:\(OnDeviceMemoryGuard.skipTraceToken)")
@@ -179,7 +186,9 @@ extension CoreBridgeService {
             autofillPayload: identityGraph.autofillPayload,
             pipelineTrace: pipelineTrace,
             ocrModelInput: extracted.ocrModelInput,
-            ocrLabelValuePairs: extracted.ocrLabelValuePairs
+            ocrLabelValuePairs: extracted.ocrLabelValuePairs,
+            standardizedOutput: extracted.standardizedOutput,
+            fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? []
         )
     }
 

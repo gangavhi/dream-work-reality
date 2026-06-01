@@ -73,6 +73,7 @@ targets:
             "minilm_field_embed_int8.onnx"
             "minilm_tokenizer.json"
           )
+          LAYOUTLM_ARTIFACT="layoutlmv3.mlmodelc"
           if [[ "${CONFIGURATION}" != "Release" || "${PLATFORM_NAME}" != "iphoneos" ]]; then
             echo "Embedding ONNX field mapper for ${CONFIGURATION}/${PLATFORM_NAME}"
             mkdir -p "${DEST_DIR}"
@@ -114,6 +115,12 @@ targets:
             echo "Embedding ONNX artifact ${model}"
             rsync -a "${src}" "${DEST_DIR}/${model}"
           done
+          if [[ -d "${SOURCE_DIR}/${LAYOUTLM_ARTIFACT}" ]]; then
+            echo "Embedding LayoutLM artifact ${LAYOUTLM_ARTIFACT}"
+            rsync -a "${SOURCE_DIR}/${LAYOUTLM_ARTIFACT}" "${DEST_DIR}/${LAYOUTLM_ARTIFACT}"
+          else
+            echo "warning: LayoutLM artifact missing at ${SOURCE_DIR}/${LAYOUTLM_ARTIFACT} — using heuristic layout pairing"
+          fi
       - name: Compile Asset Catalog (AppIcon)
         basedOnDependencyAnalysis: false
         script: |
@@ -196,7 +203,7 @@ targets:
           - "$(inherited)"
           - "$(SRCROOT)/Vendor/onnxruntime-bindings/include"
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "47"
+        CURRENT_PROJECT_VERSION: "50"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.

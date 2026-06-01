@@ -82,14 +82,21 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
 
         let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
         XCTAssertTrue(preview.pipelineTrace.contains("llm:policy:manual_trigger_required"))
-        XCTAssertTrue(preview.pipelineTrace.contains("llm:heavy:deferred:user_trigger"))
-        XCTAssertFalse(preview.pipelineTrace.contains { $0.contains("gguf") })
-
-        if MiniLMOnnxFieldEmbedder.shared.isAvailable {
-            XCTAssertFalse(preview.suggestions.isEmpty, "ONNX preview should map label/value pairs on device")
-        }
+        XCTAssertFalse(preview.pipelineTrace.contains("llm:policy:auto_followup_pending"))
 
         XCTAssertFalse(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
+    }
+
+    func testAutomaticGGUFPolicyEnabledByDefaultOnSimulator() async throws {
+        OnDeviceMLPolicy.testSimulatePhysicalIPhone = false
+        GenAISettings.provider = .onDevice
+
+        let bridge = RustCoreBridgeService()
+        let doc = syntheticNormalizedDocument()
+        let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
+
+        XCTAssertTrue(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
+        XCTAssertTrue(preview.pipelineTrace.contains("llm:policy:auto_followup_pending"))
     }
 
     func testMemoryPressureBlocksHeavyLLMLikePhysicalDevice() async throws {

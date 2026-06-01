@@ -112,9 +112,10 @@ final class IntelligenceModuleTests: XCTestCase {
             ExtractionStrategyAgent.determine(
                 layout: classifiedLayout,
                 classification: classification,
+                payloadHints: .empty,
                 templateMatch: template
-            ).structure,
-            .structured
+            ).route,
+            .knownFastPath
         )
 
         let unknownLayout = LayoutIntelligenceAgent.LayoutDocument(
@@ -126,17 +127,22 @@ final class IntelligenceModuleTests: XCTestCase {
         )
         let unknown = ClassificationAgent.classify(modelInput: unknownLayout.layoutText, mappedDocumentType: nil, machineReadableSources: [])
         XCTAssertEqual(
-            ExtractionStrategyAgent.determine(layout: unknownLayout, classification: unknown, templateMatch: nil).structure,
-            .layoutAI
+            ExtractionStrategyAgent.determine(
+                layout: unknownLayout,
+                classification: unknown,
+                payloadHints: .empty,
+                templateMatch: nil
+            ).route,
+            .unknownSemantic
         )
     }
 
     func testDocumentTypeSchemaKeysAreOpenVocabulary() {
         XCTAssertEqual(ProfileSchemaKeysForDocument.inferOpenType(from: "VISA\nVisa Number V1234567"), "visa")
 
-        XCTAssertTrue(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "utility_bill").isEmpty)
-        XCTAssertTrue(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "bank_statement").isEmpty)
-        XCTAssertTrue(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "visa").isEmpty)
+        XCTAssertFalse(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "utility_bill").isEmpty)
+        XCTAssertFalse(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "bank_statement").isEmpty)
+        XCTAssertTrue(ProfileSchemaKeysForDocument.keys(forOpenDocumentType: "visa", fallbackToAll: false).isEmpty)
     }
 
     func testLocalEmbeddingMatcherHandlesSemanticLabels() {

@@ -20,6 +20,7 @@ enum DocumentIntelligencePipeline {
         let pipelineTrace: [String]
         let ocrModelInput: String
         let ocrLabelValuePairs: String
+        let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
     }
 
     static func extract(
@@ -49,7 +50,8 @@ enum DocumentIntelligencePipeline {
             fraudFindings: orchestrated.fraudFindings,
             pipelineTrace: orchestrated.pipelineTrace,
             ocrModelInput: orchestrated.ocrModelInput,
-            ocrLabelValuePairs: orchestrated.ocrLabelValuePairs
+            ocrLabelValuePairs: orchestrated.ocrLabelValuePairs,
+            standardizedOutput: orchestrated.standardizedOutput
         )
     }
 }

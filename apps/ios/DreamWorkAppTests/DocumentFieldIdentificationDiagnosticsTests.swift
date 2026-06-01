@@ -77,6 +77,7 @@ final class DocumentFieldIdentificationDiagnosticsTests: XCTestCase {
         let strategy = ExtractionStrategyAgent.determine(
             layout: layout,
             classification: classification,
+            payloadHints: payloadHints,
             templateMatch: template
         )
         let result = await DocumentIntelligencePipeline.extract(document: doc)

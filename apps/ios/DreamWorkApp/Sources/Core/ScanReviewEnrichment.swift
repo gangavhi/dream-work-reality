@@ -47,9 +47,11 @@ struct ScanReviewEnrichment: Hashable {
     let usedHeuristicFallback: Bool
     let identityGraph: StructuredIdentityGraph
     let autofillPayload: SmartAutofillPayload
-        let pipelineTrace: [String]
-        /// Numbered OCR blocks (same format fed to on-device models).
-        let ocrModelInput: String
-        /// Label→value pairs detected from layout (input to field mapping).
-        let ocrLabelValuePairs: String
-    }
+    let pipelineTrace: [String]
+    /// Numbered OCR blocks (same format fed to on-device models).
+    let ocrModelInput: String
+    /// Label→value pairs detected from layout (input to field mapping).
+    let ocrLabelValuePairs: String
+    let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
+    let fieldsRequiringReview: [String]
+}
