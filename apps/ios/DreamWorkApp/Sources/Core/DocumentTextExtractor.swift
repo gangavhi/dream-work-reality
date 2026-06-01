@@ -126,7 +126,7 @@ enum DocumentTextExtractor {
     }
 
     private static func recognizePage(cgImage: CGImage) async throws -> VisionOcrAdapter.Page {
-        let blocks = try await OcrEngine.recognizePageBlocks(from: cgImage)
+        let blocks = try await OcrEngine.recognizePageBlocksWithFallback(from: cgImage)
         return VisionOcrAdapter.Page(blocks: blocks)
     }
 }

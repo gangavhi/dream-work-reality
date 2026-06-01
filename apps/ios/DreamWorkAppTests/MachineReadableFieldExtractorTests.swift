@@ -25,8 +25,12 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         XCTAssertTrue(result.suggestions.contains { $0.profileKey == ProfileFieldKey.legalLastName })
     }
 
-    func testIndianPassportWithoutDetectedMRZLinesUsesOCRText() {
-        let hints = EmbeddedPayloadHints.Result(barcodePayloads: [], mrzLines: [])
+    func testIndianPassportMRZLinesProduceFields() {
+        let mrzLines = [
+            "P<INDPATEL<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<<",
+            "M1234567<0IND8503150M3001015<<<<<<<<<<<<<<04",
+        ]
+        let hints = EmbeddedPayloadHints.Result(barcodePayloads: [], mrzLines: mrzLines)
         let result = MachineReadableFieldExtractor.extract(
             from: hints,
             plainOCRText: IndianPassportParserTests.sampleIndianPassportOCRText
@@ -64,7 +68,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         XCTAssertFalse(result.usedMachineReadablePayload)
     }
 
-    func testPipelineDoesNotExtractIndianPassportWithoutLocalML() async {
+    func testPipelineExtractsIndianPassportViaOpenVocabularyWhenOnDevice() async {
         let lines = IndianPassportParserTests.sampleIndianPassportOCRText
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -82,13 +86,17 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         }
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
+        let previous = GenAISettings.provider
+        GenAISettings.provider = .onDevice
+        defer { GenAISettings.provider = previous }
+
         let result = await DocumentIntelligencePipeline.extract(document: doc)
-        XCTAssertTrue(result.suggestions.isEmpty)
-        XCTAssertFalse(result.usedMachineReadablePayload)
-        XCTAssertTrue(result.pipelineTrace.contains("template:disabled:ml_only"))
+        XCTAssertFalse(result.suggestions.isEmpty)
+        XCTAssertTrue(result.pipelineTrace.contains("extract:semantic"))
+        XCTAssertTrue(result.pipelineTrace.contains("mrz:detected:2"))
     }
 
-    func testPipelineDoesNotExtractVerticalPassportWithoutLocalML() async {
+    func testPipelineExtractsVerticalPassportViaOpenVocabularyWhenOnDevice() async {
         struct Row { let label: String; let value: String; let y: Float }
         let rows: [Row] = [
             Row(label: "REPUBLIC OF INDIA", value: "", y: 0.92),
@@ -128,14 +136,19 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         ))
 
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
+
+        let previous = GenAISettings.provider
+        GenAISettings.provider = .onDevice
+        defer { GenAISettings.provider = previous }
+
         let result = await DocumentIntelligencePipeline.extract(document: doc)
 
-        XCTAssertTrue(result.suggestions.isEmpty)
-        XCTAssertFalse(result.usedMachineReadablePayload)
-        XCTAssertTrue(result.pipelineTrace.contains("extract:ml_failed"))
+        XCTAssertFalse(result.suggestions.isEmpty)
+        XCTAssertTrue(result.pipelineTrace.contains("extract:semantic"))
+        XCTAssertTrue(result.pipelineTrace.contains("mrz:detected:2"))
     }
 
-    func testPipelineDoesNotExtractTexasDriverLicenseWithoutLocalML() async {
+    func testPipelineExtractsTexasDriverLicenseViaOpenVocabularyWhenOnDevice() async {
         let lines = DriverLicenseParserTests.texasSampleOCRText
             .components(separatedBy: .newlines)
             .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -153,10 +166,14 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         }
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
+        let previous = GenAISettings.provider
+        GenAISettings.provider = .onDevice
+        defer { GenAISettings.provider = previous }
+
         let result = await DocumentIntelligencePipeline.extract(document: doc)
 
-        XCTAssertTrue(result.suggestions.isEmpty)
-        XCTAssertFalse(result.usedMachineReadablePayload)
+        XCTAssertFalse(result.suggestions.isEmpty)
+        XCTAssertTrue(result.pipelineTrace.contains("extract:semantic"))
         XCTAssertFalse(result.usedHeuristicFallback)
     }
 }

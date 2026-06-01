@@ -50,32 +50,37 @@ enum SemanticFieldLabelMapper {
     static func resolve(label rawLabel: String, documentTypeHint: String? = nil) -> ResolvedField? {
         let trimmedLabel = rawLabel.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedLabel.isEmpty else { return nil }
+        let normalizedLabel = trimmedLabel.replacingOccurrences(
+            of: #"^\d+\.\s*"#,
+            with: "",
+            options: .regularExpression
+        )
 
-        if let key = contextualCanonicalKey(for: trimmedLabel, documentTypeHint: documentTypeHint) {
+        if let key = contextualCanonicalKey(for: normalizedLabel, documentTypeHint: documentTypeHint) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
         }
 
-        if let key = canonicalKey(for: trimmedLabel) {
+        if let key = canonicalKey(for: normalizedLabel) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
         }
 
-        if let key = OnnxFieldLabelMapper.canonicalKey(for: trimmedLabel) {
+        if let key = OnnxFieldLabelMapper.canonicalKey(for: normalizedLabel) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
         }
 
-        if let key = LocalEmbeddingFieldMatcher.canonicalKey(for: trimmedLabel) {
+        if let key = LocalEmbeddingFieldMatcher.canonicalKey(for: normalizedLabel) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
         }
 
-        let extensionKey = extensionKey(from: trimmedLabel)
+        let extensionKey = extensionKey(from: normalizedLabel)
         guard isValidExtensionKey(extensionKey) else { return nil }
         _ = documentTypeHint
         return ResolvedField(
@@ -186,6 +191,7 @@ enum SemanticFieldLabelMapper {
 
     private static func normalize(_ text: String) -> String {
         text.lowercased()
+            .replacingOccurrences(of: #"^\d+\.\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: ":", with: "")
             .replacingOccurrences(of: "(s)", with: "")
             .replacingOccurrences(of: "#", with: "")

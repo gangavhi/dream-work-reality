@@ -31,6 +31,18 @@ case "${PY_VERSION}" in
     ;;
 esac
 
+if [[ -d "${VENV_DIR}" ]]; then
+  VENV_PY="$("${VENV_DIR}/bin/python" - <<'PY'
+import sys
+print(f"{sys.version_info.major}.{sys.version_info.minor}")
+PY
+)"
+  if [[ "${VENV_PY}" != "${PY_VERSION}" ]]; then
+    echo "Removing stale venv (Python ${VENV_PY}, need ${PY_VERSION})…" >&2
+    rm -rf "${VENV_DIR}"
+  fi
+fi
+
 if [[ ! -d "${VENV_DIR}" ]]; then
   "${PYTHON_BIN}" -m venv "${VENV_DIR}"
 fi

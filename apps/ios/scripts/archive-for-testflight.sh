@@ -51,6 +51,14 @@ echo "==> install ONNX Runtime xcframework (App Store signable)"
 chmod +x "${SCRIPT_DIR}/install-onnxruntime-xcframework.sh"
 "${SCRIPT_DIR}/install-onnxruntime-xcframework.sh"
 
+echo "==> download MiniLM ONNX field mapper"
+chmod +x "${SCRIPT_DIR}/download-minilm-onnx-model.sh"
+"${SCRIPT_DIR}/download-minilm-onnx-model.sh"
+
+echo "==> install LayoutLMv3 CoreML (optional — heuristic fallback if conversion fails)"
+chmod +x "${SCRIPT_DIR}/install-layoutlmv3-coreml.sh"
+"${SCRIPT_DIR}/install-layoutlmv3-coreml.sh"
+
 ARCHIVE="${IOS_DIR}/build/DreamWorkApp.xcarchive"
 EXPORT="${IOS_DIR}/build/ipa-export"
 PLIST_TEMPLATE="${IOS_DIR}/ExportOptions-ipa.plist"

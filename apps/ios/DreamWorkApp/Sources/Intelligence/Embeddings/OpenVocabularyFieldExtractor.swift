@@ -37,6 +37,10 @@ enum OpenVocabularyFieldExtractor {
             documentTypeHint: documentTypeHint
         ) else { return nil }
 
+        guard MappedFieldValueValidator.accepts(profileKey: resolved.profileKey, value: trimmedValue) else {
+            return nil
+        }
+
         let score = resolved.isExtension ? 0.72 : 0.8
         return OcrFieldSuggestion(
             profileKey: resolved.profileKey,

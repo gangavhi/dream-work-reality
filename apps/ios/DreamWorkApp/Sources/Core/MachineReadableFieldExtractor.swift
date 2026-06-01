@@ -27,33 +27,28 @@ enum MachineReadableFieldExtractor {
 
         let plain = plainOCRText.trimmingCharacters(in: .whitespacesAndNewlines)
         let mrzHintText = hints.mrzLines.joined(separator: "\n")
-        let combined = [mrzHintText, plain].filter { !$0.isEmpty }.joined(separator: "\n")
-        guard !combined.isEmpty else {
+
+        // Document-agnostic path: only decode true machine-readable zones (MRZ / barcode).
+        // Do not run keyword-triggered DL/passport OCR parsers on generic layout text.
+        guard !mrzHintText.isEmpty else {
             return finalize(suggestions: suggestions, sources: sources)
         }
 
-        if DriverLicenseParser.isDriversLicense(combined) {
-            let parsed = DriverLicenseParser.suggestions(from: combined)
-            if !parsed.isEmpty {
-                suggestions = mergeTrusted(parsed, into: suggestions)
-                sources.append("drivers_license")
-            }
-        }
-
-        if IndianPassportParser.isIndianPassport(combined) {
-            let parsed = IndianPassportParser.suggestions(from: combined)
+        if IndianPassportParser.isIndianPassport(mrzHintText) {
+            let parsed = IndianPassportParser.suggestions(from: mrzHintText)
             if !parsed.isEmpty {
                 suggestions = mergeTrusted(parsed, into: suggestions)
                 sources.append("passport")
             }
-        } else if PassportParser.isPassport(combined) {
-            let parsed = PassportParser.suggestions(from: combined)
+        } else if PassportParser.isPassport(mrzHintText) {
+            let parsed = PassportParser.suggestions(from: mrzHintText)
             if !parsed.isEmpty {
                 suggestions = mergeTrusted(parsed, into: suggestions)
                 sources.append("passport")
             }
         }
 
+        _ = plain
         return finalize(suggestions: suggestions, sources: sources)
     }
 

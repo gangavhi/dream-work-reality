@@ -74,6 +74,22 @@ enum OcrLayoutSerializer {
 
     /// Pairs spatial neighbors: same-row (label left, value right) and stacked (label above value).
     static func labelValuePairs(from blocks: [LayoutBlock], maxPairs: Int = 32) -> [LabelValuePair] {
+        let ordered = orderedBlocksForPairing(from: blocks)
+        var pairs = labelValuePairsCore(from: ordered, maxPairs: maxPairs)
+        pairs = supplementSameRowNameValues(blocks: ordered, pairs: pairs, maxPairs: maxPairs)
+        return pairs
+    }
+
+    private static func orderedBlocksForPairing(from blocks: [LayoutBlock]) -> [LayoutBlock] {
+        blocks.sorted { lhs, rhs in
+            if abs(lhs.y - rhs.y) > 0.02 {
+                return lhs.y > rhs.y
+            }
+            return lhs.x < rhs.x
+        }
+    }
+
+    private static func labelValuePairsCore(from blocks: [LayoutBlock], maxPairs: Int) -> [LabelValuePair] {
         var pairs: [LabelValuePair] = []
         let rowTolerance: Float = 0.03
         let colTolerance: Float = 0.2
@@ -123,6 +139,45 @@ enum OcrLayoutSerializer {
         }
 
         return dedupePairs(pairs).prefix(maxPairs).map { $0 }
+    }
+
+    /// Generic same-row expansion: `1. Name | SMITH | JANE` → Last Name + First Name pairs.
+    private static func supplementSameRowNameValues(
+        blocks: [LayoutBlock],
+        pairs: [LabelValuePair],
+        maxPairs: Int
+    ) -> [LabelValuePair] {
+        var out = pairs
+        let rowTolerance: Float = 0.03
+
+        for pair in pairs {
+            guard out.count < maxPairs else { break }
+            let labelNorm = normalizeLabel(pair.label)
+            guard labelNorm == "name" || labelNorm.hasSuffix(" name") else { continue }
+            guard labelNorm != "first name", labelNorm != "last name", labelNorm != "given name" else { continue }
+
+            guard let labelBlock = blocks.first(where: { normalizeLabel($0.text) == labelNorm || $0.text == pair.label }) else {
+                continue
+            }
+
+            let rowValues = blocks.filter { block in
+                abs(block.y - labelBlock.y) <= rowTolerance
+                    && block.x > labelBlock.x + 0.05
+                    && MappedFieldValueValidator.looksLikePersonName(block.text)
+                    && !isFieldLabel(block.text)
+            }.sorted { $0.x < $1.x }
+
+            guard rowValues.count >= 2 else { continue }
+
+            let lastName = rowValues[0].text
+            let firstName = rowValues[1].text
+            out.append(LabelValuePair(label: "Last Name", value: lastName))
+            if out.count < maxPairs {
+                out.append(LabelValuePair(label: "First Name", value: firstName))
+            }
+        }
+
+        return dedupePairs(out).prefix(maxPairs).map { $0 }
     }
 
     private static func dedupePairs(_ pairs: [LabelValuePair]) -> [LabelValuePair] {
@@ -187,6 +242,7 @@ enum OcrLayoutSerializer {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, trimmed.count <= 48 else { return false }
         if trimmed.contains("|") { return false }
+        if MappedFieldValueValidator.looksLikeStandaloneValue(trimmed) { return false }
         if containsObviousValuePattern(trimmed) { return false }
 
         if matchesKnownLabelPhrase(trimmed) {
@@ -194,14 +250,16 @@ enum OcrLayoutSerializer {
         }
         if trimmed.hasSuffix(":") { return true }
         if trimmed == trimmed.uppercased(), trimmed.rangeOfCharacter(from: .letters) != nil, trimmed.count <= 32 {
-            return true
+            return matchesKnownLabelPhrase(trimmed)
+                || trimmed.contains("NAME")
+                || trimmed.contains("DATE")
+                || trimmed.contains("ADDRESS")
+                || trimmed.contains("LICENSE")
+                || trimmed.contains("PASSPORT")
         }
         let words = trimmed.split(whereSeparator: { $0.isWhitespace }).map(String.init)
-        if words.count == 1, trimmed.count <= 24, trimmed.contains(where: { $0.isLetter }) {
-            return true
-        }
         if words.count <= 4, trimmed == trimmed.uppercased(), trimmed.contains(where: { $0.isLetter }) {
-            return true
+            return matchesKnownLabelPhrase(trimmed)
         }
         return false
     }
@@ -253,6 +311,7 @@ enum OcrLayoutSerializer {
 
     private static func normalizeLabel(_ text: String) -> String {
         text.lowercased()
+            .replacingOccurrences(of: #"^\d+\.\s*"#, with: "", options: .regularExpression)
             .replacingOccurrences(of: ":", with: "")
             .replacingOccurrences(of: "(s)", with: "")
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
@@ -261,7 +320,7 @@ enum OcrLayoutSerializer {
 
     private static let knownFieldLabelPhrases: [String] = [
         "surname", "given name", "given names", "first name", "last name", "middle name",
-        "full name", "display name", "name", "dob", "date of birth", "birth date",
+        "full name", "display name", "name",         "dob", "date of birth", "birth date",
         "date of issue", "date of expiry", "date of expiration", "expiry", "expiration",
         "passport no", "passport number", "nationality", "sex", "gender",
         "place of birth", "place of issue", "address", "city", "state", "zip", "postal",
@@ -270,6 +329,7 @@ enum OcrLayoutSerializer {
         "account number", "statement period", "opening balance", "ending balance", "balance due",
         "amount due", "due date", "billing period", "service period", "meter number",
         "email", "phone", "mobile", "employer", "country", "visa number", "visa type",
+        "1. name", "8. address",
     ]
 
     private static func looksLikeLabel(_ text: String) -> Bool {
