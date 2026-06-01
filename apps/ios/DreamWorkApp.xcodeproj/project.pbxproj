@@ -21,6 +21,7 @@
 		0D5ED460E79FF039E8CD63D6 /* SimulatorLaptopImportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B92354231869E2A1914CA66E /* SimulatorLaptopImportView.swift */; };
 		0D61C47A89DA9F9201082D70 /* UniversalDocumentParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5F3767E3588AD11173A282B /* UniversalDocumentParserTests.swift */; };
 		124E9B3DCBF1A77B89790CC8 /* DocumentKnowledgeGraph.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0279FF4743F4B164D608A730 /* DocumentKnowledgeGraph.swift */; };
+		13F3479E1EEDFD85079CA4D6 /* SpecializedDocumentExtractors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39B6CADEA5913A16C1B4CEA4 /* SpecializedDocumentExtractors.swift */; };
 		1401DBA46B214C11E21A8862 /* IndianPassportParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70DB100F7428358D3890E47C /* IndianPassportParser.swift */; };
 		1478DA4D18C50204BF346935 /* GenAIFieldMapperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A6B7A46076212D9486FEA98 /* GenAIFieldMapperTests.swift */; };
 		17A5CB0B51AB3A29014929D5 /* PersonProfileMatcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7A8B91F39ACCDA4436AA99 /* PersonProfileMatcherTests.swift */; };
@@ -223,6 +224,7 @@
 		34E01259459B2D467D0B392E /* TexasDriverLicenseParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TexasDriverLicenseParser.swift; sourceTree = "<group>"; };
 		354EF588DD61AE61C9635C91 /* FieldNormalizationEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldNormalizationEngine.swift; sourceTree = "<group>"; };
 		3677D7BB4B195634AA5CB4C2 /* ort_env.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = ort_env.mm; sourceTree = "<group>"; };
+		39B6CADEA5913A16C1B4CEA4 /* SpecializedDocumentExtractors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpecializedDocumentExtractors.swift; sourceTree = "<group>"; };
 		3C2F82B400ED0A58D238A0BA /* error_utils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = error_utils.h; sourceTree = "<group>"; };
 		3D07F077145419407CDFEEE8 /* ScanReviewEnrichment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewEnrichment.swift; sourceTree = "<group>"; };
 		3D142C1F3799C170293337D6 /* LocalDocumentClassifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalDocumentClassifier.swift; sourceTree = "<group>"; };
@@ -492,6 +494,7 @@
 				B1975135AA7EDBFD89BC0966 /* Agents */,
 				4DA123CA09C565D753D30724 /* Classification */,
 				A934C1E4524E92FD2A005DB1 /* Embeddings */,
+				56392047D7C4AFA9F21C7FCF /* Extraction */,
 				7247E7468D8798EA5FB2E40C /* Knowledge */,
 				5B835E42AD41836D2BE3B0A7 /* Learning */,
 				A6365D4C4D653A1B8C6B5C7B /* Mapping */,
@@ -543,6 +546,14 @@
 				2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		56392047D7C4AFA9F21C7FCF /* Extraction */ = {
+			isa = PBXGroup;
+			children = (
+				39B6CADEA5913A16C1B4CEA4 /* SpecializedDocumentExtractors.swift */,
+			);
+			path = Extraction;
 			sourceTree = "<group>";
 		};
 		5B835E42AD41836D2BE3B0A7 /* Learning */ = {
@@ -1145,6 +1156,7 @@
 				69A1B54A0B140E50E38D8EAF /* SettingsView.swift in Sources */,
 				0D5ED460E79FF039E8CD63D6 /* SimulatorLaptopImportView.swift in Sources */,
 				1D6EB509A752EFEC967F5D16 /* SmartAutofillSDK.swift in Sources */,
+				13F3479E1EEDFD85079CA4D6 /* SpecializedDocumentExtractors.swift in Sources */,
 				521877F9B450AF08D49D60B0 /* StoragePlanTypes.swift in Sources */,
 				7316D8F6CCF3AD6C0A64908C /* TexasDriverLicenseParser.swift in Sources */,
 				44E707C29CBB2464FE17F05B /* UniversalDocumentParser.swift in Sources */,
@@ -1363,7 +1375,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 52;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",
@@ -1412,7 +1424,7 @@
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 50;
+				CURRENT_PROJECT_VERSION = 52;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"Vendor\"",

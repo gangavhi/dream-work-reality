@@ -39,21 +39,25 @@ enum ProfileSchemaKeysForDocument {
         switch normalized {
         case "drivers_license", "driver_license", "driving_licence":
             return [
-                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
+                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalMiddleName,
+                ProfileFieldKey.legalLastName,
                 ProfileFieldKey.dateOfBirth, ProfileFieldKey.driversLicenseNumber, ProfileFieldKey.driversLicenseState,
                 ProfileFieldKey.driversLicenseIssueDate, ProfileFieldKey.driversLicenseExpiry,
-                ProfileFieldKey.addressLine1, ProfileFieldKey.city, ProfileFieldKey.state, ProfileFieldKey.postalCode,
+                ProfileFieldKey.addressLine1, ProfileFieldKey.addressLine2, ProfileFieldKey.city,
+                ProfileFieldKey.state, ProfileFieldKey.postalCode, ProfileFieldKey.gender,
             ]
         case "passport":
             return [
                 ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
                 ProfileFieldKey.dateOfBirth, ProfileFieldKey.passportNumber, ProfileFieldKey.passportCountry,
-                ProfileFieldKey.passportExpiry, ProfileFieldKey.gender,
+                ProfileFieldKey.passportExpiry, ProfileFieldKey.gender, ProfileFieldKey.country,
+                ProfileFieldKey.addressLine1, ProfileFieldKey.city, ProfileFieldKey.state, ProfileFieldKey.postalCode,
             ]
         case "insurance_card":
             return [
-                ProfileFieldKey.displayName, ProfileFieldKey.insuranceMemberId, ProfileFieldKey.insuranceCarrier,
-                ProfileFieldKey.dateOfBirth,
+                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
+                ProfileFieldKey.insuranceMemberId, ProfileFieldKey.insuranceCarrier,
+                ProfileFieldKey.dateOfBirth, ProfileFieldKey.addressLine1,
             ]
         case "state_id", "identification_card":
             return [

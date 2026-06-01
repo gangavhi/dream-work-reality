@@ -58,7 +58,9 @@ extension CoreBridgeService {
                 ocrModelInput: OcrLayoutSerializer.modelInput(document: document),
                 ocrLabelValuePairs: labelValuePairsText,
                 standardizedOutput: nil,
-                fieldsRequiringReview: []
+                fieldsRequiringReview: [],
+                heavyLLMDeferred: false,
+                ranFullOnDevicePipeline: false
             )
         }
 
@@ -86,34 +88,34 @@ extension CoreBridgeService {
         var storagePlan: StoragePlanSuggestion?
         var pipelineTrace = extracted.pipelineTrace
 
-        if !runOnDeviceLLM {
-            pipelineTrace.append("llm:phase:ocr_preview")
-            if OnDeviceMLPolicy.allowsAutomaticInferenceOnScan {
-                pipelineTrace.append("llm:policy:auto_followup_pending")
-                if !OnDeviceMemoryGuard.mayRunHeavyInference() {
-                    pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
-                    mappingNotice = [
-                        mappingNotice,
-                        OnDeviceMLPolicy.autoGGUFDeferredNotice,
-                        OnDeviceMemoryGuard.userFacingSkipNotice
-                    ].compactMap { $0 }.joined(separator: "\n")
-                }
-            } else {
-                pipelineTrace.append("llm:policy:manual_trigger_required")
-                pipelineTrace.append("llm:heavy:deferred:user_trigger")
+        let heavyLLMDeferred: Bool
+        let ranFullOnDevicePipeline: Bool
+
+        if runOnDeviceLLM {
+            pipelineTrace.append(allowHeavyLLM ? "llm:phase:auto_complete" : "llm:phase:auto_light_only")
+            heavyLLMDeferred = !allowHeavyLLM
+            ranFullOnDevicePipeline = allowHeavyLLM
+            if !allowHeavyLLM {
+                pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
                 mappingNotice = [
                     mappingNotice,
-                    suggestions.isEmpty
-                        ? OnDeviceMLPolicy.manualExtractionExplanation
-                        : OnDeviceMLPolicy.manualExtractionExplanationWhenFieldsPresent
+                    OnDeviceMLPolicy.autoGGUFDeferredNotice,
+                    OnDeviceMemoryGuard.userFacingSkipNotice
                 ].compactMap { $0 }.joined(separator: "\n")
             }
-        } else if !allowHeavyLLM {
-            pipelineTrace.append("llm:heavy:skipped:\(OnDeviceMemoryGuard.skipTraceToken)")
-            mappingNotice = [
-                mappingNotice,
-                OnDeviceMemoryGuard.userFacingSkipNotice
-            ].compactMap { $0 }.joined(separator: "\n")
+        } else {
+            pipelineTrace.append("llm:phase:light_only")
+            heavyLLMDeferred = OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
+                && !OnDeviceMemoryGuard.mayRunHeavyInference()
+            ranFullOnDevicePipeline = false
+            if heavyLLMDeferred {
+                pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
+                mappingNotice = [
+                    mappingNotice,
+                    OnDeviceMLPolicy.autoGGUFDeferredNotice,
+                    OnDeviceMemoryGuard.userFacingSkipNotice
+                ].compactMap { $0 }.joined(separator: "\n")
+            }
         }
 
         if runStoragePipeline {
@@ -188,7 +190,9 @@ extension CoreBridgeService {
             ocrModelInput: extracted.ocrModelInput,
             ocrLabelValuePairs: extracted.ocrLabelValuePairs,
             standardizedOutput: extracted.standardizedOutput,
-            fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? []
+            fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? [],
+            heavyLLMDeferred: heavyLLMDeferred,
+            ranFullOnDevicePipeline: ranFullOnDevicePipeline
         )
     }
 

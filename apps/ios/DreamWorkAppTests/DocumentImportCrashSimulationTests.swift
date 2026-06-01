@@ -81,8 +81,8 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
         let doc = syntheticNormalizedDocument()
 
         let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
-        XCTAssertTrue(preview.pipelineTrace.contains("llm:policy:manual_trigger_required"))
-        XCTAssertFalse(preview.pipelineTrace.contains("llm:policy:auto_followup_pending"))
+        XCTAssertTrue(preview.pipelineTrace.contains("llm:phase:light_only"))
+        XCTAssertFalse(preview.pipelineTrace.contains("llm:phase:auto_complete"))
 
         XCTAssertFalse(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
     }
@@ -93,10 +93,13 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
 
         let bridge = RustCoreBridgeService()
         let doc = syntheticNormalizedDocument()
-        let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
+        let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: true)
 
         XCTAssertTrue(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
-        XCTAssertTrue(preview.pipelineTrace.contains("llm:policy:auto_followup_pending"))
+        XCTAssertTrue(
+            preview.pipelineTrace.contains("llm:phase:auto_complete")
+                || preview.pipelineTrace.contains("llm:phase:auto_light_only")
+        )
     }
 
     func testMemoryPressureBlocksHeavyLLMLikePhysicalDevice() async throws {

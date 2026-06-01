@@ -101,7 +101,7 @@ struct ScanReviewView: View {
 
     @ViewBuilder
     private var onDeviceExtractionSection: some View {
-        if GenAISettings.provider == .onDevice, OnDeviceMLPolicy.requiresManualExtractionTrigger {
+        if payload.showManualExtractionRetry {
             Section {
                 if appState.isRunningOnDeviceExtraction {
                     HStack(spacing: 12) {

@@ -32,6 +32,8 @@ struct ScanReviewPayload: Identifiable {
     let fieldsRequiringReview: [String]
     /// Pre-filled profile from DL barcode/OCR/GenAI when creating a new household member.
     let prefilledPerson: PersonRecord?
+    /// When false, automatic extraction already ran; no extra tap required.
+    let showManualExtractionRetry: Bool
 
     var documentType: ScannedDocumentType { detectedDocumentType }
 }
