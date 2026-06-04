@@ -19,8 +19,13 @@ final class AppState: ObservableObject {
     @Published private(set) var isImportingDocument = false
     @Published var documentImportMessage: String?
     @Published var scanReviewPayload: ScanReviewPayload?
+    @Published private(set) var isRunningOnDeviceExtraction = false
     @Published var showDocumentScanner = false
     @Published var showFileImporter = false
+
+    private var pendingScanDocument: VisionOcrAdapter.NormalizedDocument?
+    private var pendingScanPageCount: Int = 0
+    private var pendingScanBlockCount: Int = 0
 
     private let coreService: CoreBridgeService
 
@@ -129,13 +134,78 @@ final class AppState: ObservableObject {
         pageCount: Int,
         blockCount: Int
     ) async {
-        let enrichment = await coreService.enrichScanReview(document: document, fileURL: fileURL)
+        pendingScanDocument = document
+        pendingScanPageCount = pageCount
+        pendingScanBlockCount = blockCount
+
+        isRunningOnDeviceExtraction = true
+        defer { isRunningOnDeviceExtraction = false }
+
+        let enrichment = await coreService.enrichScanReview(
+            document: document,
+            fileURL: fileURL,
+            runOnDeviceLLM: OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
+        )
+        applyScanReviewEnrichment(
+            enrichment,
+            pageCount: pageCount,
+            blockCount: blockCount
+        )
+    }
+
+    /// User-initiated on-device extraction (safe default on physical iPhone).
+    func runOnDeviceExtractionForCurrentScan() async {
+        guard let document = pendingScanDocument else { return }
+        guard !isRunningOnDeviceExtraction else { return }
+
+        isRunningOnDeviceExtraction = true
+        defer { isRunningOnDeviceExtraction = false }
+
+        let enrichment = await coreService.enrichScanReview(
+            document: document,
+            runOnDeviceLLM: true
+        )
+        guard scanReviewPayload != nil else { return }
+
+        var signals: [String] = []
+        if enrichment.usedMachineReadablePayload { signals.append("barcode or MRZ") }
+        if enrichment.usedAI { signals.append("on-device extraction") }
+        if enrichment.usedHeuristicFallback { signals.append("estimated heuristics") }
+        if signals.isEmpty { signals = ["layout heuristics"] }
+
+        applyScanReviewEnrichment(
+            enrichment,
+            pageCount: pendingScanPageCount,
+            blockCount: pendingScanBlockCount,
+            classificationSignals: signals
+        )
+    }
+
+    func clearPendingScanSession() {
+        pendingScanDocument = nil
+        pendingScanPageCount = 0
+        pendingScanBlockCount = 0
+    }
+
+    private func applyScanReviewEnrichment(
+        _ enrichment: ScanReviewEnrichment,
+        pageCount: Int,
+        blockCount: Int,
+        classificationSignals: [String]? = nil
+    ) {
+        var signals = classificationSignals ?? []
+        if signals.isEmpty {
+            if enrichment.usedMachineReadablePayload { signals.append("barcode or MRZ") }
+            if enrichment.usedAI { signals.append("on-device extraction") }
+            if enrichment.usedHeuristicFallback { signals.append("estimated heuristics") }
+            if signals.isEmpty { signals = ["layout heuristics"] }
+        }
 
         scanReviewPayload = ScanReviewPayload(
             detectedDocumentType: enrichment.displayDocumentType,
             openDocumentTypeLabel: enrichment.openDocumentTypeLabel,
             classificationConfidence: enrichment.understanding?.documentTypeConfidence ?? 0.55,
-            classificationSignals: enrichment.usedAI ? ["on-device extraction"] : ["layout heuristics"],
+            classificationSignals: signals,
             fullText: enrichment.plainText,
             ocrBlockCount: blockCount,
             pageCount: pageCount,
@@ -144,7 +214,21 @@ final class AppState: ObservableObject {
             personResolution: enrichment.personResolution,
             storagePlan: enrichment.storagePlan,
             usedAI: enrichment.usedAI,
-            prefilledPerson: nil
+            mappingNotice: enrichment.mappingNotice,
+            usedMachineReadablePayload: enrichment.usedMachineReadablePayload,
+            usedHeuristicFallback: enrichment.usedHeuristicFallback,
+            identityGraph: enrichment.identityGraph,
+            autofillPayload: enrichment.autofillPayload,
+            pipelineTrace: enrichment.pipelineTrace,
+            ocrModelInput: enrichment.ocrModelInput,
+            ocrLabelValuePairs: enrichment.ocrLabelValuePairs,
+            standardizedOutput: enrichment.standardizedOutput,
+            fieldsRequiringReview: enrichment.fieldsRequiringReview,
+            prefilledPerson: nil,
+            showManualExtractionRetry: OnDeviceMLPolicy.shouldShowManualExtractionRetry(
+                heavyLLMDeferred: enrichment.heavyLLMDeferred,
+                suggestionsEmpty: enrichment.suggestions.isEmpty
+            )
         )
     }
 

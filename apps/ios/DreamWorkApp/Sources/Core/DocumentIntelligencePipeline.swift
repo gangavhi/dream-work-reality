@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single ingest path for all document scans/uploads (ADR §0 — no per-format parser routing).
+/// Single ingest path for scans/uploads — Vision OCR + Intelligence orchestrator (Apple NL, no GGUF/ONNX).
 enum DocumentIntelligencePipeline {
     struct Result: Hashable {
         let layoutText: String
@@ -10,57 +10,48 @@ enum DocumentIntelligencePipeline {
         let suggestions: [OcrFieldSuggestion]
         let understanding: DocumentUnderstandingResult?
         let usedAI: Bool
+        let mappingNotice: String?
+        let usedMachineReadablePayload: Bool
+        let usedHeuristicFallback: Bool
+        let knowledgeEntities: [KnowledgeEntity]
+        let identityGraph: StructuredIdentityGraph
+        let autofillPayload: SmartAutofillPayload
+        let fraudFindings: [FraudDetectionAgent.Finding]
+        let pipelineTrace: [String]
+        let ocrModelInput: String
+        let ocrLabelValuePairs: String
+        let standardizedOutput: SchemaMappingEngine.StandardizedDocumentOutput?
     }
 
     static func extract(
         document: VisionOcrAdapter.NormalizedDocument,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        allowHeavyLLM: Bool = true
     ) async -> Result {
-        let layoutText = OcrLayoutSerializer.serialize(document: document)
-        let plainText = layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let payloadHints = await EmbeddedPayloadHints.collect(fileURL: fileURL, layoutText: layoutText)
-        let modelInput = OcrLayoutSerializer.modelInput(document: document, payloadHints: payloadHints)
-        let schemaKeys = ProfileSchema.allFields.map(\.key)
-
-        var suggestions: [OcrFieldSuggestion] = []
-        var understanding: DocumentUnderstandingResult?
-        var usedAI = false
-        var openType: String?
-
-        if let mapped = await GenAIFieldMapper.mapFields(
-            layoutText: modelInput,
-            profileSchemaKeys: schemaKeys
-        ) {
-            suggestions = mapped.suggestions
-            openType = mapped.documentType
-            let presentation = DocumentTypePresentation.resolve(mapped.documentType)
-            understanding = DocumentUnderstandingResult(
-                documentType: mapped.documentType ?? presentation.displayLabel,
-                documentTypeConfidence: 0.92,
-                issuerRegion: mapped.suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseState })?.value,
-                displayNameHint: mapped.suggestions.first(where: { $0.profileKey == ProfileFieldKey.displayName })?.value,
-                usedAI: true
-            )
-            usedAI = true
-        } else if !plainText.isEmpty {
-            suggestions = UniversalDocumentParser.parse(from: plainText)
-        }
-
-        let presentation = DocumentTypePresentation.resolve(openType)
-        let displayType = presentation.enumType
-        let label = presentation.displayLabel
-
-        suggestions = GenAIFieldMapper.finalizeSuggestions(suggestions, documentType: displayType)
-        suggestions = PersonNameResolver.apply(to: suggestions, ocrText: plainText, documentType: displayType)
-
+        let orchestrated = await DocumentIntelligenceOrchestrator.process(
+            document: document,
+            fileURL: fileURL,
+            allowHeavyLLM: allowHeavyLLM
+        )
         return Result(
-            layoutText: layoutText,
-            plainText: plainText,
-            displayType: displayType,
-            openDocumentTypeLabel: label,
-            suggestions: suggestions,
-            understanding: understanding,
-            usedAI: usedAI
+            layoutText: orchestrated.layoutText,
+            plainText: orchestrated.plainText,
+            displayType: orchestrated.displayType,
+            openDocumentTypeLabel: orchestrated.openDocumentTypeLabel,
+            suggestions: orchestrated.suggestions,
+            understanding: orchestrated.understanding,
+            usedAI: orchestrated.usedAI,
+            mappingNotice: orchestrated.mappingNotice,
+            usedMachineReadablePayload: orchestrated.usedMachineReadablePayload,
+            usedHeuristicFallback: orchestrated.usedHeuristicFallback,
+            knowledgeEntities: orchestrated.knowledgeEntities,
+            identityGraph: orchestrated.identityGraph,
+            autofillPayload: orchestrated.autofillPayload,
+            fraudFindings: orchestrated.fraudFindings,
+            pipelineTrace: orchestrated.pipelineTrace,
+            ocrModelInput: orchestrated.ocrModelInput,
+            ocrLabelValuePairs: orchestrated.ocrLabelValuePairs,
+            standardizedOutput: orchestrated.standardizedOutput
         )
     }
 }

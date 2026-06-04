@@ -15,32 +15,56 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// General-purpose ingest: layout OCR → on-device LLM (when enabled) → validators → Rust FFI.
+    /// Vision OCR → Apple NL intelligence orchestrator → Rust person resolve + optional SQLite apply.
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
-        fileURL: URL? = nil
+        fileURL: URL? = nil,
+        runStoragePipeline: Bool = false,
+        runOnDeviceLLM: Bool = true
     ) async -> ScanReviewEnrichment {
+        _ = runOnDeviceLLM
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-        let extracted = await DocumentIntelligencePipeline.extract(document: document, fileURL: fileURL)
+
+        let extracted = await Task.detached(priority: .utility) {
+            await DocumentIntelligencePipeline.extract(
+                document: document,
+                fileURL: fileURL,
+                allowHeavyLLM: false
+            )
+        }.value
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
 
-        let planPersonID: String? = {
-            guard let resolution = personResolution,
-                  resolution.resolution == .matchExisting,
-                  let id = resolution.personID
-            else { return nil }
-            return id
-        }()
-        let storagePlan = CoreIngestFFI.planStorage(
-            fields: fieldMap,
-            personID: planPersonID,
-            profileSchemaKeys: schemaKeys
+        let suggestions = extracted.suggestions
+        let identityGraph = DocumentKnowledgeGraph.buildIdentityGraph(
+            from: suggestions,
+            documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
         )
 
-        let suggestions = mergeExtensionFields(from: storagePlan, into: extracted.suggestions)
+        var mappingNotice = extracted.mappingNotice
+        var storagePlan: StoragePlanSuggestion?
+        var pipelineTrace = extracted.pipelineTrace + ["stack:apple_native_v1"]
+
+        if runStoragePipeline {
+            let planPersonID: String? = {
+                guard let resolution = personResolution,
+                      resolution.resolution == .matchExisting,
+                      let id = resolution.personID
+                else { return nil }
+                return id
+            }()
+            storagePlan = AppleStoragePlanner.plan(
+                fields: fieldMap,
+                personID: planPersonID,
+                profileSchemaKeys: schemaKeys,
+                documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
+            )
+            pipelineTrace.append("storage:apple_native:active")
+        } else {
+            pipelineTrace.append("storage:deferred:scan_review")
+        }
 
         return ScanReviewEnrichment(
             understanding: extracted.understanding,
@@ -50,29 +74,20 @@ extension CoreBridgeService {
             usedAI: extracted.usedAI,
             displayDocumentType: extracted.displayType,
             openDocumentTypeLabel: extracted.openDocumentTypeLabel,
-            plainText: extracted.plainText
+            plainText: extracted.plainText,
+            mappingNotice: mappingNotice,
+            usedMachineReadablePayload: extracted.usedMachineReadablePayload,
+            usedHeuristicFallback: extracted.usedHeuristicFallback,
+            identityGraph: identityGraph,
+            autofillPayload: identityGraph.autofillPayload,
+            pipelineTrace: pipelineTrace,
+            ocrModelInput: extracted.ocrModelInput,
+            ocrLabelValuePairs: extracted.ocrLabelValuePairs,
+            standardizedOutput: extracted.standardizedOutput,
+            fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? [],
+            heavyLLMDeferred: false,
+            ranFullOnDevicePipeline: true
         )
-    }
-
-    private func mergeExtensionFields(
-        from plan: StoragePlanSuggestion?,
-        into suggestions: [OcrFieldSuggestion]
-    ) -> [OcrFieldSuggestion] {
-        guard let plan else { return suggestions }
-        var byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0) })
-        for op in plan.operations where op.kind == .upsertExtensionField {
-            guard !op.key.isEmpty, !op.value.isEmpty else { continue }
-            if byKey[op.key] == nil {
-                byKey[op.key] = OcrFieldSuggestion(
-                    profileKey: op.key,
-                    label: ProfileSchema.label(forExtensionKey: op.key),
-                    value: op.value,
-                    confidence: "Medium",
-                    confidenceScore: 0.68
-                )
-            }
-        }
-        return ProfileSchema.sortSuggestions(Array(byKey.values))
     }
 }
 

@@ -11,11 +11,17 @@ struct ScanReviewView: View {
     @State private var originalValues: [String: String] = [:]
     @State private var editingFieldKey: String?
     @State private var saveMessage: String?
+    @State private var showOcrRaw = true
 
     var body: some View {
         NavigationStack {
             List {
                 documentSummarySection
+                ocrRawSection
+                onDeviceExtractionSection
+                if shouldShowTelemetry {
+                    telemetrySection
+                }
                 profileTargetSection
 
                 if payload.suggestions.isEmpty {
@@ -38,7 +44,10 @@ struct ScanReviewView: View {
             .appListChrome()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        appState.clearPendingScanSession()
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
@@ -67,6 +76,7 @@ struct ScanReviewView: View {
             ) {
                 Button("OK") {
                     saveMessage = nil
+                    appState.clearPendingScanSession()
                     dismiss()
                 }
             } message: {
@@ -81,22 +91,157 @@ struct ScanReviewView: View {
         ProfileSchema.groupedSuggestions(payload.suggestions)
     }
 
+    private var shouldShowTelemetry: Bool {
+        #if DEBUG
+        return true
+        #else
+        return payload.suggestions.isEmpty
+        #endif
+    }
+
+    @ViewBuilder
+    private var onDeviceExtractionSection: some View {
+        if payload.showManualExtractionRetry {
+            Section {
+                if appState.isRunningOnDeviceExtraction {
+                    HStack(spacing: 12) {
+                        ProgressView()
+                        Text("Running on-device extraction…")
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Button(OnDeviceMLPolicy.manualExtractionButtonTitle) {
+                        Task { await appState.runOnDeviceExtractionForCurrentScan() }
+                    }
+                }
+                if payload.suggestions.isEmpty,
+                   payload.mappingNotice?.isEmpty ?? true
+                {
+                    Text(OnDeviceMLPolicy.manualExtractionExplanation)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+    }
+
     @ViewBuilder
     private var documentSummarySection: some View {
         Section {
             Label(payload.openDocumentTypeLabel, systemImage: payload.detectedDocumentType.iconName)
-            if payload.usedAI {
-                Text("Extracted on this device with generative mapping.")
+            if payload.usedMachineReadablePayload {
+                Text("High-confidence fields from barcode or machine-readable zone on the document.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if payload.usedAI, !payload.usedHeuristicFallback {
+                Text("Extracted on this device (no data sent to the internet).")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else if payload.usedHeuristicFallback {
+                Text("Fields are estimated from text patterns — verify each value against the scan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
-                Text("Extracted with layout heuristics. Enable Ollama in Settings for richer field mapping.")
+                Text("Limited fields detected. Enter missing details manually or try a clearer scan.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+            }
+            if let notice = payload.mappingNotice, !notice.isEmpty {
+                Text(notice)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
             }
         } header: {
             Text("Document")
         }
+    }
+
+    @ViewBuilder
+    private var ocrRawSection: some View {
+        Section {
+            DisclosureGroup("Show OCR raw text", isExpanded: $showOcrRaw) {
+                Text("\(payload.pageCount) page(s), \(payload.ocrBlockCount) text block(s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if payload.ocrLabelValuePairs.isEmpty {
+                    Text("No label→value pairs detected from layout. Mapping relies on inline lines like “DOB: 03/15/1985”.")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                } else {
+                    ocrDebugSubsection(
+                        title: "Label → value pairs (mapping input)",
+                        body: payload.ocrLabelValuePairs
+                    )
+                }
+
+                ocrDebugSubsection(
+                    title: "Reading order (raw lines)",
+                    body: payload.fullText.isEmpty ? "(no text detected)" : payload.fullText
+                )
+
+                ocrDebugSubsection(
+                    title: "Numbered OCR blocks",
+                    body: payload.ocrModelInput.isEmpty ? "(unavailable)" : payload.ocrModelInput
+                )
+            }
+        } header: {
+            Text("OCR raw")
+        } footer: {
+            Text("Use this to verify what Vision OCR captured and which label/value pairs the mapper received. Long-press to copy.")
+                .font(.caption)
+        }
+    }
+
+    private func ocrDebugSubsection(title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            Text(body)
+                .font(.caption2.monospaced())
+                .textSelection(.enabled)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.vertical, 4)
+    }
+
+    @ViewBuilder
+    private var telemetrySection: some View {
+        Section {
+            if payload.suggestions.isEmpty {
+                Text("No fields reached review. Pipeline trace below shows where extraction stopped or fell back.")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if mappingSourceSummary.isEmpty {
+                Text("Mapping sources: none")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Text("Mapping sources: \(mappingSourceSummary)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if !payload.pipelineTrace.isEmpty {
+                Text(payload.pipelineTrace.joined(separator: " → "))
+                    .font(.caption2.monospaced())
+                    .textSelection(.enabled)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text("Pipeline telemetry")
+        }
+    }
+
+    private var mappingSourceSummary: String {
+        let counts = Dictionary(grouping: payload.suggestions) { suggestion in
+            suggestion.mappingSource?.displayLabel ?? "Unknown"
+        }
+        return counts
+            .map { "\($0.key): \($0.value.count)" }
+            .sorted()
+            .joined(separator: ", ")
     }
 
     @ViewBuilder
@@ -204,13 +349,28 @@ struct ScanReviewView: View {
 
     @ViewBuilder
     private func fieldRow(_ suggestion: OcrFieldSuggestion) -> some View {
-        EditableFieldRow(
-            label: suggestion.label,
-            profileKey: suggestion.profileKey,
-            text: binding(for: suggestion.profileKey),
-            isEditing: editingBinding(for: suggestion.profileKey),
-            originalValue: originalValues[suggestion.profileKey, default: ""]
-        )
+        VStack(alignment: .leading, spacing: 4) {
+            EditableFieldRow(
+                label: suggestion.label,
+                profileKey: suggestion.profileKey,
+                text: binding(for: suggestion.profileKey),
+                isEditing: editingBinding(for: suggestion.profileKey),
+                originalValue: originalValues[suggestion.profileKey, default: ""]
+            )
+            if suggestion.requiresManualConfirmation {
+                Text("Review required — confidence below autofill threshold")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+            } else if let source = suggestion.mappingSource, source == .estimated || suggestion.isLowConfidence {
+                Text("Source: \(source.displayLabel) — verify against scan")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            } else if let source = suggestion.mappingSource {
+                Text("Source: \(source.displayLabel)")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
     }
 
     private func editingBinding(for key: String) -> Binding<Bool> {
@@ -371,6 +531,7 @@ struct ScanReviewView: View {
 
         person = person.merged(with: updates)
         if appState.savePerson(person) {
+            recordLearningCorrections(updates: updates)
             let isReimport = DocumentFingerprintStore.findPreviousImport(for: payload.fullText) != nil
             recordIngestAudit(
                 person: person,
@@ -398,6 +559,7 @@ struct ScanReviewView: View {
             return
         }
         if appState.savePerson(person) {
+            recordLearningCorrections(updates: updates)
             recordIngestAudit(
                 person: person,
                 fieldCount: updates.count,
@@ -406,6 +568,19 @@ struct ScanReviewView: View {
             saveMessage = "Created \(person.displayTitle) under People."
         } else {
             saveMessage = "Could not create profile."
+        }
+    }
+
+    private func recordLearningCorrections(updates: [String: String]) {
+        let docType = payload.openDocumentTypeLabel
+        for (key, newValue) in updates {
+            let original = originalValues[key, default: ""]
+            IncrementalLearningStore.record(
+                profileKey: key,
+                originalValue: original,
+                correctedValue: newValue,
+                documentType: docType
+            )
         }
     }
 

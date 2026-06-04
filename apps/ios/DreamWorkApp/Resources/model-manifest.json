@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "artifacts": [
+    {
+      "artifact_id": "llm.schema.lite.v1",
+      "filename": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 0.5B Instruct Q4_K_M — mobile-safe on-device schema extraction",
+      "bytes_approx": 397410816,
+      "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    },
+    {
+      "artifact_id": "document.classifier.v1",
+      "filename": "Qwen2.5-0.5B-Instruct-Q4_K_M.gguf",
+      "description": "Qwen2.5 0.5B Instruct Q4_K_M — mobile-safe local open-vocabulary OCR document type classifier",
+      "bytes_approx": 397410816,
+      "sha256": "6eb923e7d26e9cea28811e1a8e852009b21242fb157b26149d3b188f3a8c8653",
+      "download_url": "https://huggingface.co/bartowski/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/Qwen2.5-0.5B-Instruct-Q4_K_M.gguf"
+    },
+    {
+      "artifact_id": "sql.storage.planner.v1",
+      "filename": "SS-350M-SQL-Strict.Q8_0.gguf",
+      "description": "SS-350M-SQL-Strict GGUF — small local SQL/storage-planning model for SQLite routing decisions",
+      "bytes_approx": 370000000,
+      "sha256": "9d1b6a05358c5df61f7c7089a382a1890aa9dedd098425d66a6d26f80623a40b",
+      "download_url": "https://huggingface.co/saadxsalman/SS-350M-SQL-Strict-GGUF/resolve/main/SS-350M-SQL-Strict.Q8_0.gguf"
+    },
+    {
+      "artifact_id": "embed.minilm.v1",
+      "filename": "minilm_field_embed_int8.onnx",
+      "description": "sentence-transformers/all-MiniLM-L6-v2 INT8 ONNX — label→profile_key semantic field mapper (~23 MB)",
+      "bytes_approx": 23000000,
+      "sha256": "afdb6f1a0e45b715d0bb9b11772f032c399babd23bfc31fed1c170afc848bdb1",
+      "download_url": "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model_int8.onnx"
+    },
+    {
+      "artifact_id": "layoutlmv3.v1",
+      "filename": "layoutlmv3.mlmodelc",
+      "description": "HYPJUDY/layoutlmv3-base-finetuned-funsd — model-based document layout/form understanding after CoreML conversion",
+      "bytes_approx": null,
+      "sha256": null,
+      "download_url": "https://huggingface.co/HYPJUDY/layoutlmv3-base-finetuned-funsd"
+    }
+  ]
+}
