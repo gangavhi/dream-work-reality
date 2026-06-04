@@ -11,7 +11,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text("TrustNest keeps profiles on this device. Configure a local Ollama/LM Studio endpoint or an OpenAI-compatible cloud key for document understanding and field extraction.")
+                    Text("TrustNest uses Apple Vision and NaturalLanguage on-device by default. Optionally enable Ollama or a cloud API for extra field extraction (data may leave the device).")
                         .appHelperText()
                 }
 
@@ -22,7 +22,7 @@ struct SettingsView: View {
                         }
                     }
 
-                    if llmProvider != .off {
+                    if llmProvider == .ollama || llmProvider == .openAI {
                         TextField("API base URL", text: $llmBaseURL)
                             .fieldInputStyle()
                             .textContentType(.URL)
@@ -60,8 +60,8 @@ struct SettingsView: View {
                     if llmProvider == .ollama {
                         Text("Run Ollama on your Mac (e.g. llama3.2, phi3, mistral). On a physical iPhone, use your Mac's LAN IP instead of 127.0.0.1.")
                             .appHelperText()
-                    } else if llmProvider == .off {
-                        Text("Scans use on-device OCR, barcode parsing, and heuristics. Person matching and storage routing remain offline via the embedded Rust core.")
+                    } else {
+                        Text("Scans use Apple Vision OCR, NaturalLanguage, barcode/MRZ parsing, and on-device profile building. SQLite persistence uses the embedded Rust core.")
                             .appHelperText()
                     }
                 }
