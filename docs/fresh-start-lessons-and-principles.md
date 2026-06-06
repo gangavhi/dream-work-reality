@@ -157,10 +157,11 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 #### Share UX (what the user does)
 
 1. Open **Share** on a person profile (or document bundle).
-2. Pick **scope** — preset datasets, not “export everything”:
+2. Pick **scope** — preset datasets aligned to [document segregation](#household-document-segregation-vault-taxonomy), not “export everything”:
    - `Driver license` — name, DOB, DL#, state, issue/expiry (no SSN unless user explicitly adds)
    - `Insurance card` — carrier, member ID, group ID, subscriber name
    - `Passport` — passport #, name, DOB, nationality, expiry
+   - `Tax (W-2)` — employer, tax year, wages (v1.2+; SSN only if user explicitly checks)
    - `Custom` — explicit field checklist (advanced)
 3. Set **time limit** — e.g., 1 hour, 24 hours, 7 days, or “until I revoke” (revocation always available on sender).
 4. Tap phones (**NFC**) to start; receiver confirms import on their device.
@@ -187,6 +188,106 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 - **Lineage preserved** — shared fields on receiver show: original scan source (from sender) **and** share grant (`grant_id`, sharer, `expires_at`).
 - **No cloud relay** — if transfer cannot complete over proximity radios, **fail visibly**; do not fall back to upload “for convenience.”
 
+### Household document segregation (vault taxonomy)
+
+Users do not store “a document.” They store **household life paperwork** that maps to **forms over years**. The vault must **segregate by category** so classifiers route to the right extractor, share presets stay scoped, and form matchers know which keys are valid for which context.
+
+**Rules:**
+
+- **One scan → one primary category** — user confirms category at ingest if classifier confidence is low; never run DL parsers on utility bills.
+- **Category drives extractor** — see [extractor registry](#extractor-registry-initial); generic regex is **not** allowed on identity or tax docs.
+- **Cross-listed docs** — e.g., passport appears under **Identity** and **Immigration / travel**; store once, index under both presets for share and form fill.
+- **Sensitive fields are category-scoped** — SSN and bank details never appear in default share presets; user must opt in field-by-field.
+
+#### 1. Identity documents (very important) — **v1 extraction priority**
+
+Government and civil identity; highest accuracy bar; expiry guardrails apply.
+
+| Document | `ScannedDocumentType` (v1) | Core profile keys | Expiry anchor |
+|----------|---------------------------|-------------------|---------------|
+| Passport | `passport` | `passport_number`, name, `date_of_birth`, nationality | `passport_expiry` |
+| Driver license / State ID | `driversLicense`, `stateId` | `drivers_license_number`, `drivers_license_state`, name, DOB, address | `drivers_license_expiry`, `state_id_expiry` |
+| Birth certificate | `birthCertificate` (v1.2) | legal name, DOB, place of birth, parent names | — |
+| Social Security card (US) | `ssnCard` | `ssn`, legal name | — |
+
+**Form-fill note:** School intake, medical portals, and government sites most often pull from this tier first.
+
+#### 2. Tax & financial documents — **v1.2+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| Social Security Number (SSN) | `ssnCard`, `w2`, `taxReturn` | `ssn` (lineage from specific form) |
+| W-2 / 1099 forms | `w2`, `form1099` | employer, wages, tax year, `ssn` (masked display) |
+| Previous tax returns | `taxReturn` | filing status, AGI, dependents (structured boxes only) |
+| Bank account details | `bankStatement` | routing, account (last-4 default), institution |
+| Pay stubs / income proof | `payStub` | employer, pay period, gross/net income |
+
+**Rule:** Never guess SSN or account numbers from unstructured text — **labeled box / anchor only** or leave empty.
+
+#### 3. Address proof documents — **v1.2+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| Utility bills | `utilityBill` | service address, account holder, bill date |
+| Lease / rental agreement | `lease` | residence address, lessor/lessee, lease term |
+| Bank statements showing address | `bankStatement` | mailing address, statement date |
+
+**Classifier guardrail:** Address-proof docs must **not** trigger identity parsers (no DL# / passport# extraction from a gas bill).
+
+#### 4. Education documents — **v1.2+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| School transcripts | `transcript` | student name, school, GPA, graduation date |
+| Degree certificates | `degree` | graduate name, institution, degree, conferral date |
+| Immunization / vaccination records | `immunizationRecord` | patient name, vaccine, dose date, provider |
+| Student ID (sometimes) | `studentId` | student name, school, student ID # |
+
+**Form-fill note:** School forms often need **child subject** + parent identity + immunization rows — lineage must record which person each field belongs to.
+
+#### 5. Healthcare / doctor office documents — **v1.1+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| Health insurance card | `insuranceCard` | `insurance_carrier`, `insurance_member_id`, `insurance_group_id`, subscriber name, DOB |
+| Vaccination records | `immunizationRecord` | (shared with education tier) |
+| Medication list | `medicationList` | drug name, dosage, prescriber (structured lines only) |
+| Previous medical records | `medicalRecord` | provider, visit date — **no diagnosis free-text mining in v1** |
+
+Insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) for v1; medication and full records are later phases.
+
+#### 6. Immigration / travel documents (if applicable) — **v1.2+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| Passport | `passport` | (same row as identity — single vault record) |
+| Visa documents | `visa` | visa class, number, validity, country |
+| Work authorization documents | `workAuthorization` | document type (EAD, etc.), number, expiry |
+| Immigration paperwork | `immigrationForm` | receipt number, petition type — anchor-labeled fields only |
+
+**Expiry guardrails:** visa and work-auth documents use the same [dataset health](#dataset-expiry-reminders--form-fill-guardrails) model as DL/passport.
+
+#### 7. Emergency / family documents — **v1.2+**
+
+| Document | Target type | Core profile keys |
+|----------|-------------|-------------------|
+| Marriage certificate | `marriageCertificate` | spouse names, marriage date, jurisdiction |
+| Children’s birth certificates | `birthCertificate` | child legal name, DOB, parent names |
+| Emergency contact information | `emergencyContact` | contact name, relationship, phone — **manual or labeled form only** |
+
+**Household model:** Children’s docs attach to **child person records**; marriage cert links **two adults** without duplicating identity fields.
+
+#### Segregation → implementation phases
+
+| Phase | Categories shipped | Gate |
+|-------|-------------------|------|
+| **v1** | Identity (DL, passport, state ID, SSN card) + insurance card | [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures |
+| **v1.1** | Healthcare (insurance polish), expiry reminders, form fill + lineage | Form automation gate |
+| **v1.2** | Tax, address proof, education, immigration, family/emergency | Per-category photo E2E before merge |
+| **v2+** | Pay stubs, full medical records, complex tax returns | Only after v1 metrics hold |
+
+**Share presets** (proximity) map 1:1 to segregation tiers: `Driver license`, `Passport`, `Insurance card`, `Tax (W-2)` — never “all documents for this person.”
+
 ---
 
 ## Why we are starting over
@@ -195,17 +296,18 @@ We spent months iterating across **heuristics**, **optional HTTP LLM**, **Apple 
 
 > OCR text in review looks readable, but **basic profile fields are wrong, empty, or from the wrong document type.**
 
-Examples that must work before anything else:
+Examples that must work before anything else (see [identity](#1-identity-documents-very-important--v1-extraction-priority) and [healthcare](#5-healthcare--doctor-office-documents--v11) tiers):
 
 | Field | Document examples |
 |-------|-------------------|
-| First name / last name | DL, passport, SSN card, insurance card |
-| Date of birth | DL, passport, insurance card |
+| First name / last name | DL, passport, SSN card, insurance card, birth certificate |
+| Date of birth | DL, passport, insurance card, birth certificate |
 | SSN | SSN card, W-2 |
 | Driver license number | Texas DL, state ID |
 | Passport number | US passport |
 | Insurance carrier | Insurance card / EOB |
 | Member ID / Group ID | Insurance card |
+| Residence address | DL, utility bill, lease, bank statement |
 
 **This is not a hope problem. It is an engineering discipline problem.** We kept adding layers without proving each layer works on **real phone photos** before moving on.
 
@@ -505,7 +607,7 @@ state_id_number, state_id_expiry,
 insurance_carrier, insurance_member_id, insurance_group_id
 ```
 
-Expiry keys are **required for reminders and form guardrails** — not optional metadata. Add employer, utility, tax keys **after** the core fields reach 90% on photo fixtures.
+Expiry keys are **required for reminders and form guardrails** — not optional metadata. Add keys for other [segregation tiers](#household-document-segregation-vault-taxonomy) (tax, address proof, education, immigration, family) **after** the v1 identity + insurance fields reach 90% on photo fixtures.
 
 ### Principle 10 — **Weekly metric, not weekly architecture**
 
@@ -663,14 +765,17 @@ flowchart TB
 
 ### Extractor registry (initial)
 
-| `ScannedDocumentType` | Extractor | Primary anchors |
-|----------------------|-----------|-----------------|
-| `driversLicense` | `TexasDriverLicenseExtractor` | `4d. DL`, `1.` `2.`, `3. DOB`, `8.` address |
-| `passport` | `PassportExtractor` | MRZ TD3, biodata labels |
-| `ssnCard` | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
-| `insuranceCard` | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
-| `stateId` | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
-| *all others* | `LabeledFormExtractor` | Generic label→value pairs only; **no name/DOB/SSN guess** |
+Maps to [household document segregation](#household-document-segregation-vault-taxonomy). **v1 ships only the first five rows**; later tiers register extractors in Phase 3+ without changing the pipeline.
+
+| `ScannedDocumentType` | Segregation tier | Extractor | Primary anchors |
+|----------------------|------------------|-----------|-----------------|
+| `driversLicense` | Identity | `TexasDriverLicenseExtractor` | `4d. DL`, `1.` `2.`, `3. DOB`, `8.` address |
+| `passport` | Identity / Immigration | `PassportExtractor` | MRZ TD3, biodata labels |
+| `ssnCard` | Identity / Tax | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
+| `insuranceCard` | Healthcare | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
+| `stateId` | Identity | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
+| `w2`, `utilityBill`, `transcript`, … | Tax, address, education, … | *Phase 3+ per tier* | Labeled boxes / anchors only |
+| *unclassified* | — | `LabeledFormExtractor` | Generic label→value pairs only; **no name/DOB/SSN guess** |
 
 ### Files we do **not** port to v1
 
@@ -856,8 +961,8 @@ The rewrite is not “try another ML approach.” It is:
 6. **Remind on expiry; guard forms when data is stale**  
 7. **One metric dashboard**
 
-When the extraction acceptance matrix is green on photos, we earn the right to **persist lineage in SQLite**, ship **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and then **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models and more document types come **after** that loop is trustworthy, not before.
+When the extraction acceptance matrix is green on photos, we earn the right to **persist lineage in SQLite**, ship **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and then **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Additional [document segregation tiers](#household-document-segregation-vault-taxonomy) (tax, address proof, education, immigration, family) and semantic models come **after** that loop is trustworthy, not before.
 
 ---
 
-*Document version: 1.3 — branch `docs/fresh-start-principles`, May 2026.*
+*Document version: 1.4 — branch `docs/fresh-start-principles`, June 2026. Adds household document segregation taxonomy.*
