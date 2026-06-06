@@ -12,7 +12,9 @@
 
 **End goal:** Help users **submit forms** (school intake, medical portals, government sites, in-app flows) by **reusing household data stored in SQLite over months and years** — without retyping the same fields every time.
 
-**Storage model:** We **do not store document images or PDFs**. The vault persists **OCR raw data** (normalized blocks, bounds, `fullText`) in `extraction_run`, plus **user-confirmed profile fields** and **lineage** in SQLite. Camera/import bytes are **ephemeral** — used only to produce OCR, then discarded after the run is saved.
+**Data model:** The vault is **data-centric**, not document-centric. **Canonical identity fields** (name, SSN, DL#, address, …) are the source of truth per person. **Documents are evidence only** — they classify, extract, and update canonical fields via OCR; they are not how data is organized or stored.
+
+**Storage model:** We **do not store document images or PDFs**. We persist **OCR raw data** in `extraction_run` (evidence layer) and **user-confirmed canonical fields** + **lineage** in SQLite. Camera/import bytes are **ephemeral** — used only to produce OCR, then discarded after the run is saved.
 
 **Why extraction must work first:** Form fill is only as trustworthy as the profile values behind it. Wrong DL number or spouse’s name in a school form is worse than an empty field. That is why this rewrite starts with field accuracy, not with more form UI.
 
@@ -36,7 +38,7 @@
 | Stage | User intent | What we must guarantee |
 |-------|-------------|------------------------|
 | **Ingest** | “Scan my new Texas DL — my address changed” | Correct fields from photo; OCR JSON persisted; **image bytes discarded**; user reviews before save |
-| **Store** | “Keep my household up to date over time” | Each profile field has **current value** + **history** linked to `extraction_run_id` (OCR snapshot), not to a stored file |
+| **Store** | “Keep my household up to date over time” | Each **canonical field** has **current value** + **history**; evidence links via `extraction_run_id`, not via stored document files |
 | **Refresh** | “Replace old DL# with the one from this scan” | Rescan **supersedes** stale values; old version retained in history |
 | **Remind** | “My DL expires today — don’t let me forget” | **Local notifications** before/on expiry; profile shows dataset health |
 | **Fill** | “Fill this form for my child” | Matcher picks values from vault; user sees **which OCR run / manual edit** each value came from; **expired datasets prompt rescan** before applying |
@@ -90,15 +92,17 @@ Form surfaces (browser extension, in-app checklist, future platform autofill) al
 
 ### Dataset expiry reminders & form-fill guardrails
 
-Many vault fields belong to a **dataset** with a document **expiry date**. When that date passes, the dataset is **stale** — the user should scan an updated document, not keep reusing old values in forms.
+Many **canonical government identifier fields** have an **expiry date** (from evidence documents). When that date passes, the identifier group is **stale** — the user should scan updated evidence, not keep reusing old values in forms.
 
-#### Datasets with expiry anchors (v1)
+#### Identifier groups with expiry anchors
 
-| Dataset preset | Expiry field (`profile_key`) | Related fields that depend on it |
-|----------------|---------------------------|--------------------------------|
-| `Driver license` | `drivers_license_expiry` | `drivers_license_number`, `drivers_license_state`, name, DOB, address |
-| `Passport` | `passport_expiry` | `passport_number`, name, DOB, nationality |
-| `State ID` | `state_id_expiry` | `state_id_number`, name, DOB |
+| Field group | Expiry key (Layer B) | Related canonical fields |
+|-------------|----------------------|--------------------------|
+| Driver license | `driver_license_expiry` | `driver_license_number`, `driver_license_state`, name, DOB, address |
+| Passport | `passport_expiry` | `passport_number`, name, DOB, nationality |
+| State ID | `state_id_expiry` | `state_id_number`, name, DOB |
+| Visa | `visa_expiry` | `visa_number` |
+| Work authorization | `work_authorization_expiry` | `work_authorization_number` |
 
 Insurance cards may gain plan-year expiry later; v1 focuses on government IDs where expiry is on the document.
 
@@ -158,7 +162,7 @@ Same pattern for passport / state ID when form matcher requests those keys. If e
 
 #### Extraction requirement
 
-Expiry reminders are useless if `drivers_license_expiry` is wrong or empty. Texas DL extractor must populate expiry from layout (`4b.` / “EXP” line) — included in [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) for DL row.
+Expiry reminders are useless if `driver_license_expiry` is wrong or empty. Texas DL extractor must populate expiry from layout (`4b.` / “EXP” line) — included in [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) for DL row.
 
 ### Proximity share: scoped datasets, time-bound, zero egress
 
@@ -169,12 +173,12 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 #### Share UX (what the user does)
 
 1. Open **Share** on a person profile (or dataset preset).
-2. Pick **scope** — preset datasets aligned to [document segregation](#household-document-segregation-vault-taxonomy), not “export everything”:
-   - `Driver license` — name, DOB, DL#, state, issue/expiry (no SSN unless user explicitly adds)
-   - `Insurance card` — carrier, member ID, group ID, subscriber name
-   - `Passport` — passport #, name, DOB, nationality, expiry
-   - `Tax (W-2)` — employer, tax year, wages (SSN only if user explicitly checks)
-   - `Custom` — explicit field checklist (advanced)
+2. Pick **scope** — **canonical field groups** from [Layer B](#layer-b--canonical-identity-schema-core), not “export everything”:
+   - `Government IDs` — `driver_license_number`, `passport_number`, expiries (no `ssn` unless user explicitly adds)
+   - `Healthcare` — `insurance_provider`, `policy_number`, `insurance_group_id`
+   - `Contact & address` — `current_address`, `mailing_address`, `phone_number`
+   - `Financial` — `employer_name`, `income` (no `bank_account_number` unless user explicitly checks)
+   - `Custom` — explicit canonical field checklist (advanced)
 3. Set **time limit** — e.g., 1 hour, 24 hours, 7 days, or “until I revoke” (revocation always available on sender).
 4. Tap phones (**NFC**) to start; receiver confirms import on their device.
 5. Receiver sees data labeled **“Shared by [Name] · expires [time]”** with per-field **foreign provenance** — not as if they scanned it themselves.
@@ -200,109 +204,170 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 - **Lineage preserved** — shared fields on receiver show: original scan source (from sender) **and** share grant (`grant_id`, sharer, `expires_at`).
 - **No cloud relay** — if transfer cannot complete over proximity radios, **fail visibly**; do not fall back to upload “for convenience.”
 
-### Household document segregation (vault taxonomy)
+### Three-layer data model (not document-centric)
 
-Users **scan** physical or digital documents at ingest time, but the vault **does not keep the files**. We persist **OCR raw data** + **confirmed profile fields** segregated by **document category** (`document_type`) so classifiers route to the right extractor, share presets stay scoped, and form matchers know which keys are valid for which context.
+**Anti-pattern we are fixing:** Organizing the vault as “Identity Documents → Passport, DL, SSN card…” treats **documents as the source of truth**. Real systems are **data-centric**: one canonical field (e.g., `ssn`) may be updated from an SSN card, W-2, or tax return — the document type is **classification + evidence**, not storage structure.
+
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Layer B — Canonical identity schema (SOURCE OF TRUTH)                     │
+│   Per person: first_name, ssn, driver_license_number, current_address, …  │
+│   SQLite: field_value_current + field_value_history                     │
+└───────────────────────────────▲─────────────────────────────────────────┘
+                                │ extract + user confirm
+┌───────────────────────────────┴─────────────────────────────────────────┐
+│ Layer C — Evidence (audit only)                                           │
+│   extraction_run: OCR JSON + document_type + scanned_at                   │
+│   Lineage: which evidence run last updated each canonical field           │
+└───────────────────────────────▲─────────────────────────────────────────┘
+                                │ classify + OCR
+┌───────────────────────────────┴─────────────────────────────────────────┐
+│ Layer A — Document types (CLASSIFICATION ONLY)                            │
+│   Passport, W-2, utility bill, … → pick extractor, never the vault key  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
 
 **Rules:**
 
-- **One scan → one primary category** — user confirms category at ingest if classifier confidence is low; never run DL parsers on utility bills.
-- **Category drives extractor** — see [extractor registry](#extractor-registry-initial); generic regex is **not** allowed on identity or tax docs.
-- **Cross-listed types** — e.g., passport maps to **Identity** and **Immigration / travel**; one OCR run + profile fields, indexed under both share presets.
-- **Sensitive fields are category-scoped** — SSN and bank details never appear in default share presets; user must opt in field-by-field.
+- **Vault keys are canonical** — form fill, share, and profile UI read **Layer B** only.
+- **Documents update fields** — a Texas DL scan may set `first_name`, `driver_license_number`, `current_address`; it does not create a “DL document record” in the vault.
+- **One scan → one `document_type`** — user confirms Layer A type if classifier confidence is low; never run DL parsers on utility bills.
+- **SSN is a field, not a document** — `ssn` is a government identifier; SSN card, W-2, and 1099 are **evidence sources** that may populate it.
+- **Sensitive fields** — SSN, bank account, routing never in default share presets; opt in per field group.
 
-#### 1. Identity documents (very important)
+---
 
-Government and civil identity; highest accuracy bar; expiry guardrails apply.
+#### Layer A — Document types (classification only)
 
-| Document | `ScannedDocumentType` (v1) | Core profile keys | Expiry anchor |
-|----------|---------------------------|-------------------|---------------|
-| Passport | `passport` | `passport_number`, name, `date_of_birth`, nationality | `passport_expiry` |
-| Driver license / State ID | `driversLicense`, `stateId` | `drivers_license_number`, `drivers_license_state`, name, DOB, address | `drivers_license_expiry`, `state_id_expiry` |
-| Birth certificate | `birthCertificate` | legal name, DOB, place of birth, parent names | — |
-| Social Security card (US) | `ssnCard` | `ssn`, legal name | — |
+Used by `DocumentClassifier` and [extractor registry](#extractor-registry-initial). **Not** used as SQLite primary keys or profile navigation.
 
-**Form-fill note:** School intake, medical portals, and government sites most often pull from this tier first.
+| Category | Document types (`ScannedDocumentType`) |
+|----------|----------------------------------------|
+| **Identity** | Passport, driver’s license / state ID, birth certificate, SSN card |
+| **Financial / tax** | W-2, 1099, tax returns, bank statements, pay stubs |
+| **Address proof** | Utility bills, lease agreements, bank statements (address line) |
+| **Education** | Transcripts, degree certificates, immunization records, student ID |
+| **Healthcare** | Insurance card, vaccination records, medication list, medical records |
+| **Immigration / travel** | Visa documents, work authorization (EAD), immigration forms (I-94, etc.) |
+| **Emergency / family** | Marriage certificate, children’s birth certificates, emergency contacts |
 
-#### 2. Tax & financial documents
+**Classifier guardrail:** address-proof and utility types must **not** trigger identity parsers (no DL# / passport# from a gas bill).
 
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| Social Security Number (SSN) | `ssnCard`, `w2`, `taxReturn` | `ssn` (lineage from specific form) |
-| W-2 / 1099 forms | `w2`, `form1099` | employer, wages, tax year, `ssn` (masked display) |
-| Previous tax returns | `taxReturn` | filing status, AGI, dependents (structured boxes only) |
-| Bank account details | `bankStatement` | routing, account (last-4 default), institution |
-| Pay stubs / income proof | `payStub` | employer, pay period, gross/net income |
+---
+
+#### Layer B — Canonical identity schema (core)
+
+**This is how the vault is organized.** Every person record holds these universal fields (current + history). Form matchers map web form labels → canonical keys.
+
+**1. Personal identity**
+
+| Canonical key | Notes |
+|---------------|-------|
+| `full_name` | Display / legal composite when needed |
+| `first_name` | |
+| `last_name` | |
+| `date_of_birth` | |
+| `gender` | Optional |
+| `nationality` | |
+
+**2. Government identifiers**
+
+| Canonical key | Expiry key (if applicable) | Evidence document types |
+|---------------|---------------------------|-------------------------|
+| `ssn` | — | SSN card, W-2, 1099, tax return |
+| `passport_number` | `passport_expiry` | Passport |
+| `driver_license_number` | `driver_license_expiry` | Driver’s license, state ID |
+| `driver_license_state` | — | Driver’s license, state ID |
+| `state_id_number` | `state_id_expiry` | State ID |
+| `visa_number` | `visa_expiry` | Visa documents |
+| `work_authorization_number` | `work_authorization_expiry` | EAD, work authorization |
+
+**3. Contact & address**
+
+| Canonical key | Evidence document types |
+|---------------|-------------------------|
+| `current_address` | DL, utility bill, lease, bank statement |
+| `mailing_address` | Bank statement, lease |
+| `phone_number` | Manual, labeled forms |
+| `email` | Manual, labeled forms |
+
+**4. Financial identity**
+
+| Canonical key | Notes |
+|---------------|-------|
+| `bank_account_number` | Sensitive — last-4 display default |
+| `routing_number` | |
+| `employer_name` | W-2, pay stub |
+| `income` | W-2, pay stub, 1099 |
+| `pay_frequency` | Pay stub |
+
+**5. Education**
+
+| Canonical key | Evidence document types |
+|---------------|-------------------------|
+| `highest_degree` | Degree certificate |
+| `institution_name` | Transcript, degree, student ID |
+| `graduation_year` | Transcript, degree |
+
+Structured lists (separate tables or JSON blobs per person):
+
+- `vaccination_status[]` — vaccine, dose date, source (`immunizationRecord`)
+
+**6. Healthcare**
+
+| Canonical key | Legacy alias (migrate) | Evidence |
+|---------------|------------------------|----------|
+| `insurance_provider` | `insurance_carrier` | Insurance card |
+| `policy_number` | `insurance_member_id` | Insurance card |
+| `insurance_group_id` | — | Insurance card |
+| `blood_type` | Optional | Medical record |
+
+**7. Family / emergency**
+
+| Canonical key | Structure | Evidence |
+|---------------|-----------|----------|
+| `emergency_contacts[]` | `{ name, relationship, phone }` | Emergency contact form, manual |
+| `dependents[]` | Links to child `person_id` | Children’s birth certificates |
+| `marital_status` | enum / string | Marriage certificate, manual |
+
+**Household model:** Each **person** (parent, child, spouse) has their own Layer B record. Children’s birth certs attach to **child person records**; marriage cert updates `marital_status` and links spouses — no duplicate `first_name` rows.
+
+**Expiry guardrails** apply to government identifier keys (`driver_license_expiry`, `passport_expiry`, `visa_expiry`, …) — see [dataset expiry](#dataset-expiry-reminders--form-fill-guardrails).
+
+---
+
+#### Layer C — Evidence mapping (extractors → canonical fields)
+
+Extractors read OCR from Layer A and **propose updates** to Layer B. User confirms in review; lineage records `extraction_run_id` + `document_type`.
+
+| `document_type` | Extractor | Canonical fields updated (examples) |
+|-----------------|-----------|-------------------------------------|
+| `driversLicense` | `TexasDriverLicenseExtractor` | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_state`, `driver_license_expiry`, `current_address` |
+| `passport` | `PassportExtractor` | `first_name`, `last_name`, `date_of_birth`, `nationality`, `passport_number`, `passport_expiry` |
+| `ssnCard` | `SSNCardExtractor` | `ssn`, `first_name`, `last_name` |
+| `insuranceCard` | `InsuranceCardExtractor` | `insurance_provider`, `policy_number`, `insurance_group_id`, `first_name`, `date_of_birth` |
+| `w2` | `TaxFormExtractor` | `ssn`, `employer_name`, `income` |
+| `utilityBill` | `AddressProofExtractor` | `current_address` only — **no** government IDs |
+| `birthCertificate` | `BirthCertificateExtractor` | `first_name`, `last_name`, `date_of_birth` |
+| *unclassified* | `LabeledFormExtractor` | Label→canonical map only; **no** flat-text name/DOB/SSN guess |
 
 **Rule:** Never guess SSN or account numbers from unstructured text — **labeled box / anchor only** or leave empty.
 
-#### 3. Address proof documents
+---
 
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| Utility bills | `utilityBill` | service address, account holder, bill date |
-| Lease / rental agreement | `lease` | residence address, lessor/lessee, lease term |
-| Bank statements showing address | `bankStatement` | mailing address, statement date |
+#### Single rollout (all layers together)
 
-**Classifier guardrail:** Address-proof docs must **not** trigger identity parsers (no DL# / passport# extraction from a gas bill).
-
-#### 4. Education documents
-
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| School transcripts | `transcript` | student name, school, GPA, graduation date |
-| Degree certificates | `degree` | graduate name, institution, degree, conferral date |
-| Immunization / vaccination records | `immunizationRecord` | patient name, vaccine, dose date, provider |
-| Student ID (sometimes) | `studentId` | student name, school, student ID # |
-
-**Form-fill note:** School forms often need **child subject** + parent identity + immunization rows — lineage must record which person each field belongs to.
-
-#### 5. Healthcare / doctor office documents
-
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| Health insurance card | `insuranceCard` | `insurance_carrier`, `insurance_member_id`, `insurance_group_id`, subscriber name, DOB |
-| Vaccination records | `immunizationRecord` | (shared with education tier) |
-| Medication list | `medicationList` | drug name, dosage, prescriber (structured lines only) |
-| Previous medical records | `medicalRecord` | provider, visit date — **no diagnosis free-text mining** (structured fields only) |
-
-All healthcare document types are in scope for the single rollout; insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right).
-
-#### 6. Immigration / travel documents (if applicable)
-
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| Passport | `passport` | (same row as identity — single vault record) |
-| Visa documents | `visa` | visa class, number, validity, country |
-| Work authorization documents | `workAuthorization` | document type (EAD, etc.), number, expiry |
-| Immigration paperwork | `immigrationForm` | receipt number, petition type — anchor-labeled fields only |
-
-**Expiry guardrails:** visa and work-auth documents use the same [dataset health](#dataset-expiry-reminders--form-fill-guardrails) model as DL/passport.
-
-#### 7. Emergency / family documents
-
-| Document | Target type | Core profile keys |
-|----------|-------------|-------------------|
-| Marriage certificate | `marriageCertificate` | spouse names, marriage date, jurisdiction |
-| Children’s birth certificates | `birthCertificate` | child legal name, DOB, parent names |
-| Emergency contact information | `emergencyContact` | contact name, relationship, phone — **manual or labeled form only** |
-
-**Household model:** Children’s docs attach to **child person records**; marriage cert links **two adults** without duplicating identity fields.
-
-#### Single rollout (all categories together)
-
-All seven segregation tiers ship in **one rollout** — not staggered v1 / v1.1 / v1.2 waves. Identity, tax, address proof, education, healthcare, immigration, and family/emergency documents are in scope from day one.
+All Layer A classifiers, Layer B schema groups, and Layer C extractors ship in **one rollout**.
 
 | What ships | Gate |
 |------------|------|
-| **All document categories** (tables above) | Per-category photo E2E passes before merge |
-| **Extraction** | [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures for core IDs + insurance |
-| **Lineage + form fill + expiry** | [Form automation gate](#form-automation--lineage-gate), [expiry gate](#dataset-expiry--reminders-gate) |
-| **Proximity share** | [Proximity share gate](#proximity-share-gate) |
+| **Layer B schema** + history/lineage | [Form automation gate](#form-automation--lineage-gate) |
+| **Layer A + C** — all document types | Per-type photo E2E; [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green |
+| **Expiry + share** | [Expiry gate](#dataset-expiry--reminders-gate), [proximity share gate](#proximity-share-gate) |
 
-**Share presets** (proximity) map 1:1 to segregation tiers: `Driver license`, `Passport`, `Insurance card`, `Tax (W-2)` — never “all documents for this person.”
+**Share presets** (proximity) map to **canonical field groups**, not document folders: `Government IDs`, `Contact & address`, `Healthcare`, `Financial` — never “all documents for this person.”
 
-**Build order inside the single rollout:** implement extractors one document type at a time (highest user pain first), but **do not ship** until extraction, lineage, form fill, expiry reminders, and proximity share gates are all green together.
+**Build order:** implement extractors one `document_type` at a time (Texas DL → SSN card → insurance → passport → …), each writing into Layer B; **do not ship** until all gates are green.
 
 ---
 
@@ -312,7 +377,7 @@ We spent months iterating across **heuristics**, **optional HTTP LLM**, **Apple 
 
 > OCR text in review looks readable, but **basic profile fields are wrong, empty, or from the wrong document type.**
 
-Examples that must work before anything else (see [identity](#1-identity-documents-very-important) and [healthcare](#5-healthcare--doctor-office-documents) tiers):
+Examples that must work before anything else (canonical fields populated from [Layer A evidence](#layer-c--evidence-mapping-extractors--canonical-fields)):
 
 | Field | Document examples |
 |-------|-------------------|
@@ -419,7 +484,13 @@ Government IDs and forms are **layout problems**, not **regex problems**.
 
 Users cannot tell **guess** vs **verified** vs **machine-readable decode**.
 
-### 5. Scope creep before basics
+### 5. Document-centric vault design
+
+We organized features around **document types** (DL parser, passport parser, insurance parser) instead of a **canonical field schema**. The same `ssn` could come from three document types but had no single field home. Form fill, share scopes, and expiry logic became tangled in “which document” instead of “which field.”
+
+**Lesson:** Layer A classifies; Layer B stores; Layer C links evidence. Never navigate the profile by document folder.
+
+### 6. Scope creep before basics
 
 We built before basics worked:
 
@@ -432,7 +503,7 @@ Meanwhile **insurance member ID on a real card** still fails.
 
 **Lesson:** **Freeze features** until the [acceptance matrix](#acceptance-matrix) passes on photos.
 
-### 6. Architecture optimized for extensibility, not correctness
+### 7. Architecture optimized for extensibility, not correctness
 
 The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step felt like progress. **Removing** a wrong step was never done.
 
@@ -486,6 +557,7 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | N9 | Fix one document type by hardcoding without regression on others |
 | N10 | Commit architecture docs instead of **field accuracy metrics** |
 | N11 | Add “save document image” or document vault features — store **OCR raw data only** |
+| N12 | Organize vault navigation by document type — use **canonical fields** (Layer B) as source of truth |
 
 ### Technical anti-patterns
 
@@ -614,19 +686,28 @@ Synthetic perfect-line tests are NOT in the top two tiers.
 **Replace** in-memory `provenance.rs` with persisted `field_value_current` + `field_value_history` before form automation.  
 **Wire** existing `proximity/mod.rs` handshake into share UI — do not build a parallel crypto path in Swift.
 
-### Principle 9 — **Small schema, expand later**
+### Principle 9 — **Canonical schema first (Layer B)**
 
-v1 extractors target **only** these keys:
+The vault is keyed by **canonical identity fields**, not document types. Full schema in [Layer B](#layer-b--canonical-identity-schema-core). Minimum keys for acceptance matrix + ship gate:
 
 ```text
-legal_first_name, legal_last_name, display_name, date_of_birth,
-ssn, drivers_license_number, drivers_license_state, drivers_license_expiry,
-passport_number, passport_expiry,
-state_id_number, state_id_expiry,
-insurance_carrier, insurance_member_id, insurance_group_id
+# Personal identity
+full_name, first_name, last_name, date_of_birth, nationality
+
+# Government identifiers (+ expiry keys)
+ssn, passport_number, passport_expiry,
+driver_license_number, driver_license_state, driver_license_expiry,
+state_id_number, state_id_expiry
+
+# Healthcare (migrate legacy names)
+insurance_provider, policy_number, insurance_group_id
 ```
 
-Expiry keys are **required for reminders and form guardrails** — not optional metadata. Profile keys for all [segregation tiers](#household-document-segregation-vault-taxonomy) (identity, tax, address proof, education, healthcare, immigration, family) are in scope for the **single rollout** — expand the schema as each category’s extractor lands, but ship only when the full gate checklist passes.
+**Legacy migration:** `legal_first_name` → `first_name`, `insurance_carrier` → `insurance_provider`, `insurance_member_id` → `policy_number`, `drivers_license_*` → `driver_license_*`.
+
+Remaining Layer B groups (contact, financial, education, family) ship in the **same rollout** — add keys as extractors land, but form fill and share always read canonical keys only.
+
+Expiry keys on government identifiers are **required** for reminders and form guardrails — not optional metadata.
 
 ### Principle 10 — **Weekly metric, not weekly architecture**
 
@@ -644,7 +725,7 @@ No new features until metrics flatline below target.
 
 ### Principle 11 — **Profiles are a living vault, not a one-time dump**
 
-- Household data **accumulates** in SQLite: multiple people, multiple document types, multiple scans over time.
+- Household data **accumulates** in SQLite: multiple people, **canonical fields** updated from many evidence scans over time.
 - Users **keep data current** by scanning replacements (e.g., renewed driver license, new insurance card) — not by re-entering everything manually.
 - A rescan **supersedes** the current value for affected keys (DL#, expiry, address, member ID, …) while **history retains** the old value and its source.
 - **Conflict UX:** if a new scan disagrees with an existing value, show both with dates and let the user pick — never auto-merge silently.
@@ -653,14 +734,14 @@ No new features until metrics flatline below target.
 ### Principle 12 — **Form fill is confirmed automation, not silent injection**
 
 - Matcher proposes `field → value` bindings from the vault; user **confirms** before values are applied (clipboard, extension, or platform autofill).
-- Every proposed fill value includes **lineage**: profile key, person, source document type, scan date, `extraction_run_id` or `manual`.
-- **Expired dataset guard:** if a required field (e.g., `drivers_license_number`) belongs to a dataset whose `expires_on` is **today or in the past**, show **update prompt** before apply — default action is **Scan new document**, not fill with stale ID.
+- Every proposed fill value includes **lineage**: canonical key, person, evidence `document_type`, scan date, `extraction_run_id` or `manual`.
+- **Expired identifier guard:** if a required canonical field (e.g., `driver_license_number`) has `expires_on` **today or in the past**, show **update prompt** before apply — default action is **Scan new evidence**, not fill with stale ID.
 - User edits during fill are **write-back** events with `source_kind=form` — they become the new current value with the same history model.
 - **Form subject** must be explicit (e.g., “this school form is about [Child]”) — parent vs child vs emergency contact fields resolve to the right person with provenance recorded per field.
 
 ### Principle 13 — **Proximity share is scoped, time-bound, and never cloud-routed**
 
-- User shares a **named dataset** (e.g., driver license fields only) — not an implicit full-profile dump.
+- User shares a **canonical field group** (e.g., government IDs only) — not an implicit full-profile dump.
 - User sets **TTL at share time** (1h / 24h / 7d / until revoked); receiver UI shows expiry prominently.
 - Transfer uses **NFC tap to start** + **encrypted proximity channel** (BLE for payload per [ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md)); **zero internet egress** for payload bytes.
 - Receiver imports with `foreign_provenance` — fields remain attributable to **sharer + original scan lineage + grant expiry**.
@@ -695,7 +776,7 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 
 | Scenario | Must pass |
 |----------|-----------|
-| Rescan Texas DL updates `drivers_license_number` | New value current; old value in history; both linked to `extraction_run_id` |
+| Rescan Texas DL updates `driver_license_number` | New value current; old value in history; both linked to `extraction_run_id` |
 | Profile screen | Each core field shows source summary (scan type + date or Manual) |
 | In-app form fill preview | Every filled field shows lineage; user can cancel individual fields |
 | Household form (child subject) | Child fields from child profile; parent fields from selected parent with per-field source |
@@ -710,7 +791,7 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 |----------|-----------|
 | DL expires in 7 days | Local notification scheduled (or in-app banner if notifications denied) |
 | DL expires today | Notification: person + dataset + “scan to update” deep link |
-| User rescans new DL | `drivers_license_expiry` updated; status → `valid`; old expiry in history; reminders rescheduled |
+| User rescans new DL | `driver_license_expiry` updated; status → `valid`; old expiry in history; reminders rescheduled |
 | Profile dataset card | Shows `Expired` / `Expires in N days` with scan CTA |
 | Home summary | Lists household members with expiring/expired datasets |
 | Rust `dataset_health` API | Same status returned for profile UI, notifications, and form matcher |
@@ -784,23 +865,23 @@ flowchart TB
 
 ### Extractor registry (initial)
 
-Maps to [household document segregation](#household-document-segregation-vault-taxonomy). **Single rollout** — every tier gets a dedicated extractor registered in the same pipeline; build extractors in priority order, ship when all gates pass.
+**Layer A → Layer C:** each `ScannedDocumentType` registers one extractor that writes into [Layer B canonical keys](#layer-c--evidence-mapping-extractors--canonical-fields). Classifier picks type; extractor never defines vault structure.
 
-| `ScannedDocumentType` | Segregation tier | Extractor | Primary anchors |
+| `ScannedDocumentType` | Layer A category | Extractor | Primary anchors |
 |----------------------|------------------|-----------|-----------------|
 | `driversLicense` | Identity | `TexasDriverLicenseExtractor` | `4d. DL`, `1.` `2.`, `3. DOB`, `8.` address |
-| `passport` | Identity / Immigration | `PassportExtractor` | MRZ TD3, biodata labels |
-| `ssnCard` | Identity / Tax | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
+| `passport` | Identity | `PassportExtractor` | MRZ TD3, biodata labels |
+| `ssnCard` | Identity | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
 | `insuranceCard` | Healthcare | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
 | `stateId` | Identity | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
-| `birthCertificate` | Identity / Family | `BirthCertificateExtractor` | labeled name, DOB, place of birth |
-| `w2`, `form1099`, `taxReturn` | Tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
-| `utilityBill`, `lease`, `bankStatement` | Address proof | `AddressProofExtractor` | service/mailing address, account holder |
+| `birthCertificate` | Identity / family | `BirthCertificateExtractor` | labeled name, DOB, place of birth |
+| `w2`, `form1099`, `taxReturn` | Financial / tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
+| `utilityBill`, `lease`, `bankStatement` | Address proof | `AddressProofExtractor` | service/mailing address only |
 | `transcript`, `degree`, `immunizationRecord`, `studentId` | Education | `EducationDocumentExtractor` | school, student name, dates |
-| `visa`, `workAuthorization`, `immigrationForm` | Immigration | `ImmigrationDocumentExtractor` | visa class, auth number, expiry |
-| `marriageCertificate`, `emergencyContact` | Family / Emergency | `FamilyDocumentExtractor` | spouse names, contacts (labeled only) |
+| `visa`, `workAuthorization`, `immigrationForm` | Immigration / travel | `ImmigrationDocumentExtractor` | visa class, auth number, expiry |
+| `marriageCertificate`, `emergencyContact` | Family / emergency | `FamilyDocumentExtractor` | spouse names, contacts (labeled only) |
 | `medicationList`, `medicalRecord` | Healthcare | `MedicalRecordExtractor` | structured lines only; no diagnosis mining |
-| *unclassified* | — | `LabeledFormExtractor` | Generic label→value pairs only; **no name/DOB/SSN guess** |
+| *unclassified* | — | `LabeledFormExtractor` | Label → canonical key map only; **no** flat-text guess |
 
 ### Files we do **not** port to v1
 
@@ -823,7 +904,7 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 
 - [x] Branch `docs/fresh-start-principles`
 - [x] Lessons document (this file)
-- [ ] Pin photo corpus: fixtures for every [segregation tier](#household-document-segregation-vault-taxonomy) from `household-fixtures`
+- [ ] Pin photo corpus: fixtures for every [Layer A document type](#layer-a--document-types-classification-only) from `household-fixtures`
 - [ ] `FieldAccuracyScorecard.md` spreadsheet or script — track precision/recall weekly
 
 ### Pipeline (OCR → classify → extract)
@@ -902,6 +983,8 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 | Fill with expired ID silently? | **Never** | Guard at form preview; same rules for extension when wired |
 | Store scanned image/PDF bytes? | **No** | Persist OCR JSON in `extraction_run` only; image is ephemeral |
 | Re-open original scan photo later? | **No** (v1) | Lineage points to OCR run text; user rescans if they need a new capture |
+| Vault organized by document type? | **No** | **Data-centric:** Layer B canonical fields are source of truth; documents are evidence ([3-layer model](#three-layer-data-model-not-document-centric)) |
+| SSN as a document? | **No** | `ssn` is a government identifier field; SSN card / W-2 / 1099 are evidence sources |
 
 ---
 
@@ -927,7 +1010,8 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 - Adds share path that uploads payload or uses internet as fallback  
 - Ships share without TTL + scope manifest + revoke  
 - Auto-fills government ID fields without checking dataset expiry status  
-- Ships DL extractor without `drivers_license_expiry` when matrix requires it  
+- Ships DL extractor without `driver_license_expiry` when matrix requires it  
+- Stores profile data under document-type folders instead of canonical keys  
 
 ### Weekly review (15 min):
 
@@ -970,8 +1054,8 @@ The rewrite is not “try another ML approach.” It is:
 7. **One metric dashboard**  
 8. **OCR raw data only** — profile values + lineage, not a document archive
 
-When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: all [document segregation tiers](#household-document-segregation-vault-taxonomy), **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
+When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: full [Layer B canonical schema](#layer-b--canonical-identity-schema-core), all [Layer A classifiers + Layer C extractors](#three-layer-data-model-not-document-centric), **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped canonical field groups with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
 
 ---
 
-*Document version: 2.0 FINAL — branch `docs/fresh-start-principles`, June 2026. Companion to [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
+*Document version: 2.1 — branch `docs/fresh-start-principles`, June 2026. Data-centric 3-layer model (classification → canonical schema → evidence).*
