@@ -21,152 +21,113 @@ TrustNest helps households **fill forms** (school, medical, government, in-app) 
 | Principle | Decision |
 |-----------|----------|
 | **North star** | Confirmed form automation from a household SQLite vault |
-| **Storage** | **OCR raw data only** — normalized JSON in `extraction_run`; **no** stored images/PDFs |
+| **Data model** | **Data-centric, not document-centric** — canonical fields are source of truth; documents are evidence only |
+| **3 layers** | **A** classify document type → **C** OCR evidence → **B** canonical profile fields |
+| **Storage** | **OCR raw data only** in `extraction_run`; **no** stored images/PDFs |
 | **Accuracy first** | OCR is mostly fine; **field mapping** was the failure — fix mapping before more ML |
-| **Pipeline** | CAPTURE (ephemeral) → OCR → EXTRACT → REVIEW → SQLite |
+| **Pipeline** | CAPTURE (ephemeral) → OCR → EXTRACT → REVIEW → canonical SQLite fields |
 | **Extraction order** | MRZ/barcode → type extractor → label-anchored → **stop** (empty beats wrong) |
-| **Document model** | Seven [segregation tiers](#document-categories) — classify once, extract once |
-| **Lineage** | Every profile value traceable to `extraction_run_id`, manual edit, form write-back, or proximity share |
-| **Expiry** | Local reminders + form-fill guardrails when DL/passport/state ID datasets are stale |
-| **Share** | Proximity only (NFC + BLE) — scoped presets, TTL, zero cloud egress |
-| **Rollout** | **Single phase** — all categories and all ship gates pass together before release |
-| **Tests** | Photo fixture E2E (Vision OCR → extract) is the gate; synthetic OCR lines are not enough |
+| **Lineage** | Every canonical value traceable to `extraction_run_id`, manual edit, form write-back, or proximity share |
+| **Share** | Proximity only — scoped **canonical field groups**, TTL, zero cloud egress |
+| **Rollout** | **Single phase** — all layers and ship gates pass together before release |
 
 ---
 
-## What we are building
+## Three-layer model
 
 ```text
-Scan (ephemeral image) → OCR JSON → Extract → User review → SQLite profiles
-                                                              ↓
-                                    Form fill (confirmed) ← lineage + expiry checks
-                                                              ↓
-                                    Proximity share (scoped, TTL, no internet)
+Layer B — Canonical identity schema (SOURCE OF TRUTH)
+          first_name, ssn, driver_license_number, current_address, …
+                              ▲
+                              │ user-confirmed extract
+Layer C — Evidence            │ extraction_run (OCR JSON) + document_type + lineage
+                              ▲
+                              │ classify + OCR
+Layer A — Document types (CLASSIFICATION ONLY)
+          passport, w2, utilityBill, … → pick extractor only
 ```
 
-**We are not building:** a document archive, a 15-agent orchestrator, default ONNX/GGUF/LLM paths, or cloud-synced PII.
+**Fix:** Do not organize the vault as “Identity Documents → Passport, DL, SSN card.” Real systems store **universal fields**; documents only **update** them.
+
+---
+
+## Layer A — Document types (classification)
+
+| Category | Types |
+|----------|-------|
+| Identity | Passport, driver’s license / state ID, birth certificate, SSN card |
+| Financial / tax | W-2, 1099, tax returns, bank statements, pay stubs |
+| Address proof | Utility bills, lease agreements, bank statements |
+| Education | Transcripts, degree certificates, immunization records, student ID |
+| Healthcare | Insurance card, vaccination records, medication list, medical records |
+| Immigration / travel | Visa documents, work authorization (EAD), immigration forms (I-94) |
+| Family / emergency | Marriage certificate, children’s birth certificates, emergency contacts |
+
+**Note:** `ssn` is a **field** in Layer B, not a document. SSN card, W-2, and 1099 are evidence sources.
+
+---
+
+## Layer B — Canonical schema (core)
+
+| Group | Key fields |
+|-------|------------|
+| **Personal identity** | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality` |
+| **Government IDs** | `ssn`, `passport_number`, `driver_license_number`, `visa_number`, `work_authorization_number` + expiry keys |
+| **Contact & address** | `current_address`, `mailing_address`, `phone_number`, `email` |
+| **Financial** | `bank_account_number`, `routing_number`, `employer_name`, `income`, `pay_frequency` |
+| **Education** | `highest_degree`, `institution_name`, `graduation_year`, `vaccination_status[]` |
+| **Healthcare** | `insurance_provider`, `policy_number`, `blood_type` |
+| **Family / emergency** | `emergency_contacts[]`, `dependents[]`, `marital_status` |
+
+**Legacy rename:** `insurance_carrier` → `insurance_provider`, `insurance_member_id` → `policy_number`, `drivers_license_*` → `driver_license_*`.
+
+Full tables and evidence mapping: [fresh-start-lessons-and-principles.md § Three-layer model](fresh-start-lessons-and-principles.md#three-layer-data-model-not-document-centric).
 
 ---
 
 ## What we store
 
-| Persisted in SQLite | Never persisted |
-|---------------------|-----------------|
-| `extraction_run` — blocks, bounds, `fullText` | JPEG / PNG / PDF / HEIC bytes |
-| `field_value_current` + `field_value_history` | Thumbnails, document library folders |
-| Lineage: `extraction_run_id`, `document_type`, `scanned_at` | `document_id` / file paths to scans |
-
-Users can audit **what OCR captured** on a past run. They cannot reopen the original photo unless they **scan again**.
-
----
-
-## Document categories
-
-All seven tiers ship in **one rollout**. Build extractors in priority order; release when every gate is green.
-
-| # | Category | Examples | Priority extractors |
-|---|----------|----------|---------------------|
-| 1 | **Identity** (critical) | Passport, DL/state ID, birth certificate, SSN card | Texas DL, passport, SSN, state ID |
-| 2 | **Tax & financial** | W-2, 1099, tax returns, bank details, pay stubs | `TaxFormExtractor`, `bankStatement` |
-| 3 | **Address proof** | Utility bills, lease, bank statements | `AddressProofExtractor` |
-| 4 | **Education** | Transcripts, degrees, immunization records, student ID | `EducationDocumentExtractor` |
-| 5 | **Healthcare** | Insurance card, vaccination, medications, medical records | `InsuranceCardExtractor` |
-| 6 | **Immigration / travel** | Visa, work authorization, immigration forms | `ImmigrationDocumentExtractor` |
-| 7 | **Family / emergency** | Marriage cert, children's birth certs, emergency contacts | `FamilyDocumentExtractor` |
-
-**Classifier rule:** utility bills must **not** trigger DL/passport parsers.
-
-Full field keys and anchors: [fresh-start-lessons-and-principles.md § Household document segregation](fresh-start-lessons-and-principles.md#household-document-segregation-vault-taxonomy).
-
----
-
-## Core profile keys (v1 schema)
-
-```text
-legal_first_name, legal_last_name, display_name, date_of_birth,
-ssn, drivers_license_number, drivers_license_state, drivers_license_expiry,
-passport_number, passport_expiry,
-state_id_number, state_id_expiry,
-insurance_carrier, insurance_member_id, insurance_group_id
-```
-
-Expand schema per category as extractors land. **Expiry keys are required** for reminders and form guardrails.
+| Persisted | Not persisted |
+|-----------|---------------|
+| Layer B: `field_value_current` + `field_value_history` | Document images / PDFs |
+| Layer C: `extraction_run` OCR JSON + lineage | Document library / thumbnails |
 
 ---
 
 ## Single-phase ship gates
 
-All must pass before TestFlight / release:
+### Extraction (photo E2E → canonical fields)
 
-### Extraction (photo E2E)
-
-| Document | Must extract correctly |
-|----------|------------------------|
-| Texas DL | name, DOB, DL#, expiry |
-| US Passport | name, DOB, passport #, expiry |
-| SSN card | name, SSN |
-| Insurance card | name, DOB, carrier, member ID, group ID |
-| State ID (child) | name, DOB |
+| Evidence document | Canonical fields must populate |
+|-------------------|-------------------------------|
+| Texas DL | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_expiry` |
+| US Passport | name, DOB, `passport_number`, `passport_expiry` |
+| SSN card | name, `ssn` |
+| Insurance card | name, DOB, `insurance_provider`, `policy_number`, `insurance_group_id` |
 
 ### Product gates
 
-- [ ] **Lineage** — profile + form fill show source per field (`extraction_run_id` or manual)
-- [ ] **Expiry** — local notifications; form fill blocks stale DL/passport without user ack
-- [ ] **Form fill** — confirmed automation only; child vs parent subject explicit
-- [ ] **Proximity share** — scoped presets, TTL, NFC+BLE, zero egress, revoke
-- [ ] **OCR-only storage** — no image bytes on disk after `extraction_run` save
-
-Detail scenarios: [acceptance matrix and gates](fresh-start-lessons-and-principles.md#acceptance-matrix-definition-of-basic-things-right).
+- [ ] **Canonical schema** — profile, form fill, share use Layer B keys only  
+- [ ] **Lineage** — every field shows evidence `document_type` + `extraction_run_id`  
+- [ ] **Expiry** — government identifier groups guarded at form fill  
+- [ ] **Proximity share** — canonical field groups, TTL, NFC+BLE, zero egress  
+- [ ] **OCR-only** — no image bytes after `extraction_run` save  
 
 ---
 
-## Architecture (rewrite)
+## Architecture
 
 ```text
-iOS:  Camera → VisionOcrAdapter → DocumentClassifier → ExtractorRegistry → GroundingValidator → ScanReviewView
-                                                                                      ↓
-Rust: dreamwork_ocr_apply_normalized_json → resolvePerson → save_manual_entry_json → field_value_history
-                                                                                      ↓
-      form matcher + dataset_health + proximity grants → SQLite
+Scan → Vision OCR → Classify (Layer A) → Extract → Review → Save canonical fields (Layer B)
+                                                                    ↓
+                                              Form matcher reads Layer B + lineage (Layer C)
 ```
 
-**Do not port to rewrite:** `DocumentIntelligenceOrchestrator`, `ExtractionAgent` multi-router, `PersonNameResolver` global post-processor, `UniversalDocumentParser` as default, knowledge graph / vector memory, GenAI/Ollama default path, ONNX/GGUF slots.
+**Do not port:** document-centric vault UI, orchestrator agents, default LLM/ONNX paths, stored document files.
 
 ---
 
-## Implementation checklist (condensed)
-
-| Workstream | Key deliverables |
-|------------|------------------|
-| **Foundation** | Photo corpus per tier; `FieldAccuracyScorecard` |
-| **Pipeline** | Vision OCR → classifier ≥95% → extractors per registry → grounding validator |
-| **Vault** | `extraction_run` OCR JSON; profile save; lineage in SQLite ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) |
-| **Freshness** | `dataset_health`; local expiry notifications |
-| **Form fill** | Rules-first matcher; preview with lineage; expiry intercept |
-| **Share** | Scoped grants; NFC+BLE; `foreign_provenance` ([ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md)) |
-| **Release** | All ship gates green; TestFlight on physical cards (sanitized) |
-
-Full checklist: [Implementation rollout](fresh-start-lessons-and-principles.md#implementation-rollout-single-phase).
-
----
-
-## Non-negotiables (decision log)
-
-| Never | Always |
-|-------|--------|
-| Store document images/PDFs | Persist OCR JSON + confirmed fields |
-| Guess name/DOB/SSN from flat text | Anchor-based or MRZ/barcode extraction |
-| Silent form autofill | User confirms every fill batch |
-| Share via cloud/upload fallback | Proximity transfer only |
-| Fill expired ID silently | Prompt rescan or explicit override |
-| Ship parser without photo E2E test | Vision OCR → extract → assert on PNG fixtures |
-| Empty field vs wrong guess | **Empty wins** |
-
-Full log: [Decision log](fresh-start-lessons-and-principles.md#decision-log-pre-decided--do-not-re-litigate).
-
----
-
-## Branches for parallel rewrite work
+## Branches
 
 | Branch | Owner |
 |--------|-------|
@@ -174,20 +135,15 @@ Full log: [Decision log](fresh-start-lessons-and-principles.md#decision-log-pre-
 | `TrustNest_Rewrite_Gnaga` | Ganga |
 | `TrustNest_Rewrite_Srikanth` | Srikanth |
 
-All branches fork from `ganga-2026-05-16-2`. Read this blueprint and the lessons doc **before** writing extraction code.
-
 ---
 
 ## Version history
 
-| Version | Date | Change |
-|---------|------|--------|
-| 1.0 | May 2026 | Initial lessons document |
-| 1.4 | Jun 2026 | Document segregation taxonomy |
-| 1.5 | Jun 2026 | Single-phase rollout |
-| 1.6 | Jun 2026 | OCR raw data only — no document files |
-| **2.0 FINAL** | Jun 2026 | This blueprint; principles doc marked final |
+| Version | Change |
+|---------|--------|
+| 2.0 FINAL | Initial blueprint + segregation taxonomy |
+| **2.1** | **Data-centric 3-layer model** — canonical schema as source of truth |
 
 ---
 
-*TrustNest Rewrite Final Blueprint — `docs/fresh-start-principles`, June 2026.*
+*TrustNest Rewrite Final Blueprint v2.1 — June 2026.*
