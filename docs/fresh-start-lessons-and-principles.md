@@ -161,7 +161,7 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
    - `Driver license` — name, DOB, DL#, state, issue/expiry (no SSN unless user explicitly adds)
    - `Insurance card` — carrier, member ID, group ID, subscriber name
    - `Passport` — passport #, name, DOB, nationality, expiry
-   - `Tax (W-2)` — employer, tax year, wages (v1.2+; SSN only if user explicitly checks)
+   - `Tax (W-2)` — employer, tax year, wages (SSN only if user explicitly checks)
    - `Custom` — explicit field checklist (advanced)
 3. Set **time limit** — e.g., 1 hour, 24 hours, 7 days, or “until I revoke” (revocation always available on sender).
 4. Tap phones (**NFC**) to start; receiver confirms import on their device.
@@ -199,7 +199,7 @@ Users do not store “a document.” They store **household life paperwork** tha
 - **Cross-listed docs** — e.g., passport appears under **Identity** and **Immigration / travel**; store once, index under both presets for share and form fill.
 - **Sensitive fields are category-scoped** — SSN and bank details never appear in default share presets; user must opt in field-by-field.
 
-#### 1. Identity documents (very important) — **v1 extraction priority**
+#### 1. Identity documents (very important)
 
 Government and civil identity; highest accuracy bar; expiry guardrails apply.
 
@@ -207,12 +207,12 @@ Government and civil identity; highest accuracy bar; expiry guardrails apply.
 |----------|---------------------------|-------------------|---------------|
 | Passport | `passport` | `passport_number`, name, `date_of_birth`, nationality | `passport_expiry` |
 | Driver license / State ID | `driversLicense`, `stateId` | `drivers_license_number`, `drivers_license_state`, name, DOB, address | `drivers_license_expiry`, `state_id_expiry` |
-| Birth certificate | `birthCertificate` (v1.2) | legal name, DOB, place of birth, parent names | — |
+| Birth certificate | `birthCertificate` | legal name, DOB, place of birth, parent names | — |
 | Social Security card (US) | `ssnCard` | `ssn`, legal name | — |
 
 **Form-fill note:** School intake, medical portals, and government sites most often pull from this tier first.
 
-#### 2. Tax & financial documents — **v1.2+**
+#### 2. Tax & financial documents
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
@@ -224,7 +224,7 @@ Government and civil identity; highest accuracy bar; expiry guardrails apply.
 
 **Rule:** Never guess SSN or account numbers from unstructured text — **labeled box / anchor only** or leave empty.
 
-#### 3. Address proof documents — **v1.2+**
+#### 3. Address proof documents
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
@@ -234,7 +234,7 @@ Government and civil identity; highest accuracy bar; expiry guardrails apply.
 
 **Classifier guardrail:** Address-proof docs must **not** trigger identity parsers (no DL# / passport# extraction from a gas bill).
 
-#### 4. Education documents — **v1.2+**
+#### 4. Education documents
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
@@ -245,18 +245,18 @@ Government and civil identity; highest accuracy bar; expiry guardrails apply.
 
 **Form-fill note:** School forms often need **child subject** + parent identity + immunization rows — lineage must record which person each field belongs to.
 
-#### 5. Healthcare / doctor office documents — **v1.1+**
+#### 5. Healthcare / doctor office documents
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
 | Health insurance card | `insuranceCard` | `insurance_carrier`, `insurance_member_id`, `insurance_group_id`, subscriber name, DOB |
 | Vaccination records | `immunizationRecord` | (shared with education tier) |
 | Medication list | `medicationList` | drug name, dosage, prescriber (structured lines only) |
-| Previous medical records | `medicalRecord` | provider, visit date — **no diagnosis free-text mining in v1** |
+| Previous medical records | `medicalRecord` | provider, visit date — **no diagnosis free-text mining** (structured fields only) |
 
-Insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) for v1; medication and full records are later phases.
+All healthcare document types are in scope for the single rollout; insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right).
 
-#### 6. Immigration / travel documents (if applicable) — **v1.2+**
+#### 6. Immigration / travel documents (if applicable)
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
@@ -267,7 +267,7 @@ Insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-ba
 
 **Expiry guardrails:** visa and work-auth documents use the same [dataset health](#dataset-expiry-reminders--form-fill-guardrails) model as DL/passport.
 
-#### 7. Emergency / family documents — **v1.2+**
+#### 7. Emergency / family documents
 
 | Document | Target type | Core profile keys |
 |----------|-------------|-------------------|
@@ -277,16 +277,20 @@ Insurance card is in the [acceptance matrix](#acceptance-matrix-definition-of-ba
 
 **Household model:** Children’s docs attach to **child person records**; marriage cert links **two adults** without duplicating identity fields.
 
-#### Segregation → implementation phases
+#### Single rollout (all categories together)
 
-| Phase | Categories shipped | Gate |
-|-------|-------------------|------|
-| **v1** | Identity (DL, passport, state ID, SSN card) + insurance card | [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures |
-| **v1.1** | Healthcare (insurance polish), expiry reminders, form fill + lineage | Form automation gate |
-| **v1.2** | Tax, address proof, education, immigration, family/emergency | Per-category photo E2E before merge |
-| **v2+** | Pay stubs, full medical records, complex tax returns | Only after v1 metrics hold |
+All seven segregation tiers ship in **one rollout** — not staggered v1 / v1.1 / v1.2 waves. Identity, tax, address proof, education, healthcare, immigration, and family/emergency documents are in scope from day one.
+
+| What ships | Gate |
+|------------|------|
+| **All document categories** (tables above) | Per-category photo E2E passes before merge |
+| **Extraction** | [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures for core IDs + insurance |
+| **Lineage + form fill + expiry** | [Form automation gate](#form-automation--lineage-gate), [expiry gate](#dataset-expiry--reminders-gate) |
+| **Proximity share** | [Proximity share gate](#proximity-share-gate) |
 
 **Share presets** (proximity) map 1:1 to segregation tiers: `Driver license`, `Passport`, `Insurance card`, `Tax (W-2)` — never “all documents for this person.”
+
+**Build order inside the single rollout:** implement extractors one document type at a time (highest user pain first), but **do not ship** until extraction, lineage, form fill, expiry reminders, and proximity share gates are all green together.
 
 ---
 
@@ -296,7 +300,7 @@ We spent months iterating across **heuristics**, **optional HTTP LLM**, **Apple 
 
 > OCR text in review looks readable, but **basic profile fields are wrong, empty, or from the wrong document type.**
 
-Examples that must work before anything else (see [identity](#1-identity-documents-very-important--v1-extraction-priority) and [healthcare](#5-healthcare--doctor-office-documents--v11) tiers):
+Examples that must work before anything else (see [identity](#1-identity-documents-very-important) and [healthcare](#5-healthcare--doctor-office-documents) tiers):
 
 | Field | Document examples |
 |-------|-------------------|
@@ -607,7 +611,7 @@ state_id_number, state_id_expiry,
 insurance_carrier, insurance_member_id, insurance_group_id
 ```
 
-Expiry keys are **required for reminders and form guardrails** — not optional metadata. Add keys for other [segregation tiers](#household-document-segregation-vault-taxonomy) (tax, address proof, education, immigration, family) **after** the v1 identity + insurance fields reach 90% on photo fixtures.
+Expiry keys are **required for reminders and form guardrails** — not optional metadata. Profile keys for all [segregation tiers](#household-document-segregation-vault-taxonomy) (identity, tax, address proof, education, healthcare, immigration, family) are in scope for the **single rollout** — expand the schema as each category’s extractor lands, but ship only when the full gate checklist passes.
 
 ### Principle 10 — **Weekly metric, not weekly architecture**
 
@@ -670,9 +674,9 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 | Insurance card | ✅ | ✅ | ✅ | — | — | — | — | — | ✅ | ✅ | ✅ |
 | State ID (child) | ✅ | ✅ | ✅ | — | — | — | — | — | — | — | — |
 
-**v1 ship gate (extraction):** All ✅ cells pass on **≥ 3 distinct synthetic household PNGs** per row (use `demo/sample-documents/household-fixtures/`).
+**Ship gate (extraction):** All ✅ cells pass on **≥ 3 distinct synthetic household PNGs** per row (use `demo/sample-documents/household-fixtures/`).
 
-### Form automation + lineage gate (v1.1 — after extraction matrix green)
+### Form automation + lineage gate
 
 | Scenario | Must pass |
 |----------|-----------|
@@ -685,7 +689,7 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 | Form needs DL#; user taps **Use anyway** | Field applies with `Expired` badge; audit log entry |
 | DL `expires_on` = today (local time) | “Expires today” notification fires; form fill shows same-day warning |
 
-### Dataset expiry & reminders gate (v1.1 — with lineage)
+### Dataset expiry & reminders gate
 
 | Scenario | Must pass |
 |----------|-----------|
@@ -696,7 +700,7 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 | Home summary | Lists household members with expiring/expired datasets |
 | Rust `dataset_health` API | Same status returned for profile UI, notifications, and form matcher |
 
-### Proximity share gate (v1.2 — after lineage + form basics)
+### Proximity share gate
 
 | Scenario | Must pass |
 |----------|-----------|
@@ -765,7 +769,7 @@ flowchart TB
 
 ### Extractor registry (initial)
 
-Maps to [household document segregation](#household-document-segregation-vault-taxonomy). **v1 ships only the first five rows**; later tiers register extractors in Phase 3+ without changing the pipeline.
+Maps to [household document segregation](#household-document-segregation-vault-taxonomy). **Single rollout** — every tier gets a dedicated extractor registered in the same pipeline; build extractors in priority order, ship when all gates pass.
 
 | `ScannedDocumentType` | Segregation tier | Extractor | Primary anchors |
 |----------------------|------------------|-----------|-----------------|
@@ -774,7 +778,13 @@ Maps to [household document segregation](#household-document-segregation-vault-t
 | `ssnCard` | Identity / Tax | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
 | `insuranceCard` | Healthcare | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
 | `stateId` | Identity | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
-| `w2`, `utilityBill`, `transcript`, … | Tax, address, education, … | *Phase 3+ per tier* | Labeled boxes / anchors only |
+| `birthCertificate` | Identity / Family | `BirthCertificateExtractor` | labeled name, DOB, place of birth |
+| `w2`, `form1099`, `taxReturn` | Tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
+| `utilityBill`, `lease`, `bankStatement` | Address proof | `AddressProofExtractor` | service/mailing address, account holder |
+| `transcript`, `degree`, `immunizationRecord`, `studentId` | Education | `EducationDocumentExtractor` | school, student name, dates |
+| `visa`, `workAuthorization`, `immigrationForm` | Immigration | `ImmigrationDocumentExtractor` | visa class, auth number, expiry |
+| `marriageCertificate`, `emergencyContact` | Family / Emergency | `FamilyDocumentExtractor` | spouse names, contacts (labeled only) |
+| `medicationList`, `medicalRecord` | Healthcare | `MedicalRecordExtractor` | structured lines only; no diagnosis mining |
 | *unclassified* | — | `LabeledFormExtractor` | Generic label→value pairs only; **no name/DOB/SSN guess** |
 
 ### Files we do **not** port to v1
@@ -790,83 +800,62 @@ Maps to [household document segregation](#household-document-segregation-vault-t
 
 ---
 
-## Implementation phases (rewrite branch)
+## Implementation rollout (single phase)
 
-### Phase 0 — Foundation (this document + fixtures) ✅ you are here
+One release wave — extraction, lineage, form fill, expiry reminders, and proximity share ship together when all gates pass. Workstreams below are **build order**, not separate product phases.
+
+### Foundation ✅ you are here
 
 - [x] Branch `docs/fresh-start-principles`
 - [x] Lessons document (this file)
-- [ ] Pin photo corpus: 5 PNGs minimum (DL, passport, SSN, insurance, state ID) from `household-fixtures`
+- [ ] Pin photo corpus: fixtures for every [segregation tier](#household-document-segregation-vault-taxonomy) from `household-fixtures`
 - [ ] `FieldAccuracyScorecard.md` spreadsheet or script — track precision/recall weekly
 
-### Phase 1 — OCR baseline (prove Vision output)
+### Pipeline (OCR → classify → extract)
 
-- [ ] Minimal app shell: import PNG only
-- [ ] Run Vision → show raw blocks + `fullText`
-- [ ] Test: each fixture produces expected **substrings** in OCR (not extraction yet)
-- **Exit:** OCR contains ground-truth SSN, DL#, names as substrings
+- [ ] Minimal app shell: import PNG + camera capture
+- [ ] Run Vision → show raw blocks + `fullText`; photo tests: OCR contains ground-truth substrings per fixture
+- [ ] `DocumentClassifier.classify(ocrText, blocks)` → type + confidence; ≥ 95% type accuracy on corpus
+- [ ] Extractors per [registry](#extractor-registry-initial) — build in priority order (Texas DL → SSN card → insurance → passport → state ID → remaining tiers)
+- [ ] Per type: unit test (OCR string → fields), photo E2E (PNG → Vision → fields), grounding validator, full matrix regression
+- [ ] `ScanReviewView` with source badges
 
-### Phase 2 — Classifier (one module)
+### Vault + lineage (Rust / SQLite)
 
-- [ ] `DocumentClassifier.classify(ocrText, blocks)` → type + confidence
-- [ ] Photo tests per type
-- **Exit:** ≥ 95% type accuracy on fixture corpus
+- [ ] Rust `resolvePerson` + `save_manual_entry_json`
+- [ ] SQLite `field_value_current` + `field_value_history` ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) — link saves to `extraction_run_id` + document metadata
+- [ ] Rescan supersedes: second DL scan updates DL#; first value retained in history
+- [ ] Profile UI: per-field “source · date” summary
+- [ ] Household conflict: 3-person test on save
+- [ ] Rust `dataset_health(person, dataset)` → `valid` / `expiring_soon` / `expired`
+- [ ] Profile dataset cards + Home “needs attention” summary
 
-### Phase 3 — Extractors (one type at a time)
+### Form fill + expiry reminders
 
-Build in this order (highest user pain first):
+- [ ] Rust rules-first matcher returns value + provenance pointer per form field
+- [ ] In-app form fill preview with per-field lineage + confirm/cancel per field
+- [ ] Form subject picker (child vs parent vs self)
+- [ ] Write-back from form edits → history with `source_kind=form`
+- [ ] Demo: `demo/form/demo-form.html` or school intake — fill from vault, user sees sources
+- [ ] Expired-dataset intercept on form fill (DL / passport / state ID)
+- [ ] Local notification scheduler for expiry (30d / 7d / 1d / day-of)
 
-1. Texas DL  
-2. SSN card  
-3. Insurance card  
-4. Passport  
-5. State ID  
+### Proximity share
 
-Per type:
+- [ ] Share UI: pick person, dataset preset (`Driver license`, `Insurance card`, …), TTL
+- [ ] Rust: build scoped grant manifest + encrypt payload (`proximity/mod.rs` handshake)
+- [ ] iOS: Core NFC tap-to-start + BLE encrypted transfer (platform transport)
+- [ ] Receiver: confirm import → `foreign_provenance` + `source_kind=proximity_share`
+- [ ] Sender: revoke grant + audit log entry
+- [ ] `ZeroEgressPolicyTests` extended: no network during share flow
 
-- [ ] Unit test: OCR string → fields  
-- [ ] Photo E2E: PNG → Vision → fields  
-- [ ] Grounding validator wired  
-- [ ] No other type regresses (run full matrix)
+### Ship gate (all must pass before release)
 
-**Exit:** Acceptance matrix all green
-
-### Phase 4 — Review + save + lineage
-
-- [ ] `ScanReviewView` with source badges  
-- [ ] Rust `resolvePerson` + `save_manual_entry_json`  
-- [ ] SQLite `field_value_current` + `field_value_history` ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) — link saves to `extraction_run_id` + document metadata  
-- [ ] Rescan supersedes: second DL scan updates DL#; first value retained in history  
-- [ ] Profile UI: per-field “source · date” summary  
-- [ ] Household conflict: 3-person test on save  
-- [ ] Rust `dataset_health(person, dataset)` → `valid` / `expiring_soon` / `expired`  
-- [ ] Profile dataset cards + Home “needs attention” summary  
-
-### Phase 5 — Camera + TestFlight
-
-- [ ] Camera capture  
-- [ ] Build → TestFlight → **one** external tester runs matrix on physical cards (sanitized)  
-
-### Phase 6 — Form automation (after extraction + lineage)
-
-- [ ] Rust rules-first matcher returns value + provenance pointer per form field  
-- [ ] In-app form fill preview with per-field lineage + confirm/cancel per field  
-- [ ] Form subject picker (child vs parent vs self)  
-- [ ] Write-back from form edits → history with `source_kind=form`  
-- [ ] Demo: `demo/form/demo-form.html` or school intake — fill from vault, user sees sources  
-- [ ] Expired-dataset intercept on form fill (DL / passport / state ID)  
-- [ ] Local notification scheduler for expiry (30d / 7d / 1d / day-of)  
-- **Exit:** [Form automation + lineage gate](#form-automation--lineage-gate-v11--after-extraction-matrix-green) + [expiry gate](#dataset-expiry--reminders-gate-v11--with-lineage) all green  
-
-### Phase 7 — Proximity share (after vault + lineage)
-
-- [ ] Share UI: pick person, dataset preset (`Driver license`, `Insurance card`, …), TTL  
-- [ ] Rust: build scoped grant manifest + encrypt payload (`proximity/mod.rs` handshake)  
-- [ ] iOS: Core NFC tap-to-start + BLE encrypted transfer (platform transport)  
-- [ ] Receiver: confirm import → `foreign_provenance` + `source_kind=proximity_share`  
-- [ ] Sender: revoke grant + audit log entry  
-- [ ] `ZeroEgressPolicyTests` extended: no network during share flow  
-- **Exit:** [Proximity share gate](#proximity-share-gate-v12--after-lineage--form-basics) all green  
+- [ ] [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures
+- [ ] [Form automation + lineage gate](#form-automation--lineage-gate) green
+- [ ] [Dataset expiry & reminders gate](#dataset-expiry--reminders-gate) green
+- [ ] [Proximity share gate](#proximity-share-gate) green
+- [ ] TestFlight → **one** external tester runs matrix on physical cards (sanitized)
 
 ---
 
@@ -961,8 +950,8 @@ The rewrite is not “try another ML approach.” It is:
 6. **Remind on expiry; guard forms when data is stale**  
 7. **One metric dashboard**
 
-When the extraction acceptance matrix is green on photos, we earn the right to **persist lineage in SQLite**, ship **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and then **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Additional [document segregation tiers](#household-document-segregation-vault-taxonomy) (tax, address proof, education, immigration, family) and semantic models come **after** that loop is trustworthy, not before.
+When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: all [document segregation tiers](#household-document-segregation-vault-taxonomy), **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
 
 ---
 
-*Document version: 1.4 — branch `docs/fresh-start-principles`, June 2026. Adds household document segregation taxonomy.*
+*Document version: 1.5 — branch `docs/fresh-start-principles`, June 2026. Single-phase rollout for all document categories and ship gates.*
