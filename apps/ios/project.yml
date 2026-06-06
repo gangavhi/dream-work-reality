@@ -92,12 +92,12 @@ targets:
           fi
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream-team.nestledger.dev
         PRODUCT_NAME: DreamWorkApp
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "28"
+        CURRENT_PROJECT_VERSION: "32"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.
@@ -116,6 +116,7 @@ targets:
         INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE: NO
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: K2L95UX84H
         TARGETED_DEVICE_FAMILY: "1,2"
         # Do not set CODE_SIGN_IDENTITY to Apple Distribution here — it conflicts with Automatic signing
         # ("automatically signed for development, but Apple Distribution was manually specified").
@@ -138,7 +139,7 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream-team.nestledger.dev.tests
         GENERATE_INFOPLIST_FILE: YES
 
   DreamWorkAppUITests:
@@ -151,5 +152,5 @@ targets:
       - target: DreamWorkApp
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.dream.nestledger.dev.uitests
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream-team.nestledger.dev.uitests
         GENERATE_INFOPLIST_FILE: YES

@@ -55,4 +55,35 @@ final class UniversalDocumentParserTests: XCTestCase {
         XCTAssertTrue(keys.contains(ProfileFieldKey.driversLicenseNumber))
         XCTAssertTrue(keys.contains(ProfileFieldKey.displayName) || keys.contains(ProfileFieldKey.legalLastName))
     }
+
+    func testGarbledSSAStubUsesLayoutAwareNameNotHeaderGarbage() {
+        let text = """
+        03/15/2019
+        123-45-6789
+        THIS NUMBER HAS BEEN ESTABLISHED FOR
+        LOCIAL SEOURTA
+        LOCALSECURI
+        YOUR SOCIAL SECURITY CARD
+        ADULTS: Sign this card in ink immediately.
+        Do not laminate.
+        JANE DOE
+        123 MAIN ST
+        SPRINGFIELD IL 62704-1234
+        """
+
+        XCTAssertTrue(UniversalDocumentParser.looksLikeSSNDocument(text))
+        let suggestions = UniversalDocumentParser.parse(from: text)
+        let byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0.value) })
+
+        XCTAssertEqual(byKey[ProfileFieldKey.ssn], "123-45-6789")
+        XCTAssertEqual(byKey[ProfileFieldKey.displayName], "Jane Doe")
+        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Jane")
+        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Doe")
+        XCTAssertEqual(byKey[ProfileFieldKey.addressLine1], "123 Main St")
+        XCTAssertEqual(byKey[ProfileFieldKey.city], "Springfield")
+        XCTAssertEqual(byKey[ProfileFieldKey.state], "IL")
+        XCTAssertEqual(byKey[ProfileFieldKey.postalCode], "62704")
+        XCTAssertNil(byKey[ProfileFieldKey.dateOfBirth], "Issue date on stub must not map to DOB")
+        XCTAssertFalse(suggestions.contains { $0.value.localizedCaseInsensitiveContains("locial") })
+    }
 }

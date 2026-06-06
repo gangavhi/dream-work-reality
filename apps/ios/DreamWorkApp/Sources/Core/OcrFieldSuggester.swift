@@ -13,8 +13,10 @@ enum OcrFieldSuggester {
 
     private static func suggestForDocumentType(from text: String, documentType: ScannedDocumentType) -> [OcrFieldSuggestion] {
         switch documentType {
-        case .driversLicense, .stateId:
+        case .driversLicense:
             return suggestDriversLicense(from: text)
+        case .stateId:
+            return remapDriverLicenseNumberToStateId(suggestDriversLicense(from: text))
         case .ssnCard:
             return UniversalDocumentParser.parse(from: text)
         case .utilityBill:
@@ -27,9 +29,35 @@ enum OcrFieldSuggester {
             return suggestEmploymentDocument(from: text)
         case .passport:
             return suggestPassport(from: text)
+        case .insuranceCard:
+            return suggestInsuranceCard(from: text)
         default:
+            if UniversalDocumentParser.looksLikeSSNDocument(text) {
+                return UniversalDocumentParser.parse(from: text)
+            }
             return suggestGeneric(from: text, documentType: documentType)
         }
+    }
+
+    private static func remapDriverLicenseNumberToStateId(_ suggestions: [OcrFieldSuggestion]) -> [OcrFieldSuggestion] {
+        guard let idNumber = suggestions.first(where: { $0.profileKey == ProfileFieldKey.driversLicenseNumber }) else {
+            return suggestions
+        }
+        let context = DocumentFieldLabelContext(documentType: .stateId, issuerRegion: nil, country: "US")
+        var out = suggestions.filter {
+            $0.profileKey != ProfileFieldKey.driversLicenseNumber
+                && $0.profileKey != ProfileFieldKey.driversLicenseState
+        }
+        out.append(
+            OcrFieldSuggestion(
+                profileKey: ProfileFieldKey.stateIdNumber,
+                label: DocumentFieldLabels.label(for: ProfileFieldKey.stateIdNumber, context: context),
+                value: idNumber.value,
+                confidence: idNumber.confidence,
+                confidenceScore: max(idNumber.confidenceScore, 0.82)
+            )
+        )
+        return out
     }
 
     /// Uses the dedicated DL parser (labels, LAST/FIRST, address, dates) — not naive line guessing.
@@ -163,6 +191,30 @@ enum OcrFieldSuggester {
 
         var seen = Set<String>()
         return out.filter { seen.insert($0.profileKey).inserted }
+    }
+
+    private static func suggestInsuranceCard(from text: String) -> [OcrFieldSuggestion] {
+        var out = suggestGeneric(from: text, documentType: .insuranceCard)
+        let lines = text
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        if let carrierLine = lines.first(where: { line in
+            let upper = line.uppercased()
+            return upper.contains("CROSS") || upper.contains("SHIELD") || upper.contains("INSURANCE")
+                || upper.contains("AETNA") || upper.contains("ANTHEM") || upper.contains("HUMANA")
+        }) {
+            out.append(
+                OcrFieldSuggestion(
+                    profileKey: ProfileFieldKey.insuranceCarrier,
+                    label: "Insurance carrier",
+                    value: carrierLine,
+                    confidence: "Medium",
+                    confidenceScore: 0.72
+                )
+            )
+        }
+        return mergeSuggestions(out)
     }
 
     private static func suggestUtilityBill(from text: String) -> [OcrFieldSuggestion] {

@@ -116,6 +116,16 @@ enum ExtractionAgent {
             runtimeStatus = (runtimeStatus ?? statusPrefix) + ":network_llm"
         }
 
+        let universalIdentity = UniversalDocumentParser.parse(from: layout.layoutText).filter {
+            [
+                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
+                ProfileFieldKey.dateOfBirth, ProfileFieldKey.taxFormType,
+            ].contains($0.profileKey)
+        }
+        if !universalIdentity.isEmpty {
+            suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: universalIdentity, supplemental: suggestions)
+        }
+
         return finalize(
             suggestions: suggestions,
             openType: openType,

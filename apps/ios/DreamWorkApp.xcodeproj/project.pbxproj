@@ -49,6 +49,7 @@
 		37410C064D53C2BAC0FD4BA9 /* ProfileSchemaKeysForDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA9DE0D346BB9A5CF8F93B39 /* ProfileSchemaKeysForDocument.swift */; };
 		399CCB433BF6363CC8AE6976 /* CanonicalIdentitySchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BC22C83A686C0FC4827344 /* CanonicalIdentitySchema.swift */; };
 		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
+		3DCFF91CDBD0592AAF5E3439 /* texas-driver-license-sample.png in Resources */ = {isa = PBXBuildFile; fileRef = EF808901E529FCB581A7D902 /* texas-driver-license-sample.png */; };
 		3FBF1CCD9FA32F1995D36C39 /* NLDocumentClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61F4E2645F938206F2FF497D /* NLDocumentClassifier.swift */; };
 		417C948EC8E172B504562BB6 /* SchemaMappingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80985930CB6E64CA1B13BD5D /* SchemaMappingEngine.swift */; };
 		44E707C29CBB2464FE17F05B /* UniversalDocumentParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8752D8A15E9299F5DDE8AA4D /* UniversalDocumentParser.swift */; };
@@ -65,6 +66,7 @@
 		521877F9B450AF08D49D60B0 /* StoragePlanTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66B01E01D238FC76E96A96D6 /* StoragePlanTypes.swift */; };
 		545A2617549767444D0BCE65 /* PersonNameResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2E74E680A04FB21B00070BC /* PersonNameResolverTests.swift */; };
 		554F8DD5FE961A0BCA2AB269 /* DocumentImportHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */; };
+		5570B534357BB679ED62B55D /* LifecycleDocumentSimulationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203D4185EA9BCDAA5A8B0905 /* LifecycleDocumentSimulationTests.swift */; };
 		58FD034807599B3C691B7246 /* FormTemplates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68738A430A8101DCF0386A0C /* FormTemplates.swift */; };
 		5ACF627854D94BF71F5A99F5 /* PeopleSQLiteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78A52B3268E6B187B8660026 /* PeopleSQLiteStore.swift */; };
 		5B5A1C4B293EB9863F366652 /* OnDeviceMemoryGuard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */; };
@@ -86,6 +88,7 @@
 		7316D8F6CCF3AD6C0A64908C /* TexasDriverLicenseParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 34E01259459B2D467D0B392E /* TexasDriverLicenseParser.swift */; };
 		7C221F98C2C931C140B95805 /* EditPersonProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4D855109CD3830514DE12083 /* EditPersonProfileView.swift */; };
 		7C3D6015234D53F652F6C0FA /* DocumentIntelligencePlatform.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6831C6EC796908A8FB4B93AE /* DocumentIntelligencePlatform.swift */; };
+		7F16AC3B9A75A4338ED7B3F5 /* LifecycleDocumentCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1F78F55656EF9EE8A08C8B /* LifecycleDocumentCatalog.swift */; };
 		7F4C5F7664BBCC0524B629A5 /* sample-document.png in Resources */ = {isa = PBXBuildFile; fileRef = FEB29766C0A856103EA1FA5C /* sample-document.png */; };
 		80420EDB7A4A4105CD6DC4DE /* CoreIngestFFI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B7FA325FEA96498AAC93E21 /* CoreIngestFFI.swift */; };
 		807569FF6A926C7285EBA96A /* PersonDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 30B2D159967ED467A45E9D13 /* PersonDetailView.swift */; };
@@ -99,6 +102,7 @@
 		90D48A78984AE4010E6EDDFF /* SQLiteDB.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0804738C377E55F4B4F30C4A /* SQLiteDB.swift */; };
 		91096C3F18ABEA650C61AFA0 /* OcrGroundingValidatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54E1BE75BBB97BD56FD14D39 /* OcrGroundingValidatorTests.swift */; };
 		9171F45DF269412B11023A20 /* ScanReviewPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */; };
+		930D79EFAE974A9C096573F1 /* LifecycleDocumentImageRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 12D524CC3CA0F8B648CC7761 /* LifecycleDocumentImageRenderer.swift */; };
 		93564147F535BDDC6C0115E4 /* AppIcon76x76@2x~ipad.png in Resources */ = {isa = PBXBuildFile; fileRef = 1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */; };
 		939CA80AF7D5E4E1BEFFE27C /* PeopleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 67A881A247ED48F231120564 /* PeopleView.swift */; };
 		9628ACE533E535193118052D /* IntelligenceModuleTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 916E489FF23211A616AD37CF /* IntelligenceModuleTests.swift */; };
@@ -110,6 +114,7 @@
 		A17188C4C7CF2AC49BE47B27 /* ExtractionStrategyAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8F563622B986561811EFF0 /* ExtractionStrategyAgent.swift */; };
 		A19D8B150783B727BC8BB25D /* DocumentImportHelperTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */; };
 		A37324CAA74E64183C7CEA19 /* CreateMLModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C8219900C977A99CCD67356 /* CreateMLModelRegistry.swift */; };
+		A41E8669D7413C78EB9EB1FF /* LifecycleDocumentSimulationHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = E881EAD0E8F6FF532F3DD925 /* LifecycleDocumentSimulationHarness.swift */; };
 		A41EE15B0436BA75538BB98F /* ClassificationAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A62B34354536B3AB45D78C /* ClassificationAgent.swift */; };
 		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
 		A92C9EE47DC52207A65A77EE /* DocumentUnderstandingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A6D8EE10E559868B559435C /* DocumentUnderstandingService.swift */; };
@@ -124,6 +129,7 @@
 		C1F6C68333A47E026623B69F /* PersonProfileMatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AAEA92C0094A7CE5139351 /* PersonProfileMatcher.swift */; };
 		C242118C09ED07897577E179 /* GenAISettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 942014B9BAA103B628C79934 /* GenAISettings.swift */; };
 		C456CEB9E3069FE46DBAD6A4 /* MachineReadableFieldExtractorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B541EB91D10776C48A2F7BF9 /* MachineReadableFieldExtractorTests.swift */; };
+		C4EA2A3BB25131A15B86FED3 /* SimulatorDocumentPipelineE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D6EA0885565CEC87C8FE86B /* SimulatorDocumentPipelineE2ETests.swift */; };
 		C5021D714806FCD15EB8467A /* FormSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4DA705007AF92BA7E5401E9 /* FormSessionView.swift */; };
 		CA50528574E54DDB5D4786FC /* AppleSemanticFieldExtractor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10CC9C99436CE78A5A3DF23A /* AppleSemanticFieldExtractor.swift */; };
 		CC8095B83A6FE0E86C48F93A /* DocumentFieldLabelsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648A8A9D7C0413EBB62E2DBE /* DocumentFieldLabelsTests.swift */; };
@@ -176,11 +182,14 @@
 		10CC9C99436CE78A5A3DF23A /* AppleSemanticFieldExtractor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppleSemanticFieldExtractor.swift; sourceTree = "<group>"; };
 		10DB3BA14A992BB7E98C5960 /* VisionOcrAdapter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionOcrAdapter.swift; sourceTree = "<group>"; };
 		129E24AE04CE7AA0AD183ECF /* DocumentExtractionRouter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExtractionRouter.swift; sourceTree = "<group>"; };
+		12D524CC3CA0F8B648CC7761 /* LifecycleDocumentImageRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleDocumentImageRenderer.swift; sourceTree = "<group>"; };
 		16754AD87AB2B1B6FC748CBC /* DocumentTypePresentationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentTypePresentationTests.swift; sourceTree = "<group>"; };
 		17C517087B5505A63C1ACBB4 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1A3E9BB36A0786653057CCDB /* AppIcon76x76@2x~ipad.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon76x76@2x~ipad.png"; sourceTree = "<group>"; };
 		1B7FA325FEA96498AAC93E21 /* CoreIngestFFI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreIngestFFI.swift; sourceTree = "<group>"; };
+		1D6EA0885565CEC87C8FE86B /* SimulatorDocumentPipelineE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulatorDocumentPipelineE2ETests.swift; sourceTree = "<group>"; };
 		1EBE46035BA65CBE9CBF5416 /* LaptopDocumentListingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaptopDocumentListingTests.swift; sourceTree = "<group>"; };
+		203D4185EA9BCDAA5A8B0905 /* LifecycleDocumentSimulationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleDocumentSimulationTests.swift; sourceTree = "<group>"; };
 		2637F6070FDEBF94A19224F0 /* IncrementalLearningStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IncrementalLearningStore.swift; sourceTree = "<group>"; };
 		29A5B03AE6A438E906B2A55C /* DreamWorkAppTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		2A0015593B065FAE4CB04593 /* DreamWorkAppUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = DreamWorkAppUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -264,6 +273,7 @@
 		9A6B7A46076212D9486FEA98 /* GenAIFieldMapperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GenAIFieldMapperTests.swift; sourceTree = "<group>"; };
 		9BEC5789D3A28B2C7E8987D6 /* AppIcon60x60@2x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "AppIcon60x60@2x.png"; sourceTree = "<group>"; };
 		9C07B5162DF85330B10DAFBF /* MappedFieldValueValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MappedFieldValueValidator.swift; sourceTree = "<group>"; };
+		9D1F78F55656EF9EE8A08C8B /* LifecycleDocumentCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleDocumentCatalog.swift; sourceTree = "<group>"; };
 		9E8F563622B986561811EFF0 /* ExtractionStrategyAgent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractionStrategyAgent.swift; sourceTree = "<group>"; };
 		A0C76AD5061181BF6BA9D8C1 /* IngestAuditLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IngestAuditLog.swift; sourceTree = "<group>"; };
 		A5F3767E3588AD11173A282B /* UniversalDocumentParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UniversalDocumentParserTests.swift; sourceTree = "<group>"; };
@@ -293,12 +303,14 @@
 		DDDD5F947481B0B59175B540 /* DriverLicenseParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriverLicenseParserTests.swift; sourceTree = "<group>"; };
 		E1F6F0541792EBC9620B122F /* VectorDocumentMemory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VectorDocumentMemory.swift; sourceTree = "<group>"; };
 		E221D5DF4E8E135AF86FDB84 /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		E881EAD0E8F6FF532F3DD925 /* LifecycleDocumentSimulationHarness.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifecycleDocumentSimulationHarness.swift; sourceTree = "<group>"; };
 		E8BC22C83A686C0FC4827344 /* CanonicalIdentitySchema.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CanonicalIdentitySchema.swift; sourceTree = "<group>"; };
 		EA9DE0D346BB9A5CF8F93B39 /* ProfileSchemaKeysForDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileSchemaKeysForDocument.swift; sourceTree = "<group>"; };
 		EB7452A73BBD7D7AE36CA270 /* CoreIngestHTTPClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreIngestHTTPClient.swift; sourceTree = "<group>"; };
 		ED2D1BDD1C05A4DB0A675E58 /* FormCategoryDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormCategoryDetailView.swift; sourceTree = "<group>"; };
 		ED50292210FF18081C36BF88 /* OcrLayoutSerializerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrLayoutSerializerTests.swift; sourceTree = "<group>"; };
 		ED853FD1BA44AC4D890D3572 /* ScanReviewPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScanReviewPayload.swift; sourceTree = "<group>"; };
+		EF808901E529FCB581A7D902 /* texas-driver-license-sample.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "texas-driver-license-sample.png"; sourceTree = "<group>"; };
 		EF87A7AE9F661AC2D7EA2CC7 /* DevAPIKeyStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevAPIKeyStore.swift; sourceTree = "<group>"; };
 		F07DA0118D8C4D847289EC4D /* LaptopDocumentListing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaptopDocumentListing.swift; sourceTree = "<group>"; };
 		F35158D8073663A651B599C7 /* DocumentFieldLabels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentFieldLabels.swift; sourceTree = "<group>"; };
@@ -330,6 +342,16 @@
 			path = Routing;
 			sourceTree = "<group>";
 		};
+		1597C2DC3E9E239F5E96EDC9 /* Support */ = {
+			isa = PBXGroup;
+			children = (
+				9D1F78F55656EF9EE8A08C8B /* LifecycleDocumentCatalog.swift */,
+				12D524CC3CA0F8B648CC7761 /* LifecycleDocumentImageRenderer.swift */,
+				E881EAD0E8F6FF532F3DD925 /* LifecycleDocumentSimulationHarness.swift */,
+			);
+			path = Support;
+			sourceTree = "<group>";
+		};
 		15DC251341A1EF2347956465 /* Preprocessing */ = {
 			isa = PBXGroup;
 			children = (
@@ -357,6 +379,7 @@
 				CA2BFAC498203670E2CB6E8A /* IndianPassportParserTests.swift */,
 				916E489FF23211A616AD37CF /* IntelligenceModuleTests.swift */,
 				1EBE46035BA65CBE9CBF5416 /* LaptopDocumentListingTests.swift */,
+				203D4185EA9BCDAA5A8B0905 /* LifecycleDocumentSimulationTests.swift */,
 				B541EB91D10776C48A2F7BF9 /* MachineReadableFieldExtractorTests.swift */,
 				C30D2D35F92B43C82235896D /* NameFieldReconcilerTests.swift */,
 				54E1BE75BBB97BD56FD14D39 /* OcrGroundingValidatorTests.swift */,
@@ -368,9 +391,11 @@
 				C2E74E680A04FB21B00070BC /* PersonNameResolverTests.swift */,
 				BE7A8B91F39ACCDA4436AA99 /* PersonProfileMatcherTests.swift */,
 				6798B09E1429FBD0C74526B9 /* ProfileSchemaOrderingTests.swift */,
+				1D6EA0885565CEC87C8FE86B /* SimulatorDocumentPipelineE2ETests.swift */,
 				A5F3767E3588AD11173A282B /* UniversalDocumentParserTests.swift */,
 				4036B2CB63E66308F04C62E3 /* ZeroEgressPolicyTests.swift */,
 				747291FACBD256FE7B825081 /* Fixtures */,
+				1597C2DC3E9E239F5E96EDC9 /* Support */,
 			);
 			path = DreamWorkAppTests;
 			sourceTree = "<group>";
@@ -527,6 +552,7 @@
 			isa = PBXGroup;
 			children = (
 				FEB29766C0A856103EA1FA5C /* sample-document.png */,
+				EF808901E529FCB581A7D902 /* texas-driver-license-sample.png */,
 			);
 			path = Fixtures;
 			sourceTree = "<group>";
@@ -800,6 +826,7 @@
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
 					405FA494C2293CCC9779B065 = {
+						DevelopmentTeam = K2L95UX84H;
 						ProvisioningStyle = Automatic;
 					};
 					BB877019B9A5D1DC93CE573C = {
@@ -834,6 +861,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				7F4C5F7664BBCC0524B629A5 /* sample-document.png in Resources */,
+				3DCFF91CDBD0592AAF5E3439 /* texas-driver-license-sample.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1030,6 +1058,10 @@
 				9D850A93CDA92C5687266197 /* IndianPassportParserTests.swift in Sources */,
 				9628ACE533E535193118052D /* IntelligenceModuleTests.swift in Sources */,
 				21A67DC904796019CD10D711 /* LaptopDocumentListingTests.swift in Sources */,
+				7F16AC3B9A75A4338ED7B3F5 /* LifecycleDocumentCatalog.swift in Sources */,
+				930D79EFAE974A9C096573F1 /* LifecycleDocumentImageRenderer.swift in Sources */,
+				A41E8669D7413C78EB9EB1FF /* LifecycleDocumentSimulationHarness.swift in Sources */,
+				5570B534357BB679ED62B55D /* LifecycleDocumentSimulationTests.swift in Sources */,
 				C456CEB9E3069FE46DBAD6A4 /* MachineReadableFieldExtractorTests.swift in Sources */,
 				091AE98F4AFE0293D314AF82 /* NameFieldReconcilerTests.swift in Sources */,
 				91096C3F18ABEA650C61AFA0 /* OcrGroundingValidatorTests.swift in Sources */,
@@ -1041,6 +1073,7 @@
 				545A2617549767444D0BCE65 /* PersonNameResolverTests.swift in Sources */,
 				17A5CB0B51AB3A29014929D5 /* PersonProfileMatcherTests.swift in Sources */,
 				6E5A74F900136621DC5B4C34 /* ProfileSchemaOrderingTests.swift in Sources */,
+				C4EA2A3BB25131A15B86FED3 /* SimulatorDocumentPipelineE2ETests.swift in Sources */,
 				0D61C47A89DA9F9201082D70 /* UniversalDocumentParserTests.swift in Sources */,
 				33F1DEC1EA9EA403F59EE4D0 /* ZeroEgressPolicyTests.swift in Sources */,
 			);
@@ -1137,7 +1170,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.uitests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = DreamWorkApp;
@@ -1208,7 +1241,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 32;
+				DEVELOPMENT_TEAM = K2L95UX84H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_FILE = DreamWorkApp/Resources/Info.plist;
@@ -1229,7 +1263,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev";
 				PRODUCT_NAME = DreamWorkApp;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1243,7 +1277,8 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 28;
+				CURRENT_PROJECT_VERSION = 32;
+				DEVELOPMENT_TEAM = K2L95UX84H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
 				INFOPLIST_FILE = DreamWorkApp/Resources/Info.plist;
@@ -1264,7 +1299,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev";
 				PRODUCT_NAME = DreamWorkApp;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -1282,7 +1317,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DreamWorkApp.app/DreamWorkApp";
@@ -1300,7 +1335,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev.tests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.tests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/DreamWorkApp.app/DreamWorkApp";
@@ -1318,7 +1353,7 @@
 					"@executable_path/Frameworks",
 					"@loader_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.dream.nestledger.dev.uitests;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.uitests";
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = DreamWorkApp;

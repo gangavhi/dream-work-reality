@@ -125,6 +125,7 @@ enum TexasDriverLicenseParser {
     private static func parseStandaloneTexasNames(from lines: [String], into result: inout DriverLicenseScanResult) {
         func isNameToken(_ token: String) -> Bool {
             guard !token.isEmpty, !isBoilerplateName(token) else { return false }
+            guard !DriverLicenseParserSupport.isStreetSuffixToken(token) else { return false }
             guard token.range(of: #"^[A-Za-z\-']+$"#, options: .regularExpression) != nil else { return false }
             return ScanFieldValidator.isPlausibleNameComponent(token)
         }
@@ -136,6 +137,7 @@ enum TexasDriverLicenseParser {
         let end = lines.firstIndex(where: { line in
             line.range(of: #"(?i)^8\.?\s"#, options: .regularExpression) != nil
                 || DriverLicenseParserSupport.parseCityStateZip(line) != nil
+                || DriverLicenseParserSupport.looksLikeStreetNameLine(line)
         }) ?? lines.count
         let upperBound = min(max(end, start + 1), lines.count)
 
@@ -205,7 +207,9 @@ enum TexasDriverLicenseParser {
                 }
             }
         }
-        dates = Array(Set(dates.map { Calendar.current.startOfDay(for: $0) }))
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(secondsFromGMT: 0) ?? .current
+        dates = Array(Set(dates.map { utc.startOfDay(for: $0) }))
 
         if result.dateOfBirth == nil {
             result.dateOfBirth = dates
@@ -254,6 +258,8 @@ enum TexasDriverLicenseParser {
     private static func captureDLNumber(from line: String) -> String? {
         let patterns = [
             #"(?i)4d\.?\s*DL\s*:?\s*([A-Z0-9]{4,20})"#,
+            #"(?i)\bD\s+(\d{7,9})\b"#,
+            #"(?i)\bDL\s*:?\s*([A-Z0-9]{7,9})\b"#,
         ]
         for pattern in patterns {
             guard let regex = try? NSRegularExpression(pattern: pattern),
@@ -434,6 +440,32 @@ enum DriverLicenseParserSupport {
         let state: String
         let zip: String
         let street: String?
+    }
+
+    private static let streetSuffixTokens: Set<String> = [
+        "st", "street", "rd", "road", "ave", "avenue", "dr", "drive", "ln", "lane",
+        "blvd", "boulevard", "way", "ct", "court", "pl", "place", "cir", "circle",
+        "trl", "trail", "pkwy", "parkway", "hwy", "highway",
+    ]
+
+    static func isStreetSuffixToken(_ token: String) -> Bool {
+        streetSuffixTokens.contains(token.trimmingCharacters(in: .whitespacesAndNewlines).lowercased())
+    }
+
+    /// Detects address fragments without a leading house number (e.g. OCR garble `MARLY COURT`).
+    static func looksLikeStreetNameLine(_ line: String) -> Bool {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        if trimmed.range(of: #"^\d+\s+\S"#, options: .regularExpression) != nil { return true }
+        if trimmed.range(of: #"(?i)^\d+\.\s*(?:Rest|De|End|DD)\b"#, options: .regularExpression) != nil {
+            return true
+        }
+        let words = trimmed.split(whereSeparator: \.isWhitespace).map(String.init)
+        if words.count == 1 {
+            return isStreetSuffixToken(words[0])
+        }
+        if words.contains(where: isStreetSuffixToken) { return true }
+        return MappedFieldValueValidator.looksLikeStreetAddress(trimmed)
     }
 
     static func parseCityStateZip(_ line: String) -> CityStateZip? {

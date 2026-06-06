@@ -6,6 +6,10 @@ enum UniversalDocumentParser {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return [] }
 
+        if looksLikeSSNDocument(trimmed) {
+            return parseSSAStub(from: trimmed)
+        }
+
         var suggestions: [OcrFieldSuggestion] = []
         let context = DocumentFieldLabelContext.from(fieldValues: [:], documentType: .other)
 
@@ -44,6 +48,13 @@ enum UniversalDocumentParser {
             add(ProfileFieldKey.dateOfBirth, "Date of birth", dob, "High", 0.88)
         }
 
+        let upper = trimmed.uppercased()
+        if upper.contains("W-2") || upper.contains("FORM W2") || upper.range(of: #"\bW2\b"#, options: .regularExpression) != nil {
+            add(ProfileFieldKey.taxFormType, "Tax form type", "W-2", "High", 0.88)
+        } else if upper.contains("1099") {
+            add(ProfileFieldKey.taxFormType, "Tax form type", "1099", "High", 0.88)
+        }
+
         if shouldIncludeDriverLicenseFields(in: trimmed) {
             let dl = DriverLicenseParser.parse(trimmed)
             suggestions.append(contentsOf: DriverLicenseFieldMapper.suggestions(from: dl))
@@ -57,6 +68,218 @@ enum UniversalDocumentParser {
         }
 
         return dedupeByKey(suggestions)
+    }
+
+    /// SSA card / stub detection (tolerates common Vision OCR garbles of the header).
+    static func looksLikeSSNDocument(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        if upper.contains("DRIVER") && upper.contains("LICENSE") { return false }
+        guard text.range(of: #"\b\d{3}-\d{2}-\d{4}\b"#, options: .regularExpression) != nil else {
+            return false
+        }
+        return hasSSAHeaderSignals(upper)
+    }
+
+    // MARK: - SSA stub layout
+
+    private static func parseSSAStub(from text: String) -> [OcrFieldSuggestion] {
+        let lines = text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+
+        var suggestions: [OcrFieldSuggestion] = []
+        let context = DocumentFieldLabelContext.from(fieldValues: [:], documentType: .ssnCard)
+
+        func add(_ key: String, _ label: String, _ value: String, _ score: Double) {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else { return }
+            let resolvedLabel = ProfileSchema.definition(for: key)?.label
+                ?? DocumentFieldLabels.label(for: key, context: context)
+            suggestions.append(
+                OcrFieldSuggestion(
+                    profileKey: key,
+                    label: label.isEmpty ? resolvedLabel : label,
+                    value: trimmed,
+                    confidence: score >= 0.85 ? "High" : "Medium",
+                    confidenceScore: score
+                )
+            )
+        }
+
+        if let ssn = extractSSN(from: text) {
+            add(ProfileFieldKey.ssn, "Social Security Number", ssn, 0.95)
+        }
+
+        if let name = extractSSACardholderName(from: lines) {
+            add(ProfileFieldKey.displayName, "Full name", name.display, 0.92)
+            add(ProfileFieldKey.legalFirstName, "Legal first name", name.first, 0.9)
+            add(ProfileFieldKey.legalLastName, "Legal last name", name.last, 0.9)
+        }
+
+        if let dob = extractLabeledDOB(from: text) {
+            add(ProfileFieldKey.dateOfBirth, "Date of birth", dob, 0.88)
+        }
+
+        if let addr = extractSSAMailingAddress(from: lines) {
+            if !addr.street.isEmpty {
+                add(ProfileFieldKey.addressLine1, "Address line 1", addr.street, 0.82)
+            }
+            add(ProfileFieldKey.city, "City", addr.city, 0.8)
+            add(ProfileFieldKey.state, "State / province", addr.state, 0.8)
+            add(ProfileFieldKey.postalCode, "ZIP / postal code", addr.zip, 0.8)
+        }
+
+        return dedupeByKey(suggestions)
+    }
+
+    private static func hasSSAHeaderSignals(_ upper: String) -> Bool {
+        if upper.contains("SOCIAL SECURITY") || upper.contains("YOUR SOCIAL SECURITY CARD") {
+            return true
+        }
+        if upper.contains("ESTABLISHED FOR") || upper.contains("LOCALSECURI") {
+            return true
+        }
+        if upper.range(of: #"(?i)LOCIAL\s+SEC"#, options: .regularExpression) != nil {
+            return true
+        }
+        if upper.range(of: #"(?i)SOCIAL\s+SECUR"#, options: .regularExpression) != nil {
+            return true
+        }
+        if upper.contains("LOCIAL") && upper.contains("SEC") {
+            return true
+        }
+        return false
+    }
+
+    private struct SSAParsedName {
+        let display: String
+        let first: String
+        let last: String
+    }
+
+    private static func extractSSACardholderName(from lines: [String]) -> SSAParsedName? {
+        if let streetIdx = lines.firstIndex(where: isSSAStreetLine) {
+            for idx in stride(from: streetIdx - 1, through: max(0, streetIdx - 4), by: -1) {
+                if let name = parseSSANameLine(lines[idx]) {
+                    return name
+                }
+            }
+        }
+
+        if let cardIdx = lines.firstIndex(where: { $0.uppercased().contains("YOUR SOCIAL SECURITY CARD") }) {
+            for idx in (cardIdx + 1) ..< lines.count {
+                if isSSAStreetLine(lines[idx]) || isSSACityStateZipLine(lines[idx]) { break }
+                if let name = parseSSANameLine(lines[idx]) {
+                    return name
+                }
+            }
+        }
+
+        for line in lines.reversed() {
+            if isSSAStreetLine(line) || isSSACityStateZipLine(line) { continue }
+            if let name = parseSSANameLine(line) {
+                return name
+            }
+        }
+
+        for idx in 0 ..< lines.count - 1 {
+            let firstLine = stripNameLine(lines[idx])
+            let secondLine = stripNameLine(lines[idx + 1])
+            guard isSingleNameToken(firstLine), isSingleNameToken(secondLine) else { continue }
+            guard !isSSAOCRGarbageToken(firstLine), !isSSAOCRGarbageToken(secondLine) else { continue }
+            guard !isSSABoilerplateLine(firstLine), !isSSABoilerplateLine(secondLine) else { continue }
+            let first = DriverLicenseFormatting.personName(firstLine)
+            let last = DriverLicenseFormatting.personName(secondLine)
+            guard let display = DriverLicenseFormatting.displayName(first: first, middle: nil, last: last),
+                  !display.isEmpty
+            else { continue }
+            return SSAParsedName(display: display, first: first, last: last)
+        }
+        return nil
+    }
+
+    private static func parseSSANameLine(_ line: String) -> SSAParsedName? {
+        let cleaned = line
+            .replacingOccurrences(of: #"^\d+\.?\s*"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleaned.isEmpty, !isSSABoilerplateLine(cleaned) else { return nil }
+
+        let words = cleaned.split(whereSeparator: \.isWhitespace).map(String.init)
+        guard words.count >= 2, words.count <= 4 else { return nil }
+        guard words.allSatisfy({ ScanFieldValidator.isPlausibleNameComponent($0) }) else { return nil }
+        guard !words.contains(where: { isSSAOCRGarbageToken($0) }) else { return nil }
+
+        let first = DriverLicenseFormatting.personName(words[0])
+        let last = DriverLicenseFormatting.personName(words[words.count - 1])
+        let middle = words.count > 2
+            ? words.dropFirst().dropLast().joined(separator: " ")
+            : nil
+        guard let display = DriverLicenseFormatting.displayName(first: first, middle: middle, last: last),
+              !display.isEmpty
+        else { return nil }
+        return SSAParsedName(display: display, first: first, last: last)
+    }
+
+    private static func isSSAOCRGarbageToken(_ token: String) -> Bool {
+        let upper = token.uppercased()
+        let garbage = [
+            "LOCIAL", "SEOURTA", "SECURI", "LOCAL", "SECUR", "SEO", "SOCIAL", "SECURITY",
+            "ADMINISTRATION", "CARD", "SIGN", "ADULTS", "CHILDREN", "PLEASE", "KEEP",
+            "NUMBER", "ESTABLISHED", "YOUR", "THIS", "OTHER", "SIDE", "STUB",
+        ]
+        return garbage.contains(upper) || upper.hasSuffix("SECURI") || upper.hasPrefix("LOC")
+    }
+
+    private static func isSSABoilerplateLine(_ line: String) -> Bool {
+        let lower = line.lowercased()
+        let banned = [
+            "social security", "administration", "established for", "this number",
+            "your social", "sign this card", "do not carry", "do not laminate",
+            "keep your card", "keep this stub", "please note", "adults:", "children:",
+            "locial", "seourta", "securi", "localsecuri",
+        ]
+        return banned.contains(where: { lower.contains($0) })
+    }
+
+    private static func extractLabeledDOB(from text: String) -> String? {
+        let patterns = [
+            #"(?i)(?:DOB|DATE\s+OF\s+BIRTH|BIRTH\s+DATE|BIRTHDATE)\s*[#:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"#,
+        ]
+        for pattern in patterns {
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                  match.numberOfRanges > 1,
+                  let range = Range(match.range(at: 1), in: text)
+            else { continue }
+            return String(text[range])
+        }
+        return nil
+    }
+
+    private static func extractSSAMailingAddress(from lines: [String]) -> ParsedAddress? {
+        guard let streetIdx = lines.firstIndex(where: isSSAStreetLine) else { return nil }
+        let street = DriverLicenseFormatting.streetAddress(lines[streetIdx])
+
+        for idx in streetIdx ..< min(streetIdx + 3, lines.count) {
+            if let csz = DriverLicenseParserSupport.parseCityStateZip(lines[idx]) {
+                return ParsedAddress(
+                    street: street,
+                    city: DriverLicenseFormatting.city(csz.city),
+                    state: csz.state,
+                    zip: DriverLicenseFormatting.zip5(csz.zip)
+                )
+            }
+        }
+        return nil
+    }
+
+    private static func isSSAStreetLine(_ line: String) -> Bool {
+        line.range(of: #"^\d+\s+[A-Za-z0-9].*(?:\b(?:RD|ROAD|ST|STREET|AVE|AVENUE|DR|DRIVE|LN|LANE|BLVD|WAY|CT|COURT)\b)"#,
+                   options: [.regularExpression, .caseInsensitive]) != nil
+    }
+
+    private static func isSSACityStateZipLine(_ line: String) -> Bool {
+        DriverLicenseParserSupport.parseCityStateZip(line) != nil
     }
 
     // MARK: - SSN
@@ -100,7 +323,8 @@ enum UniversalDocumentParser {
 
         let labeledPatterns: [(String, Int)] = [
             (#"(?i)^(?:NAME|FULL\s+NAME|HOLDER|CARDHOLDER)\s*[#:\s]+(.+)$"#, 1),
-            (#"(?i)^(?:THIS\s+NUMBER\s+HAS\s+BEEN\s+ESTABLISHED\s+FOR)\s*(.+)$"#, 1),
+            (#"(?i)^(?:PARTY\s+[AB]|SPOUSE)\s*[#:\s]+(.+)$"#, 1),
+            (#"(?i)^(?:EMPLOYEE|SUBSCRIBER)\s*[#:\s]+(.+)$"#, 1),
         ]
 
         for line in lines {
@@ -109,19 +333,6 @@ enum UniversalDocumentParser {
                    isPlausibleNameLine(name)
                 {
                     applyName(name, to: &result)
-                    return result
-                }
-            }
-        }
-
-        let upper = text.uppercased()
-        if upper.contains("SOCIAL SECURITY") {
-            if let paired = extractConsecutiveNameLines(from: lines, order: .firstLast) {
-                return paired
-            }
-            for line in lines {
-                if isPlausibleNameLine(line), !isBoilerplateLine(line) {
-                    applyName(line, to: &result)
                     return result
                 }
             }
@@ -137,36 +348,6 @@ enum UniversalDocumentParser {
         return result
     }
 
-    private enum NameLineOrder {
-        case firstLast
-        case lastFirst
-    }
-
-    private static func extractConsecutiveNameLines(from lines: [String], order: NameLineOrder) -> ParsedNames? {
-        for idx in 0 ..< lines.count - 1 {
-            let firstLine = stripNameLine(lines[idx])
-            let secondLine = stripNameLine(lines[idx + 1])
-            guard isSingleNameToken(firstLine), isSingleNameToken(secondLine) else { continue }
-
-            var result = ParsedNames()
-            switch order {
-            case .firstLast:
-                result.first = DriverLicenseFormatting.personName(firstLine)
-                result.last = DriverLicenseFormatting.personName(secondLine)
-            case .lastFirst:
-                result.last = DriverLicenseFormatting.personName(firstLine)
-                result.first = DriverLicenseFormatting.personName(secondLine)
-            }
-            result.display = DriverLicenseFormatting.displayName(
-                first: result.first,
-                middle: nil,
-                last: result.last
-            )
-            return result
-        }
-        return nil
-    }
-
     private static func stripNameLine(_ line: String) -> String {
         line
             .replacingOccurrences(of: #"^\d+\.?\s*"#, with: "", options: .regularExpression)
@@ -180,10 +361,10 @@ enum UniversalDocumentParser {
     }
 
     private static func shouldIncludeDriverLicenseFields(in text: String) -> Bool {
-        let upper = text.uppercased()
-        if upper.contains("SOCIAL SECURITY") && !upper.contains("DRIVER") {
+        if looksLikeSSNDocument(text) {
             return false
         }
+        let upper = text.uppercased()
         return upper.contains("DRIVER")
             || upper.contains("LICENSE")
             || upper.contains("IDENTIFICATION")
@@ -212,7 +393,6 @@ enum UniversalDocumentParser {
             return
         }
 
-        // SSN cards often print FIRST LAST; Texas DL uses LAST then FIRST on separate lines.
         result.first = DriverLicenseFormatting.personName(words[0])
         result.last = DriverLicenseFormatting.personName(words[words.count - 1])
         if words.count > 2 {
@@ -248,6 +428,7 @@ enum UniversalDocumentParser {
             "social security", "administration", "department", "driver", "license",
             "identification", "united states", "signature", "valid", "for official",
             "this number", "established for", "signature of", "date of",
+            "locial", "seourta", "securi", "localsecuri",
         ]
         return banned.contains(where: { lower.contains($0) })
     }
@@ -255,6 +436,9 @@ enum UniversalDocumentParser {
     // MARK: - DOB / address
 
     private static func extractDOB(from text: String) -> String? {
+        if looksLikeSSNDocument(text) {
+            return extractLabeledDOB(from: text)
+        }
         let patterns = [
             #"(?i)(?:DOB|DATE\s+OF\s+BIRTH|BIRTH\s+DATE|BIRTHDATE)\s*[#:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})"#,
             #"\b(\d{2}/\d{2}/\d{4})\b"#,
