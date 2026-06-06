@@ -8,10 +8,11 @@
 
 **Companion docs (read in order):**
 
-1. **This file** — executive blueprint and ship checklist  
-2. [fresh-start-lessons-and-principles.md](fresh-start-lessons-and-principles.md) — full lessons, anti-patterns, gates, decision log  
-3. [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) — what exists in the legacy codebase today  
-4. [architecture.md](architecture.md) — system architecture (updated for rewrite direction)
+1. **This file** — executive blueprint (stakeholders)  
+2. **[trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md)** — **IMPLEMENTATION DOCUMENT** (engineering — build from this)  
+3. [fresh-start-lessons-and-principles.md](fresh-start-lessons-and-principles.md) — lessons, anti-patterns, full Layer C detail  
+4. [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) — legacy codebase inventory  
+5. [architecture.md](architecture.md) — system architecture
 
 ---
 
@@ -285,8 +286,9 @@ Doc branches: `docs/fresh-start-principles`, `ganga-2026-05-16-2`.
 | 2.5 | Tightened extract list (birth cert classify-only; W-2/1099 deferred) |
 | 2.6 FINAL | Dual path: field auto-fill + submission document stash |
 | 2.7 | Document file storage: SQLite metadata + encrypted filesystem |
-| **2.8** | **Auto form fill extraction matrix** by mandated document |
+| 2.8 | Auto form fill extraction matrix by mandated document |
+| **2.8 IMPL** | **[trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md)** — implementation document for engineering |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.8 — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.8 — June 2026. Engineers: use [trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md).*

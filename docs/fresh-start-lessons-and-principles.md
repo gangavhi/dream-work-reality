@@ -1,9 +1,9 @@
 # Fresh start: lessons, failures, and principles
 
 **Branch:** `docs/fresh-start-principles`  
-**Status:** **FINAL** — read [trustnest-rewrite-final.md](trustnest-rewrite-final.md) first, then this document for full detail  
+**Status:** **FINAL** — principles and lessons (full detail)  
 **Audience:** Anyone rebuilding TrustNest / DreamWork document intelligence  
-**Companion:** [trustnest-rewrite-final.md](trustnest-rewrite-final.md) (executive blueprint) · [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) (legacy codebase inventory)  
+**Read first:** [trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md) (**implementation document**) · [trustnest-rewrite-final.md](trustnest-rewrite-final.md) (executive summary) · [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) (legacy inventory)  
 **Related:** [trustnest-cross-platform-form-automation.md](trustnest-cross-platform-form-automation.md), [ADR 0008](adr/0008-provenance-and-field-value-history.md), [ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md), [zero-egress constraint](trustnest-zero-egress-design-constraint.md)
 
 ---
@@ -1676,4 +1676,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 2.8 — branch `docs/fresh-start-principles`, June 2026. Auto form fill extraction matrix by mandated document. Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
+*Document version: 2.8 — branch `docs/fresh-start-principles`, June 2026. Implementation entry point: [trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md).*
