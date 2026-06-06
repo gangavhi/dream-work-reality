@@ -12,6 +12,8 @@
 
 **End goal:** Help users **submit forms** (school intake, medical portals, government sites, in-app flows) by **reusing household data stored in SQLite over months and years** — without retyping the same fields every time.
 
+**Storage model:** We **do not store document images or PDFs**. The vault persists **OCR raw data** (normalized blocks, bounds, `fullText`) in `extraction_run`, plus **user-confirmed profile fields** and **lineage** in SQLite. Camera/import bytes are **ephemeral** — used only to produce OCR, then discarded after the run is saved.
+
 **Why extraction must work first:** Form fill is only as trustworthy as the profile values behind it. Wrong DL number or spouse’s name in a school form is worse than an empty field. That is why this rewrite starts with field accuracy, not with more form UI.
 
 ### Product arc (the full loop)
@@ -33,11 +35,11 @@
 
 | Stage | User intent | What we must guarantee |
 |-------|-------------|------------------------|
-| **Ingest** | “Scan my new Texas DL — my address changed” | Correct fields from photo; user reviews before save |
-| **Store** | “Keep my household up to date over time” | Each profile field has **current value** + **history** linked to source |
+| **Ingest** | “Scan my new Texas DL — my address changed” | Correct fields from photo; OCR JSON persisted; **image bytes discarded**; user reviews before save |
+| **Store** | “Keep my household up to date over time” | Each profile field has **current value** + **history** linked to `extraction_run_id` (OCR snapshot), not to a stored file |
 | **Refresh** | “Replace old DL# with the one from this scan” | Rescan **supersedes** stale values; old version retained in history |
 | **Remind** | “My DL expires today — don’t let me forget” | **Local notifications** before/on expiry; profile shows dataset health |
-| **Fill** | “Fill this form for my child” | Matcher picks values from vault; user sees **which document / scan / edit** each value came from; **expired datasets prompt rescan** before applying |
+| **Fill** | “Fill this form for my child” | Matcher picks values from vault; user sees **which OCR run / manual edit** each value came from; **expired datasets prompt rescan** before applying |
 | **Submit** | “I trust what went into the form” | User confirms fill batch; optional write-back from form edits also gets lineage (`source=form`) |
 | **Share** | “Give my spouse only my DL fields for 24 hours” | User picks **person + dataset scope + TTL**; transfer over **proximity radio only**; receiver sees **foreign provenance** |
 
@@ -56,19 +58,29 @@ Lineage applies in **four surfaces** — not only scan review:
 
 ```text
 profile_key, value, effective_from,
-  source_kind:     scan | manual | form_writeback | proximity_share
-  document_id:     optional — which stored document image/PDF
-  extraction_run_id: optional — which OCR run produced the suggestion
-  document_type:   driversLicense | passport | insuranceCard | ...
-  capture_at:      when the source document was scanned
-  user_confirmed:  true after review or fill confirm
-  share_grant_id:  optional — proximity grant when source_kind=proximity_share
-  sharer_display:  optional — who shared (receiver-side foreign provenance)
-  expires_at:      optional — TTL on shared grants
+  source_kind:       scan | manual | form_writeback | proximity_share
+  extraction_run_id: required when source_kind=scan — links to persisted OCR JSON (blocks, bounds, fullText)
+  document_type:     driversLicense | passport | insuranceCard | ...
+  scanned_at:        when the OCR run was captured (image/PDF bytes already discarded)
+  user_confirmed:    true after review or fill confirm
+  share_grant_id:    optional — proximity grant when source_kind=proximity_share
+  sharer_display:    optional — who shared (receiver-side foreign provenance)
+  expires_at:        optional — TTL on shared grants
 ```
+
+**What SQLite stores (and does not):**
+
+| Persisted | Not persisted |
+|-----------|---------------|
+| `extraction_run` — normalized OCR JSON per scan | JPEG / PNG / PDF / HEIC bytes |
+| `field_value_current` + `field_value_history` — confirmed profile values | Thumbnails or “document library” folders |
+| Lineage metadata (`extraction_run_id`, `document_type`, `scanned_at`) | Re-openable scans of the original photo |
+
+Users can **re-read OCR text** from a past run for audit (“what did we see on that scan?”) but cannot **view the original image** unless they scan again.
 
 **Rules:**
 
+- **No document file storage** — after OCR is written to `extraction_run`, release image memory and do not write image paths to Application Support.
 - **No silent overwrite** — rescan or form edit creates a new history row; previous value stays queryable.
 - **No fill without disclosure** — form automation never applies a value the user cannot trace to a source.
 - **Expired data is visible and actionable** — see [dataset expiry reminders](#dataset-expiry-reminders--form-fill-guardrails) below; never auto-fill expired government ID fields without explicit user acknowledgment.
@@ -156,7 +168,7 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 
 #### Share UX (what the user does)
 
-1. Open **Share** on a person profile (or document bundle).
+1. Open **Share** on a person profile (or dataset preset).
 2. Pick **scope** — preset datasets aligned to [document segregation](#household-document-segregation-vault-taxonomy), not “export everything”:
    - `Driver license` — name, DOB, DL#, state, issue/expiry (no SSN unless user explicitly adds)
    - `Insurance card` — carrier, member ID, group ID, subscriber name
@@ -190,13 +202,13 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 
 ### Household document segregation (vault taxonomy)
 
-Users do not store “a document.” They store **household life paperwork** that maps to **forms over years**. The vault must **segregate by category** so classifiers route to the right extractor, share presets stay scoped, and form matchers know which keys are valid for which context.
+Users **scan** physical or digital documents at ingest time, but the vault **does not keep the files**. We persist **OCR raw data** + **confirmed profile fields** segregated by **document category** (`document_type`) so classifiers route to the right extractor, share presets stay scoped, and form matchers know which keys are valid for which context.
 
 **Rules:**
 
 - **One scan → one primary category** — user confirms category at ingest if classifier confidence is low; never run DL parsers on utility bills.
 - **Category drives extractor** — see [extractor registry](#extractor-registry-initial); generic regex is **not** allowed on identity or tax docs.
-- **Cross-listed docs** — e.g., passport appears under **Identity** and **Immigration / travel**; store once, index under both presets for share and form fill.
+- **Cross-listed types** — e.g., passport maps to **Identity** and **Immigration / travel**; one OCR run + profile fields, indexed under both share presets.
 - **Sensitive fields are category-scoped** — SSN and bank details never appear in default share presets; user must opt in field-by-field.
 
 #### 1. Identity documents (very important)
@@ -473,6 +485,7 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | N8 | Expand schema/prompt with 40+ keys before core 10 fields work |
 | N9 | Fix one document type by hardcoding without regression on others |
 | N10 | Commit architecture docs instead of **field accuracy metrics** |
+| N11 | Add “save document image” or document vault features — store **OCR raw data only** |
 
 ### Technical anti-patterns
 
@@ -485,6 +498,7 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | T5 | Flattening layout to string before structured docs (DL, W-2, insurance card) |
 | T6 | Swift + Rust duplicate person matching logic that can diverge |
 | T7 | Building ONNX/GGUF/LayoutLM paths before photo tests pass with rules-only |
+| T8 | Persisting JPEG/PNG/PDF scans, thumbnails, or a “document library” — **OCR JSON only** |
 
 ---
 
@@ -507,10 +521,10 @@ We do not ship form autofill that cannot show per-field source. We do not ship e
 ### Principle 2 — **One pipeline, four stages**
 
 ```text
-1. CAPTURE   → image/PDF bytes
-2. OCR       → Vision → NormalizedDocument (blocks with bounds)
+1. CAPTURE   → image/PDF bytes (memory only — not persisted)
+2. OCR       → Vision → NormalizedDocument → persist JSON to extraction_run → discard image bytes
 3. EXTRACT   → type-specific extractor → [FieldSuggestion]
-4. REVIEW    → user confirms → Rust SQLite
+4. REVIEW    → user confirms → profile fields + lineage → Rust SQLite
 ```
 
 No orchestrator with 15 steps. No parallel semantic/heuristic/learning paths in v1.
@@ -589,7 +603,8 @@ Synthetic perfect-line tests are NOT in the top two tiers.
 | Profile CRUD + SQLite | Rust FFI | Single persistence path |
 | **Field value history + lineage** | Rust SQLite ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) | One source of truth for “where did this value come from?” |
 | Person match on save | Rust `entity_resolution` only | No duplicate Swift matcher |
-| OCR run audit | Rust `extraction_run` | Links scans to extracted suggestions |
+| **OCR run persistence** | Rust `extraction_run` | **Only** durable scan artifact — normalized OCR JSON; no image bytes |
+| OCR run audit | Rust `extraction_run` | Links profile values to the OCR snapshot that produced them |
 | Form field match | Rust `form.rs` (rules-first) | Same matcher for extension + in-app; returns value **and** `sourcePersonId` + provenance pointer |
 | **Proximity share** | Rust `proximity` + grant store | x25519 session + encrypted scoped export; NFC/BLE transport in Swift platform layer ([ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md)) |
 | **Dataset expiry evaluation** | Rust (query `profile_key` expiry fields) | Single health status per dataset; drives reminders + form-fill guard |
@@ -823,7 +838,8 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 ### Vault + lineage (Rust / SQLite)
 
 - [ ] Rust `resolvePerson` + `save_manual_entry_json`
-- [ ] SQLite `field_value_current` + `field_value_history` ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) — link saves to `extraction_run_id` + document metadata
+- [ ] `extraction_run` persists normalized OCR JSON; **assert no image/PDF bytes** written to disk after save
+- [ ] SQLite `field_value_current` + `field_value_history` ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) — link saves to `extraction_run_id` + `document_type` + `scanned_at` (no `document_id` / file path)
 - [ ] Rescan supersedes: second DL scan updates DL#; first value retained in history
 - [ ] Profile UI: per-field “source · date” summary
 - [ ] Household conflict: 3-person test on save
@@ -884,6 +900,8 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 | Expiry reminders? | **Local notifications** | On-device schedule; no remote push with PII |
 | Default reminder offsets? | **30d, 7d, 1d, day-of** | User-configurable in Settings |
 | Fill with expired ID silently? | **Never** | Guard at form preview; same rules for extension when wired |
+| Store scanned image/PDF bytes? | **No** | Persist OCR JSON in `extraction_run` only; image is ephemeral |
+| Re-open original scan photo later? | **No** (v1) | Lineage points to OCR run text; user rescans if they need a new capture |
 
 ---
 
@@ -905,6 +923,7 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 - Adds a new document type before existing types pass  
 - Adds form fill UI without persisted lineage ([ADR 0008](adr/0008-provenance-and-field-value-history.md))  
 - Saves profile fields without `extraction_run_id` / source metadata when value came from a scan  
+- Persists document image/PDF bytes, thumbnails, or file paths to stored scans  
 - Adds share path that uploads payload or uses internet as fallback  
 - Ships share without TTL + scope manifest + revoke  
 - Auto-fills government ID fields without checking dataset expiry status  
@@ -946,12 +965,13 @@ The rewrite is not “try another ML approach.” It is:
 2. **Layout-first extractors**  
 3. **Photo tests as gate**  
 4. **Empty beats wrong**  
-5. **Lineage from scan → profile → form → share**  
+5. **Lineage from OCR run → profile → form → share** (no stored document files)  
 6. **Remind on expiry; guard forms when data is stale**  
-7. **One metric dashboard**
+7. **One metric dashboard**  
+8. **OCR raw data only** — profile values + lineage, not a document archive
 
 When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: all [document segregation tiers](#household-document-segregation-vault-taxonomy), **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped datasets with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
 
 ---
 
-*Document version: 1.5 — branch `docs/fresh-start-principles`, June 2026. Single-phase rollout for all document categories and ship gates.*
+*Document version: 1.6 — branch `docs/fresh-start-principles`, June 2026. OCR raw data only — no persisted document images/PDFs.*
