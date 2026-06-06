@@ -11,5 +11,7 @@ xcuserdata/
 demo/sample-documents/*-kota*
 demo/sample-documents/indian-passport-*.pdf
 apps/ios/DerivedData/
+# Local ONNX/vendor binaries — download via scripts; do not commit (~250MB)
+apps/ios/Vendor/
 # Local-only simulator OCR fixtures (may contain real ID scans)
 apps/ios/DreamWorkAppTests/Fixtures/texas-driver-license-sample.png

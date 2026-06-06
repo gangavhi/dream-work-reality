@@ -46,7 +46,7 @@ enum OnDeviceFieldMapper {
         let body = MapRequest(
             layout_text: String(trimmed.prefix(24_000)),
             profile_schema_keys: profileSchemaKeys,
-            model_path: BundledModelStore.liteArtifactPath()
+            model_path: nil
         )
         guard let json = encodeJSON(body),
               let out = callRustJSON(json, dreamwork_map_document_fields_json),
