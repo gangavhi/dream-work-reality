@@ -27,7 +27,7 @@ TrustNest helps households **submit forms** (school, medical, government, in-app
 | **3 layers** | **A** classify → stash? + form-relevant? → **C** mapping (**MOST IMPORTANT**) → **B** canonical fields |
 | **Form-relevance** | Extract only unique form-fill fields; W-2/1099/pay stub → **no extract**; birth cert → **stash only** |
 | **Auto-save** | Stash-listed types save on scan: `{Type} — {Person} — {date}` |
-| **Storage** | `extraction_run` OCR JSON always; encrypted image/PDF **only** for stash types |
+| **Storage** | SQLite: metadata + fields + OCR JSON · **Filesystem:** encrypted files for stash types (never BLOBs in DB) |
 | **Pipeline** | CAPTURE → OCR → CLASSIFY → **STASH?** → **EXTRACT?** → REVIEW → submit (fill + attach) |
 | **Extraction order** | MRZ/barcode → type extractor → label-anchored → **stop** (empty beats wrong) |
 | **Lineage** | Every field traceable to `extraction_run_id`, manual edit, form write-back, or proximity share |
@@ -115,6 +115,33 @@ Full spec: [Submission document stash](fresh-start-lessons-and-principles.md#sub
 
 ---
 
+## Document file storage (SQLite metadata + encrypted files)
+
+Submission documents use a **split store** — SQLite is **not** used for image/PDF bytes.
+
+```text
+SQLite (SQLCipher)                    Encrypted filesystem
+─────────────────────                 ─────────────────────────────
+stored_submission_document  ────────► submission_docs/{person}/{type}/current.enc
+  • display_name, mime_type, sha256     • AES-GCM encrypted bytes
+  • file_path (pointer only)          • NSFileProtectionComplete
+  • is_current, superseded_at           • excluded from iCloud backup
+```
+
+| In SQLite | On disk |
+|-----------|---------|
+| `id`, `person_id`, `document_type`, `display_name` | JPEG / PNG / HEIC / PDF bytes |
+| `file_path`, `mime_type`, `file_size_bytes`, `sha256` | |
+| `scanned_at`, `extraction_run_id`, `is_current` | |
+
+**Owners:** Rust = metadata CRUD + lookup · Swift = encrypt/write/read files · Extension = decrypt stream into form upload.
+
+**Never:** SQLite BLOBs for scans · Photo Library · cloud sync.
+
+Full spec: [Document file storage](fresh-start-lessons-and-principles.md#document-file-storage-sqlite-metadata--encrypted-files).
+
+---
+
 ## Layer C JSON contracts
 
 **Classification (Layer A):**
@@ -161,9 +188,10 @@ Full spec: [Submission document stash](fresh-start-lessons-and-principles.md#sub
 
 | Persisted | Not persisted |
 |-----------|---------------|
-| Layer B: `field_value_current` + `field_value_history` | Random scan archive |
-| Layer C: `extraction_run` OCR JSON + lineage | Cloud document sync |
-| `stored_submission_document` + encrypted local files (stash whitelist) | Receipts, unknown uploads |
+| Layer B: canonical fields + history (SQLite) | Random scan archive |
+| Layer C: `extraction_run` OCR JSON + lineage (SQLite) | SQLite BLOBs for document images |
+| `stored_submission_document` metadata only (SQLite) | Cloud document sync |
+| Encrypted `.enc` files under `submission_docs/` (filesystem) | Receipts, unknown uploads |
 
 ---
 
@@ -199,6 +227,7 @@ Form submit → auto-fill fields + propose stash attachments → user confirms
 - [ ] Birth certificate scan auto-saves; no field extract  
 - [ ] School form upload slot proposes matching stash file  
 - [ ] Rescan supersedes prior file for same person + type  
+- [ ] Document bytes on encrypted filesystem only — **no** SQLite BLOBs  
 
 ### Product gates
 
@@ -235,8 +264,9 @@ Doc branches: `docs/fresh-start-principles`, `ganga-2026-05-16-2`.
 | 2.3 | Layer C JSON output contracts |
 | 2.4 | Form-relevant allowlist — no extract on irrelevant scans |
 | 2.5 | Tightened extract list (birth cert classify-only; W-2/1099 deferred) |
-| **2.6 FINAL** | **Dual path:** field auto-fill + submission document stash (auto-save, attach at submit) |
+| 2.6 FINAL | Dual path: field auto-fill + submission document stash |
+| **2.7** | **Document file storage:** SQLite metadata only + encrypted filesystem for bytes |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.6 FINAL — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.7 — June 2026.*
