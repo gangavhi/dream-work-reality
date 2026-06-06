@@ -43,4 +43,15 @@ final class DocumentTypeClassifierTests: XCTestCase {
         XCTAssertEqual(result.documentType, .ssnCard)
         XCTAssertGreaterThanOrEqual(result.confidence, 0.88)
     }
+
+    func testGarbledSSAStubStillClassifiesAsSSNCard() {
+        let text = """
+        123-45-6789
+        THIS NUMBER HAS BEEN ESTABLISHED FOR
+        LOCIAL SEOURTA
+        YOUR SOCIAL SECURITY CARD
+        """
+        let result = DocumentTypeClassifier.classify(from: text)
+        XCTAssertEqual(result.documentType, .ssnCard)
+    }
 }

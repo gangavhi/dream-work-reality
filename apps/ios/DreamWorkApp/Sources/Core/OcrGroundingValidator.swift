@@ -49,8 +49,14 @@ enum OcrGroundingValidator {
         guard !trimmed.isEmpty else { return false }
 
         let normValue = normalize(token: trimmed)
-        if !normValue.isEmpty, corpus.contains(normValue) {
-            return true
+        if !normValue.isEmpty {
+            if corpus.contains(normValue) {
+                return true
+            }
+            let compactCorpus = corpus.replacingOccurrences(of: "-", with: "").replacingOccurrences(of: " ", with: "")
+            if compactCorpus.contains(normValue) {
+                return true
+            }
         }
 
         let digitsOnly = trimmed.filter(\.isNumber)

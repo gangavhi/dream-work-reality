@@ -11,3 +11,5 @@ xcuserdata/
 demo/sample-documents/*-kota*
 demo/sample-documents/indian-passport-*.pdf
 apps/ios/DerivedData/
+# Local-only simulator OCR fixtures (may contain real ID scans)
+apps/ios/DreamWorkAppTests/Fixtures/texas-driver-license-sample.png

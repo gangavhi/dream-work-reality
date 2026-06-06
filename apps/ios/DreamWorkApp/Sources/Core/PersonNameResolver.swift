@@ -8,7 +8,11 @@ enum PersonNameResolver {
         var last: String
 
         var display: String {
-            DriverLicenseFormatting.displayName(first: first, middle: middle, last: last) ?? ""
+            DriverLicenseFormatting.displayName(
+                first: first,
+                middle: middle,
+                last: last.isEmpty ? nil : last
+            ) ?? first
         }
     }
 
@@ -86,7 +90,7 @@ enum PersonNameResolver {
             if let dl = resolveFromDriverLicenseParse(ocrText) { return dl }
         }
 
-        if joined.uppercased().contains("SOCIAL SECURITY"), let ssn = resolveSSNNames(from: lines) {
+        if UniversalDocumentParser.looksLikeSSNDocument(joined), let ssn = resolveSSNNames(from: lines) {
             return ssn
         }
 
@@ -117,16 +121,35 @@ enum PersonNameResolver {
         }
 
         if first == nil || last == nil {
+            if let lone = resolveTexasLoneGivenName(from: lines) {
+                if first == nil { first = lone.first }
+                if last == nil, !lone.last.isEmpty { last = lone.last }
+            }
+        }
+
+        if first == nil || last == nil {
             if let pair = resolveTexasSingleLine(from: lines) {
                 if last == nil { last = pair.last }
                 if first == nil { first = pair.first }
             }
         }
 
-        guard var resolvedFirst = first, var resolvedLast = last else { return nil }
-        guard ScanFieldValidator.isPlausibleNameComponent(resolvedFirst),
-              ScanFieldValidator.isPlausibleNameComponent(resolvedLast)
-        else { return nil }
+        if let resolvedLast = last, !resolvedLast.isEmpty {
+            if let currentFirst = first, namesAreTooSimilar(currentFirst, resolvedLast),
+               let better = pickBestTexasGivenName(from: lines, lastName: resolvedLast)
+            {
+                first = better
+            } else if first == nil, let better = pickBestTexasGivenName(from: lines, lastName: resolvedLast) {
+                first = better
+            }
+        }
+
+        guard var resolvedFirst = first, !resolvedFirst.isEmpty else { return nil }
+        var resolvedLast = last ?? ""
+        guard ScanFieldValidator.isPlausibleNameComponent(resolvedFirst) else { return nil }
+        if !resolvedLast.isEmpty {
+            guard ScanFieldValidator.isPlausibleNameComponent(resolvedLast) else { return nil }
+        }
 
         resolvedFirst = expandFirstName(from: lines, current: resolvedFirst, lastName: resolvedLast)
 
@@ -142,6 +165,7 @@ enum PersonNameResolver {
         let end = lines.firstIndex(where: { line in
             line.range(of: #"(?i)^8\.?\s"#, options: .regularExpression) != nil
                 || DriverLicenseParserSupport.parseCityStateZip(line) != nil
+                || DriverLicenseParserSupport.looksLikeStreetNameLine(line)
         }) ?? lines.count
 
         return start ..< min(max(end, start + 1), lines.count)
@@ -177,11 +201,46 @@ enum PersonNameResolver {
         return nil
     }
 
+    /// Lone given-name line when OCR drops the numbered `2.` prefix (common on noisy TX scans).
+    private static func resolveTexasLoneGivenName(from lines: [String]) -> ResolvedName? {
+        let band = nameBandRange(in: lines)
+        var best: String?
+
+        for idx in band {
+            let token = stripNameNoise(lines[idx])
+            let words = token.split(whereSeparator: \.isWhitespace).map(String.init)
+            guard words.count == 1 else { continue }
+            guard token.count >= 6 else { continue }
+            guard isNameToken(token) else { continue }
+            if best == nil || token.count > (best?.count ?? 0) {
+                best = token
+            }
+        }
+
+        guard let given = best else { return nil }
+        let first = DriverLicenseFormatting.personName(given)
+
+        if let idx = lines.firstIndex(where: { stripNameNoise($0) == given }), idx > 0 {
+            let prior = stripNameNoise(lines[idx - 1])
+            let priorWords = prior.split(whereSeparator: \.isWhitespace).map(String.init)
+            if priorWords.count == 1, isNameToken(prior), prior.count < given.count {
+                return ResolvedName(
+                    first: first,
+                    middle: nil,
+                    last: DriverLicenseFormatting.personName(prior)
+                )
+            }
+        }
+
+        return ResolvedName(first: first, middle: nil, last: "")
+    }
+
     /// Two-word line on Texas DL: native order is LAST FIRST (`SMITH JANE`).
     private static func resolveTexasSingleLine(from lines: [String]) -> ResolvedName? {
         let band = nameBandRange(in: lines)
         for idx in band {
             let line = stripNameNoise(lines[idx])
+            guard !DriverLicenseParserSupport.looksLikeStreetNameLine(line) else { continue }
             let words = line.split(whereSeparator: \.isWhitespace).map(String.init)
             guard words.count == 2 else { continue }
             guard words.allSatisfy(isNameToken) else { continue }
@@ -258,26 +317,20 @@ enum PersonNameResolver {
     }
 
     private static func resolveSSNNames(from lines: [String]) -> ResolvedName? {
-        for line in lines {
-            if let name = captureGroup(
-                in: line,
-                pattern: #"(?i)^(?:THIS\s+NUMBER\s+HAS\s+BEEN\s+ESTABLISHED\s+FOR)\s*(.+)$"#
-            ), isPlausibleNameLine(name) {
-                return resolvedFromFirstLastLine(name)
-            }
-        }
-
-        for idx in 0 ..< lines.count - 1 {
-            let firstLine = stripNameNoise(lines[idx])
-            let secondLine = stripNameNoise(lines[idx + 1])
-            guard isNameToken(firstLine), isNameToken(secondLine) else { continue }
-            return ResolvedName(
-                first: DriverLicenseFormatting.personName(firstLine),
-                middle: nil,
-                last: DriverLicenseFormatting.personName(secondLine)
-            )
-        }
-        return nil
+        let joined = lines.joined(separator: "\n")
+        let suggestions = UniversalDocumentParser.parse(from: joined)
+        let byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0.value) })
+        guard let first = byKey[ProfileFieldKey.legalFirstName],
+              let last = byKey[ProfileFieldKey.legalLastName],
+              !first.isEmpty, !last.isEmpty
+        else { return nil }
+        return ResolvedName(
+            first: DriverLicenseFormatting.personName(first),
+            middle: byKey[ProfileFieldKey.legalMiddleName].flatMap {
+                $0.isEmpty ? nil : DriverLicenseFormatting.personName($0)
+            },
+            last: DriverLicenseFormatting.personName(last)
+        )
     }
 
     private static func resolveCommaFormat(from lines: [String]) -> ResolvedName? {
@@ -346,6 +399,7 @@ enum PersonNameResolver {
 
     private static func isNameToken(_ token: String) -> Bool {
         guard !token.isEmpty, !isBoilerplateName(token) else { return false }
+        guard !DriverLicenseParserSupport.isStreetSuffixToken(token) else { return false }
         guard token.range(of: #"^[A-Za-z][A-Za-z\-']*$"#, options: .regularExpression) != nil else { return false }
         return ScanFieldValidator.isPlausibleNameComponent(token)
     }
@@ -364,8 +418,43 @@ enum PersonNameResolver {
     }
 
     private static func lineLooksLikeAddress(_ line: String) -> Bool {
-        line.range(of: #"^\d+\s+\S+"#, options: .regularExpression) != nil
+        DriverLicenseParserSupport.looksLikeStreetNameLine(line)
             || line.range(of: #"(?i)^8\.?\s"#, options: .regularExpression) != nil
+    }
+
+    private static func namesAreTooSimilar(_ a: String, _ b: String) -> Bool {
+        let left = a.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let right = b.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        guard !left.isEmpty, !right.isEmpty else { return false }
+        if left == right { return true }
+        let prefixLen = min(4, min(left.count, right.count))
+        if prefixLen >= 3, left.prefix(prefixLen) == right.prefix(prefixLen) { return true }
+        if left.count >= 5, right.count >= 5,
+           left.hasPrefix(String(right.prefix(5))) || right.hasPrefix(String(left.prefix(5)))
+        {
+            return true
+        }
+        return false
+    }
+
+    /// Prefer the longest plausible given-name token that is not an OCR echo of the surname.
+    private static func pickBestTexasGivenName(from lines: [String], lastName: String) -> String? {
+        let band = nameBandRange(in: lines)
+        var best: String?
+
+        for idx in band {
+            let token = stripNameNoise(lines[idx])
+            let words = token.split(whereSeparator: \.isWhitespace).map(String.init)
+            guard words.count == 1 else { continue }
+            guard token.count >= 6 else { continue }
+            guard isNameToken(token) else { continue }
+            guard !namesAreTooSimilar(token, lastName) else { continue }
+            if best == nil || token.count > best!.count {
+                best = token
+            }
+        }
+
+        return best.map { DriverLicenseFormatting.personName($0) }
     }
 
     private static func captureGroup(in text: String, pattern: String) -> String? {

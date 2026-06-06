@@ -42,6 +42,33 @@ enum SpecializedDocumentExtractors {
             .map { $0.withMappingSource(.onDevice) }
         merged = CoreIngestHTTPClient.mergeSuggestions(trusted: merged, supplemental: typeScoped)
 
+        if presentation.enumType == .taxDocument {
+            let upper = corpus.uppercased()
+            if upper.contains("W-2") || upper.range(of: #"\bW2\b"#, options: .regularExpression) != nil {
+                merged.append(
+                    OcrFieldSuggestion(
+                        profileKey: ProfileFieldKey.taxFormType,
+                        label: "Tax form type",
+                        value: "W-2",
+                        confidence: "High",
+                        confidenceScore: 0.9,
+                        mappingSource: .onDevice
+                    )
+                )
+            } else if upper.contains("1099") {
+                merged.append(
+                    OcrFieldSuggestion(
+                        profileKey: ProfileFieldKey.taxFormType,
+                        label: "Tax form type",
+                        value: "1099",
+                        confidence: "High",
+                        confidenceScore: 0.9,
+                        mappingSource: .onDevice
+                    )
+                )
+            }
+        }
+
         return merged
     }
 }

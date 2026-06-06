@@ -13,7 +13,7 @@ enum ProfileSchemaKeysForDocument {
             return "insurance_card"
         }
         if upper.contains("STATE ID") || upper.contains("IDENTIFICATION CARD") { return "state_id" }
-        if upper.contains("SOCIAL SECURITY") { return "social_security_card" }
+        if UniversalDocumentParser.looksLikeSSNDocument(text) { return "social_security_card" }
         if upper.contains("W-2") || upper.contains("W2 ") { return "tax_w2" }
         if upper.contains("1099") { return "tax_1099" }
         if upper.contains("BANK STATEMENT") { return "bank_statement" }
@@ -81,7 +81,11 @@ enum ProfileSchemaKeysForDocument {
                 ProfileFieldKey.addressLine1,
             ]
         case "social_security_card", "ssn_card":
-            return [ProfileFieldKey.displayName, ProfileFieldKey.ssn, ProfileFieldKey.dateOfBirth]
+            return [
+                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
+                ProfileFieldKey.ssn, ProfileFieldKey.dateOfBirth,
+                ProfileFieldKey.addressLine1, ProfileFieldKey.city, ProfileFieldKey.state, ProfileFieldKey.postalCode,
+            ]
         case "tax_w2", "tax_1099", "tax_form":
             return [
                 ProfileFieldKey.displayName, ProfileFieldKey.employerName, ProfileFieldKey.taxYear,

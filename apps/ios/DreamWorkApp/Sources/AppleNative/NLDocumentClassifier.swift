@@ -31,11 +31,22 @@ enum NLDocumentClassifier {
             )
         }
 
+        let keyword = DocumentTypeClassifier.classify(from: layoutText)
+        if keyword.matchedSignals.contains(where: { $0 == "birth certificate" || $0 == "marriage certificate" }) {
+            let openLabel = DocumentTypeClassifier.mapToUnderstandingType(keyword.documentType)
+            return Result(
+                displayType: keyword.documentType,
+                openLabel: openLabel,
+                confidence: keyword.confidence,
+                engineID: "nl:keywords"
+            )
+        }
+
         if let createML = classifyWithCreateML(layoutText: layoutText) {
             return createML
         }
 
-        let heuristic = DocumentTypeClassifier.classify(from: layoutText)
+        let heuristic = keyword
         let openLabel = DocumentTypeClassifier.mapToUnderstandingType(heuristic.documentType)
         return Result(
             displayType: heuristic.documentType,
