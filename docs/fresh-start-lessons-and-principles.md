@@ -283,8 +283,6 @@ If a type fails the test → **classify-only** (Layer A may label it; `form_rele
 | `stateId` | State ID#, expiry | `StateIdExtractor` |
 | `ssnCard` | `ssn` | `SSNCardExtractor` |
 | `insuranceCard` | provider, policy#, group ID | `InsuranceCardExtractor` |
-| `w2`, `form1099` | `ssn`, employer, income | `TaxFormExtractor` |
-| `payStub` | employer, income, pay frequency | `PayStubExtractor` |
 | `utility_bill` / `utilityBill` | `current_address` | `AddressProofExtractor` |
 | `lease` | `current_address` | `AddressProofExtractor` |
 | `financial.bank_statement` / `bankStatement` | address, account/routing | `BankStatementExtractor` |
@@ -298,6 +296,7 @@ If a type fails the test → **classify-only** (Layer A may label it; `form_rele
 | `birthCertificate` | No unique typed fields (name/DOB from passport/DL); **stash for school upload** instead | `form_relevant: false`, **stash: true** |
 | `marriageCertificate` | `marital_status` is a one-tap manual field on forms | `form_relevant: false` |
 | `taxReturn` | Same tax fields as W-2/1099; full return not needed for form automation | `form_relevant: false` |
+| `w2`, `form1099`, `payStub` | Tax/loan niche; SSN duplicates SSN card; not school/medical intake | `form_relevant: false` |
 | `transcript`, `degree`, `studentId` | Education history is manual or form write-back; not reliable scan→fill | `form_relevant: false` |
 | `medicationList`, `medicalRecord` | Unstructured clinical text; poor form-fill signal | `form_relevant: false` |
 | `emergencyContact` | Emergency blocks are typed on forms; scan path adds noise | `form_relevant: false` |
@@ -365,6 +364,34 @@ Examples: `Immunization Record — Emma Chen — 2026-06-01` · `Birth Certifica
 | `bankStatement` | Benefits / loan proof (when requested) | ✅ address, routing/account |
 
 **Not auto-stashed:** `unknown`, receipts, W-2, 1099, pay stub, marriage cert, medical records, tax returns — unless added to stash list in a future scope.
+
+#### Auto form fill extraction matrix (mandated documents)
+
+What each **mandated** document contributes to **auto form fill** (typed fields → Layer B vault). File stash (upload at submit) is separate — see [submission stash](#submission-document-stash-upload-at-form-submit).
+
+| Document | Field extract | File stash | Layer B fields extracted (auto form fill) | Typical USA form use |
+|----------|:-------------:|:----------:|----------------------------------------|----------------------|
+| **Passport** (`passport`) | ✅ | ✅ | `first_name`, `last_name`, `full_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry` | Travel, I-9 alt ID, some school ID fields |
+| **Driver’s license** (`driversLicense`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_state`, `driver_license_expiry`, `current_address` | School registration, medical intake, rental, pharmacy |
+| **State ID** (`stateId`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `state_id_number`, `state_id_expiry` | Child school forms (non-driver), youth programs |
+| **SSN card** (`ssnCard`) | ✅ | ❌ | `first_name`, `last_name`, `ssn` | Benefits, credit, employment I-9 (SSN field) |
+| **Insurance card** (`insuranceCard`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `insurance_provider`, `policy_number`, `insurance_group_id` | Medical portals, pharmacy, school nurse |
+| **Utility bill** (`utility_bill`) | ✅ | ✅ | `full_name` (optional), `current_address` | School proof of residence, Medicaid address verify |
+| **Lease** (`lease`) | ✅ | ✅ | `first_name`, `last_name`, `current_address` | School district, rental applications |
+| **Bank statement** (`bankStatement`) | ✅ | ✅ | `current_address`, `mailing_address`, `bank_account_number` (last-4), `routing_number` | Direct deposit (job onboarding), address proof |
+| **Immunization record** (`immunizationRecord`) | ✅ | ✅ | `first_name`, `vaccination_status[]` (vaccine, dose date, site per row) | School health / camp / sports physical **typed** vaccine table |
+| **Visa** (`visa`) | ✅ | ❌ | `first_name`, `last_name`, `nationality`, `visa_number`, `visa_expiry` | Immigration portals, I-9 for foreign nationals |
+| **Work authorization / EAD** (`workAuthorization`) | ✅ | ❌ | `first_name`, `last_name`, `work_authorization_number`, `work_authorization_expiry` | I-9, employer work-auth verification |
+| **Immigration form** (`immigrationForm`, I-94, etc.) | ✅ | ❌ | `visa_number` or `work_authorization_number`, expiry, nationality (form-specific) | USCIS / border entry records |
+| **Birth certificate** (`birthCertificate`) | ❌ | ✅ | — (no fields) | School **file upload** only; use state ID/passport for name/DOB fields |
+| **W-2 / 1099 / pay stub** | ❌ | ❌ | — | Tax prep / loan niche — not intake auto-fill (future scope) |
+| **Marriage cert / transcript / medical records** | ❌ | ❌ | — | Manual entry or form write-back |
+
+**Legend:** ✅ = runs on scan · ❌ = does not run · `vaccination_status[]` = structured list in SQLite.
+
+**Per-document field detail** (OCR anchors): see [Layer C examples](#layer-c--document--field-mapping-most-important) below.
+
+**Ship priority (photo E2E matrix):** Texas DL → SSN card → insurance card → passport → state ID (child). Stash + attach gate covers immunization, birth certificate, utility bill.
 
 ##### Document file storage (SQLite metadata + encrypted files)
 
@@ -528,7 +555,7 @@ document_type, canonical_key, value,
 - **No extraction without `form_relevant: true`** — gate runs after Layer A, before any extractor.
 - **Explicit map only** — if a field is not in the document’s mapping table, the extractor returns `EMPTY` for that key.
 - **No cross-document bleed** — utility bill mapping must not include `driver_license_number`.
-- **Multi-source fields** — `ssn` may be set by `ssnCard`, `w2`, or `form1099`; each uses its own Layer C table; Layer B holds one current `ssn` with lineage to the winning evidence run.
+- **Multi-source fields** — `ssn` primary source is `ssnCard`; `current_address` may come from DL, utility bill, lease, or bank statement; Layer B holds one current value per key with lineage to the winning evidence run.
 - **User confirm** — Layer C proposals become Layer B values only after review (or form write-back / proximity import).
 
 ---
@@ -801,7 +828,6 @@ Use passport/DL/state ID for child identity **fields**; use birth certificate sc
 | `stateId` | `StateIdExtractor` | 5 |
 | `ssnCard` | `SSNCardExtractor` | 3 |
 | `insuranceCard` | `InsuranceCardExtractor` | 6 |
-| `w2` | `TaxFormExtractor` | 3–4 |
 | `utilityBill` | `AddressProofExtractor` | 1–2 |
 | `immunizationRecord` | `ImmunizationRecordExtractor` | 1+ (list) |
 | `visa` | `ImmigrationDocumentExtractor` | 4+ |
@@ -819,7 +845,7 @@ Used by `DocumentClassifier`. **Classification taxonomy is broader than the form
 | Category | Classify (`ScannedDocumentType`) | Form-relevant extract |
 |----------|----------------------------------|:---------------------:|
 | **Identity** | Passport, DL / state ID, birth certificate, SSN card | Passport, DL, state ID, SSN card only |
-| **Financial / tax** | W-2, 1099, tax returns, bank statements, pay stubs | W-2, 1099, bank statement, pay stub |
+| **Financial / tax** | W-2, 1099, tax returns, bank statements, pay stubs | Bank statement only |
 | **Address proof** | Utility bills, lease, bank statements | Utility bill, lease, bank statement |
 | **Education** | Transcripts, degrees, immunization records, student ID | Immunization record only |
 | **Healthcare** | Insurance card, medication lists, medical records | Insurance card only |
@@ -1454,12 +1480,11 @@ flowchart TB
 | `ssnCard` | Identity | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
 | `insuranceCard` | Healthcare | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
 | `stateId` | Identity | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
-| `w2`, `form1099` | Financial / tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
-| `payStub` | Financial / tax | `PayStubExtractor` | employer, gross/net pay |
-| `utilityBill`, `lease`, `bankStatement` | Address proof | `AddressProofExtractor` | service/mailing address only |
+| `utilityBill`, `lease` | Address proof | `AddressProofExtractor` | service/mailing address only |
+| `bankStatement` | Address / financial | `BankStatementExtractor` | mailing address, routing, account |
 | `immunizationRecord` | Education / health | `ImmunizationRecordExtractor` | vaccine row table only |
 | `visa`, `workAuthorization`, `immigrationForm` | Immigration / travel | `ImmigrationDocumentExtractor` | visa class, auth number, expiry |
-| `birthCertificate`, `marriageCertificate`, `taxReturn`, `transcript`, `degree`, `studentId`, `medicationList`, `medicalRecord`, `emergencyContact` | Various | **none** | Classify-only — `form_relevant: false` |
+| `birthCertificate`, `marriageCertificate`, `taxReturn`, `w2`, `form1099`, `payStub`, `transcript`, `degree`, `studentId`, `medicationList`, `medicalRecord`, `emergencyContact` | Various | **none** | Classify-only — `form_relevant: false` (birth cert: stash only) |
 | *unknown / off-allowlist* | — | **none** | `form_relevant: false` — pipeline stops before extract |
 
 ### Files we do **not** port to v1
@@ -1651,4 +1676,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 2.7 — branch `docs/fresh-start-principles`, June 2026. Document file storage: SQLite metadata only + encrypted filesystem for submission doc bytes. Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
+*Document version: 2.8 — branch `docs/fresh-start-principles`, June 2026. Auto form fill extraction matrix by mandated document. Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
