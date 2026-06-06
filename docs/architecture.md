@@ -2,7 +2,7 @@
 
 This document gives a **high-level** view of the Dream Work Reality platform, **per-module** structure, and for each area both a **technical deep-dive** and a **layman** explanation. It aligns with the ADRs in [`docs/adr/`](adr/README.md).
 
-**TrustNest product vision:** [privacy-first document intelligence architecture](privacy-first-document-intelligence-architecture.md) · **Constraints:** [zero-egress design](trustnest-zero-egress-design-constraint.md) · **Gap vs vision:** [implementation gap](project-requirements-and-implementation-gap.md) · [document intelligence deep dive](document-intelligence-deep-dive.md).
+**TrustNest product constraints:** [zero-egress design](trustnest-zero-egress-design-constraint.md) (no document/PII on the wire; on-device models only) · [document type & field-mapping deep dive](document-intelligence-deep-dive.md) (OCR vs classification vs mapping accuracy).
 
 ---
 
