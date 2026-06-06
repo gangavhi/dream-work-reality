@@ -97,6 +97,50 @@ Layer A — Document types (CLASSIFICATION ONLY)
 
 **Does not map:** `ssn`, `driver_license_number`, `insurance_provider`.
 
+**Layer C JSON (passport):**
+
+```json
+{
+  "document_type": "passport",
+  "extracted_fields": {
+    "full_name": "John Doe",
+    "date_of_birth": "1990-01-01",
+    "passport_number": "X1234567",
+    "nationality": "USA",
+    "expiry_date": "2032-05-01"
+  }
+}
+```
+
+`expiry_date` → canonical `passport_expiry` on save.
+
+**Layer C JSON (utility bill):**
+
+```json
+{
+  "document_type": "utility_bill",
+  "extracted_fields": {
+    "full_name": "John Doe",
+    "service_address": "123 Main St",
+    "billing_date": "2026-01-01",
+    "provider": "Xcel Energy"
+  }
+}
+```
+
+`service_address` → `current_address`; `billing_date` / `provider` stay on `extraction_run` (metadata).
+
+**Layer A JSON (bank statement — classification only):**
+
+```json
+{
+  "document_type": "financial.bank_statement",
+  "confidence": 0.94
+}
+```
+
+No `extracted_fields` until Layer C extractor runs.
+
 All document mapping tables: [Layer C § Document → Field Mapping](fresh-start-lessons-and-principles.md#layer-c--document--field-mapping-most-important).
 
 ---
@@ -160,7 +204,8 @@ Scan → Vision OCR → Classify (Layer A) → Extract → Review → Save canon
 | 2.0 FINAL | Initial blueprint + segregation taxonomy |
 | **2.1** | Data-centric 3-layer model |
 | **2.2** | **Layer C document → field mapping** (MOST IMPORTANT) — per-type tables |
+| **2.3** | Layer C JSON contracts — passport, utility bill, bank statement classification |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.2 — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.3 — June 2026.*

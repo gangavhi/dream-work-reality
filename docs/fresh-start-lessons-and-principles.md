@@ -253,6 +253,40 @@ document_type, canonical_key, value,
   confidence:    VERIFIED | HIGH | MEDIUM | EMPTY (never fake HIGH on regex)
 ```
 
+**JSON output contract (API / extractor response):**
+
+Layer C uses two JSON shapes depending on pipeline stage:
+
+```json
+// Layer A — classification only (type picked, extraction not run yet)
+{
+  "document_type": "financial.bank_statement",
+  "confidence": 0.94
+}
+```
+
+```json
+// Layer C — extraction complete (document → field mapping applied)
+{
+  "document_type": "passport",
+  "extracted_fields": {
+    "full_name": "John Doe",
+    "date_of_birth": "1990-01-01",
+    "passport_number": "X1234567",
+    "nationality": "USA",
+    "expiry_date": "2032-05-01"
+  }
+}
+```
+
+| JSON key | Meaning |
+|----------|---------|
+| `document_type` | Layer A type — snake_case or dotted (`utility_bill`, `financial.bank_statement`) |
+| `confidence` | Classifier score (Layer A only) |
+| `extracted_fields` | Document-native field names from Layer C mapping — **normalized to Layer B** on save |
+
+**Save path:** `extracted_fields` → map to canonical Layer B keys → user confirms → `field_value_current` + lineage.
+
 **Rules:**
 
 - **Explicit map only** — if a field is not in the document’s mapping table, the extractor returns `EMPTY` for that key.
@@ -278,6 +312,31 @@ document_type, canonical_key, value,
 **Does not map:** `ssn`, `driver_license_number`, `current_address`, `insurance_provider` — leave `EMPTY`.
 
 **Extractor:** `PassportExtractor` · **Registry:** `passport` → `PassportExtractor`
+
+**Layer C JSON output (example):**
+
+```json
+{
+  "document_type": "passport",
+  "extracted_fields": {
+    "full_name": "John Doe",
+    "date_of_birth": "1990-01-01",
+    "passport_number": "X1234567",
+    "nationality": "USA",
+    "expiry_date": "2032-05-01"
+  }
+}
+```
+
+**Normalize → Layer B on save:**
+
+| `extracted_fields` key | Layer B canonical key | Notes |
+|------------------------|----------------------|-------|
+| `full_name` | `full_name` (+ split `first_name`, `last_name` if parser supports) | |
+| `date_of_birth` | `date_of_birth` | ISO `YYYY-MM-DD` |
+| `passport_number` | `passport_number` | |
+| `nationality` | `nationality` | |
+| `expiry_date` | `passport_expiry` | Document-native name → canonical expiry key |
 
 ---
 
@@ -361,14 +420,32 @@ document_type, canonical_key, value,
 
 ---
 
-##### Example: Utility bill (`utilityBill`)
+##### Example: Utility bill (`utility_bill` / `utilityBill`)
 
-| Canonical field | OCR anchor | Notes |
-|-----------------|------------|-------|
-| `current_address` | Service address block | **Only** field this document may set |
-| `first_name` | Account holder | Optional `HIGH` if labeled |
+| `extracted_fields` key | Layer B canonical key | OCR anchor | Notes |
+|------------------------|----------------------|------------|-------|
+| `full_name` | `full_name` | Account holder name | Optional; split to `first_name` / `last_name` if labeled |
+| `service_address` | `current_address` | Service address block | **Primary** address field for this document |
+| `billing_date` | — (metadata) | Bill date line | Stored on `extraction_run`; not a vault profile key |
+| `provider` | — (metadata) | Utility company header | e.g. `Xcel Energy` — audit only unless schema adds `utility_provider` |
 
-**Does not map:** any government identifier — **hard block** in extractor.
+**Does not map:** `ssn`, `passport_number`, `driver_license_number`, `passport_expiry` — **hard block** in extractor.
+
+**Layer C JSON output (example):**
+
+```json
+{
+  "document_type": "utility_bill",
+  "extracted_fields": {
+    "full_name": "John Doe",
+    "service_address": "123 Main St",
+    "billing_date": "2026-01-01",
+    "provider": "Xcel Energy"
+  }
+}
+```
+
+**Normalize → Layer B on save:** only `full_name` and `service_address` → `current_address` become profile fields; `billing_date` and `provider` stay on the OCR run for lineage display.
 
 ---
 
@@ -381,14 +458,30 @@ document_type, canonical_key, value,
 
 ---
 
-##### Example: Bank statement (`bankStatement`)
+##### Example: Bank statement (`financial.bank_statement` / `bankStatement`)
 
-| Canonical field | OCR anchor | Notes |
-|-----------------|------------|-------|
-| `mailing_address` | Statement mailing block | |
-| `current_address` | Service address if distinct | |
-| `bank_account_number` | Account number (last-4 display) | Labeled only |
-| `routing_number` | Routing / ABA | Labeled only |
+**Step 1 — Layer A classification (no `extracted_fields` yet):**
+
+```json
+{
+  "document_type": "financial.bank_statement",
+  "confidence": 0.94
+}
+```
+
+Classifier returns type + confidence; pipeline then runs `AddressProofExtractor` / `BankStatementExtractor` for Layer C.
+
+**Step 2 — Layer C field mapping (after OCR extract):**
+
+| `extracted_fields` key | Layer B canonical key | OCR anchor | Notes |
+|------------------------|----------------------|------------|-------|
+| `mailing_address` | `mailing_address` | Statement mailing block | |
+| `service_address` | `current_address` | Service address if distinct | |
+| `account_number` | `bank_account_number` | Account number line | Last-4 display default |
+| `routing_number` | `routing_number` | Routing / ABA | Labeled only |
+| `statement_date` | — (metadata) | Statement period | On `extraction_run` only |
+
+**Does not map:** government identifiers.
 
 ---
 
@@ -1283,4 +1376,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 2.2 — branch `docs/fresh-start-principles`, June 2026. Layer C document → field mapping tables (MOST IMPORTANT).*
+*Document version: 2.3 — branch `docs/fresh-start-principles`, June 2026. Layer C JSON output contracts (passport, utility bill, bank statement classification).*
