@@ -1,9 +1,9 @@
 # Fresh start: lessons, failures, and principles
 
 **Branch:** `docs/fresh-start-principles`  
-**Status:** Founding document — read this before writing any extraction code  
+**Status:** **FINAL** — read [trustnest-rewrite-final.md](trustnest-rewrite-final.md) first, then this document for full detail  
 **Audience:** Anyone rebuilding TrustNest / DreamWork document intelligence  
-**Companion:** [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) (what exists today)  
+**Companion:** [trustnest-rewrite-final.md](trustnest-rewrite-final.md) (executive blueprint) · [fresh-start-implementation-baseline.md](fresh-start-implementation-baseline.md) (legacy codebase inventory)  
 **Related:** [trustnest-cross-platform-form-automation.md](trustnest-cross-platform-form-automation.md), [ADR 0008](adr/0008-provenance-and-field-value-history.md), [ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md), [zero-egress constraint](trustnest-zero-egress-design-constraint.md)
 
 ---
@@ -974,4 +974,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 1.6 — branch `docs/fresh-start-principles`, June 2026. OCR raw data only — no persisted document images/PDFs.*
+*Document version: 2.0 FINAL — branch `docs/fresh-start-principles`, June 2026. Companion to [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
