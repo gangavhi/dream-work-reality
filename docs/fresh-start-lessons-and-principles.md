@@ -26,9 +26,9 @@
 | Path | What we persist | When |
 |------|-----------------|------|
 | **Field vault** | `extraction_run` OCR JSON + confirmed Layer B fields + lineage | Always (after OCR) |
-| **Submission stash** | Encrypted image/PDF on device for [submission-document types](#submission-document-stash-upload-at-form-submit) | **Auto-save** when user scans a stash-listed type |
+| **Submission stash** | **Metadata in SQLite** + **encrypted file on disk** for [submission-document types](#submission-document-stash-upload-at-form-submit) | **Auto-save** when user scans a stash-listed type |
 
-Non-stash scans: OCR JSON only; image bytes released after run save. Stash scans: file kept locally for re-upload; never synced to cloud.
+Non-stash scans: OCR JSON only; image bytes released after run save. Stash scans: **metadata row in SQLite, bytes in encrypted filesystem** — never BLOBs in SQLite; never synced to cloud.
 
 **Why extraction must work first:** Form fill is only as trustworthy as the profile values behind it. Wrong DL number or spouse’s name in a school form is worse than an empty field. That is why this rewrite starts with field accuracy, not with more form UI.
 
@@ -97,12 +97,15 @@ profile_key, value, effective_from,
 |-----------|---------------|
 | `extraction_run` — normalized OCR JSON per scan | Random photos / receipts (no stash, no extract) |
 | `field_value_current` + `field_value_history` — confirmed profile values | Unbounded “scan everything” archive |
-| `stored_submission_document` — metadata + encrypted local file path | Cloud copies of submission files |
-| Lineage metadata (`extraction_run_id`, `document_type`, `submission_doc_id`) | |
+| `stored_submission_document` — **metadata only** (path, checksum, display name — **not** file bytes) | JPEG/PNG/PDF **BLOBs inside SQLite** |
+| Lineage metadata (`extraction_run_id`, `document_type`, `submission_doc_id`) | Cloud copies of submission files |
+
+**Document bytes** live in the [encrypted file vault](#document-file-storage-sqlite-metadata--encrypted-files) — SQLite stores the pointer, not the image.
 
 **Rules:**
 
-- **Submission stash only** — persist image/PDF bytes **only** for [submission-document types](#submission-document-stash-upload-at-form-submit); all other types release bytes after OCR.
+- **Metadata in SQLite, bytes on disk** — never store scan images/PDFs as SQLite BLOBs.
+- **Submission stash only** — persist files **only** for [submission-document types](#submission-document-stash-upload-at-form-submit); all other types release bytes after OCR.
 - **Auto-save on scan** — stash-listed types save automatically with a generated display name; user can rename or delete.
 - **Supersede on rescan** — new scan of same `person_id` + `document_type` becomes current; prior file kept in history.
 - **No silent overwrite** — rescan or form edit creates a new history row; previous value stays queryable.
@@ -363,17 +366,99 @@ Examples: `Immunization Record — Emma Chen — 2026-06-01` · `Birth Certifica
 
 **Not auto-stashed:** `unknown`, receipts, W-2, 1099, pay stub, marriage cert, medical records, tax returns — unless added to stash list in a future scope.
 
-**`stored_submission_document` record:**
+##### Document file storage (SQLite metadata + encrypted files)
+
+Submission documents for future form upload use a **split store**. SQLite is **not** used for image/PDF bytes.
 
 ```text
-id, person_id, document_type, display_name,
-  file_path,          -- encrypted local path (Application Support)
-  mime_type,          -- image/jpeg, application/pdf, …
-  scanned_at,
-  extraction_run_id,  -- optional link to OCR run
-  is_current,         -- true for latest person+type
-  superseded_at       -- set when replaced by rescan
+┌──────────────────────────────────────────────────────────────┐
+│  SQLite (SQLCipher) — metadata & structured data only         │
+│  • stored_submission_document (row per saved file)            │
+│  • extraction_run (OCR JSON text — KB scale, not MB scans)    │
+│  • field_value_current / history (canonical form-fill fields) │
+└────────────────────────────┬─────────────────────────────────┘
+                             │ file_path + sha256
+                             ▼
+┌──────────────────────────────────────────────────────────────┐
+│  Encrypted file vault (Application Support) — blob storage    │
+│  • AES-GCM encrypted .enc files per person + document_type    │
+└──────────────────────────────────────────────────────────────┘
 ```
+
+**Why not SQLite BLOBs?** Multi-MB immunization PDFs and DL photos bloat the DB, increase backup size, raise corruption risk, and load large pages into memory. Filesystem storage with SQLite pointers is the standard pattern for mobile vault apps.
+
+**On-disk layout (iOS):**
+
+```text
+Application Support/DreamWork/
+├── vault.db                         # SQLCipher
+├── submission_docs/                 # NSFileProtectionComplete; excluded from iCloud backup
+│   └── {person_id}/
+│       └── {document_type}/
+│           ├── current.enc            # active file (AES-GCM)
+│           └── history/
+│               └── {uuid}.enc         # superseded scans
+└── thumbs/                          # optional encrypted previews for UI lists
+    └── {submission_doc_id}.enc
+```
+
+Internal filenames are **UUID-based** (`{uuid}.enc`). User-facing names (`Immunization Record — Emma — 2026-06-01`) live **only** in SQLite `display_name`.
+
+**`stored_submission_document` table (SQLite — metadata only):**
+
+```text
+id                  UUID primary key
+person_id           FK → person
+document_type       ScannedDocumentType (immunizationRecord, birthCertificate, …)
+display_name        user-visible label (auto-generated; user may rename)
+file_path           relative path under submission_docs/ (NOT the bytes)
+mime_type           image/jpeg | image/png | image/heic | application/pdf
+file_size_bytes     plaintext size before encryption
+sha256              plaintext hash for integrity + dedup
+scanned_at          ISO timestamp
+extraction_run_id   optional FK → extraction_run
+is_current          true for latest (person_id, document_type)
+superseded_at       set when replaced by rescan
+created_at          row insert time
+```
+
+**Encryption:**
+
+| Layer | Mechanism |
+|-------|-----------|
+| Database | SQLCipher (or platform encrypted store) for `vault.db` |
+| Files | Per-file **AES-GCM**; key from Keychain (Secure Enclave–backed where available) |
+| Protection class | `NSFileProtectionComplete` on `submission_docs/` |
+| Backup | `NSURLIsExcludedFromBackupKey` — do not upload stash to iCloud |
+
+**Ownership:**
+
+| Concern | Owner |
+|---------|-------|
+| `stored_submission_document` CRUD, supersede, form-matcher lookup | **Rust** FFI |
+| Encrypt/write/read file bytes | **Swift** (iOS file I/O) |
+| Decrypt + stream into browser file input at form submit | **Extension + Swift bridge** |
+
+Rust never holds multi-MB images in memory — only paths, checksums, and metadata.
+
+**Atomic save on scan:**
+
+```text
+1. Write encrypted bytes to temp path
+2. fsync
+3. Insert stored_submission_document row + link extraction_run_id (SQLite transaction)
+4. Rename temp → current.enc; move prior current → history/{uuid}.enc
+5. On DB failure → delete orphan temp file
+```
+
+**Policies:**
+
+| Policy | Value |
+|--------|-------|
+| Max file size | 25 MB per document |
+| Allowed formats | JPEG, PNG, HEIC, PDF |
+| Deduplication | Same `sha256` + `person_id` + `document_type` → optional skip or version bump |
+| Delete UX | User may delete **file only**, **fields only**, or **both** — explicit choice |
 
 **Form attach flow:**
 
@@ -384,7 +469,7 @@ id, person_id, document_type, display_name,
 
 **Settings:** `Automatically save documents for form upload` — **on by default** for stash types; when off, scan still runs OCR/extract but does not persist file.
 
-**Security:** Files encrypted at rest (same keychain scope as vault); never included in proximity share unless user explicitly shares a document grant (future); zero cloud sync.
+**Security:** Files encrypted at rest (Keychain-backed keys); never included in proximity share unless user explicitly shares a document grant (future); zero cloud sync. See [how-secure-is-the-data-locally.md](../how-secure-is-the-data-locally.md) §3.4.1.
 
 ---
 
@@ -1044,6 +1129,7 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | T6 | Swift + Rust duplicate person matching logic that can diverge |
 | T7 | Building ONNX/GGUF/LayoutLM paths before photo tests pass with rules-only |
 | T8 | Persisting scan bytes **outside** the [submission stash whitelist](#submission-document-stash-upload-at-form-submit) |
+| T10 | Storing document images/PDFs as **SQLite BLOBs** — use filesystem + metadata pointer |
 | T9 | Running `UniversalDocumentParser` / generic regex on `unknown` or off-allowlist scans |
 
 ---
@@ -1275,7 +1361,9 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 | School form file upload (“immunization”) | Matcher proposes current immunization file for active person; user confirms attach |
 | Scan receipt / unknown | **No** file saved; no field extract |
 | Settings: auto-save off | OCR + extract run; file **not** persisted |
-| Stash file at rest | Encrypted local path only; zero cloud egress |
+| Stash file at rest | Encrypted `.enc` on disk; metadata in SQLite only; zero cloud egress |
+| No BLOB in SQLite | Submission doc bytes never written to `vault.db` |
+| Rescan atomicity | New `current.enc` + supersede row; orphan temp cleaned on failure |
 
 ### Dataset expiry & reminders gate
 
@@ -1477,6 +1565,8 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 | Re-open original scan for upload? | **Yes — stash types** | Attach at form submit; supersede on rescan |
 | Auto-save on scan? | **Yes** (default on) | Generated name `{Type} — {Person} — {date}`; user can rename/delete |
 | Birth certificate scan? | **Stash, no extract** | School wants file upload; fields come from ID scans |
+| Document bytes in SQLite? | **No** | Metadata in `stored_submission_document`; bytes in encrypted filesystem |
+| SQLite BLOB for scans? | **Never** | Filesystem + pointer pattern only |
 | Vault organized by document type? | **No** | **Data-centric:** Layer B canonical fields are source of truth; documents are evidence ([3-layer model](#three-layer-data-model-not-document-centric)) |
 | SSN as a document? | **No** | `ssn` is a government identifier field; SSN card / W-2 / 1099 are evidence sources |
 | Extract on non-form-relevant scan? | **No** | Allowlist gate; no Layer C; `extracted_fields: null` |
@@ -1504,6 +1594,7 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 - Adds form fill UI without persisted lineage ([ADR 0008](adr/0008-provenance-and-field-value-history.md))  
 - Saves profile fields without `extraction_run_id` / source metadata when value came from a scan  
 - Persists scan bytes for types **outside** the submission stash whitelist  
+- Stores image/PDF bytes as SQLite BLOBs  
 - Attaches submission files to forms without user confirm  
 - Adds share path that uploads payload or uses internet as fallback  
 - Ships share without TTL + scope manifest + revoke  
@@ -1560,4 +1651,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 2.6 FINAL — branch `docs/fresh-start-principles`, June 2026. Dual path: field extraction for auto-fill + submission document stash (auto-save on scan, attach at form submit). Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
+*Document version: 2.7 — branch `docs/fresh-start-principles`, June 2026. Document file storage: SQLite metadata only + encrypted filesystem for submission doc bytes. Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*
