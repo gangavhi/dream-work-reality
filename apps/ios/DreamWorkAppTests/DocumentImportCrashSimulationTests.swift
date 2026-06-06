@@ -3,7 +3,7 @@ import XCTest
 
 @testable import DreamWorkApp
 
-/// Reproduces document upload → scan review under iPhone-like memory/ML policy on the simulator.
+/// Reproduces document upload → scan review under Apple-native extraction on the simulator.
 @MainActor
 final class DocumentImportCrashSimulationTests: XCTestCase {
     private var previousGenAI: GenAISettings.Provider!
@@ -11,7 +11,7 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
     override func setUp() {
         super.setUp()
         previousGenAI = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
     }
 
     override func tearDown() {
@@ -39,70 +39,34 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
             "ocr_pages=\(ocrSummary.pageCount) blocks=\(ocrSummary.blockCount)"
         )
 
-        let preview = await bridge.enrichScanReview(
+        let enrichment = await bridge.enrichScanReview(
             document: ocrSummary.document,
-            runOnDeviceLLM: false
+            runOnDeviceLLM: true
         )
-        timeline.append(phase("2_after_ocr_only_enrichment", OnDeviceMemoryGuard.snapshot()))
-        timeline.append("trace_preview=\(preview.pipelineTrace.joined(separator: " | "))")
-
-        if let modelPath = BundledModelStore.liteArtifactPath() {
-            timeline.append("gguf_path=\(modelPath)")
-            let llmResult = await bridge.enrichScanReview(
-                document: ocrSummary.document,
-                runOnDeviceLLM: true
-            )
-            timeline.append(phase("3_after_on_device_llm", OnDeviceMemoryGuard.snapshot()))
-            timeline.append("trace_llm=\(llmResult.pipelineTrace.joined(separator: " | "))")
-            timeline.append("suggestions=\(llmResult.suggestions.count) usedAI=\(llmResult.usedAI)")
-            LlamaRuntime.releaseCachedModel()
-            timeline.append(phase("4_after_llama_release", OnDeviceMemoryGuard.snapshot()))
-        } else {
-            timeline.append(
-                "3_llm_skipped=no_gguf_in_simulator_app_container "
-                    + "(install to simulator container or set DREAMWORK_MODEL_DIR for host models)"
-            )
-            timeline.append("gguf_estimated_load_mb=380")
-        }
+        timeline.append(phase("2_after_apple_native_enrichment", OnDeviceMemoryGuard.snapshot()))
+        timeline.append("trace=\(enrichment.pipelineTrace.joined(separator: " | "))")
+        timeline.append("suggestions=\(enrichment.suggestions.count) stack=apple_native")
 
         let runsAfter = bridge.extractionRunCount()
         XCTAssertEqual(runsAfter, runsBefore + 1)
+        XCTAssertTrue(enrichment.pipelineTrace.contains { $0.contains("apple_native") })
 
         let report = timeline.joined(separator: "\n")
         print("\n--- DOCUMENT IMPORT PIPELINE TIMELINE ---\n\(report)\n--- END TIMELINE ---\n")
         XCTAssertFalse(report.isEmpty)
     }
 
-    func testPhysicalIPhonePolicySkipsAutomaticLLMOnSimulator() async throws {
-        OnDeviceMLPolicy.testSimulatePhysicalIPhone = true
-        OnDeviceMemoryGuard.testTreatSimulatorLikeDevice = true
-
-        let bridge = RustCoreBridgeService()
-        let doc = syntheticNormalizedDocument()
-
-        let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: false)
-        XCTAssertTrue(preview.pipelineTrace.contains("llm:phase:light_only"))
-        XCTAssertFalse(preview.pipelineTrace.contains("llm:phase:auto_complete"))
-
-        XCTAssertFalse(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
-    }
-
-    func testAutomaticGGUFPolicyEnabledByDefaultOnSimulator() async throws {
+    func testAutomaticExtractionEnabledByDefault() async throws {
         OnDeviceMLPolicy.testSimulatePhysicalIPhone = false
-        GenAISettings.provider = .onDevice
+        XCTAssertTrue(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
 
         let bridge = RustCoreBridgeService()
         let doc = syntheticNormalizedDocument()
         let preview = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: true)
-
-        XCTAssertTrue(OnDeviceMLPolicy.allowsAutomaticInferenceOnScan)
-        XCTAssertTrue(
-            preview.pipelineTrace.contains("llm:phase:auto_complete")
-                || preview.pipelineTrace.contains("llm:phase:auto_light_only")
-        )
+        XCTAssertTrue(preview.pipelineTrace.contains { $0.contains("stack:apple_native") })
     }
 
-    func testMemoryPressureBlocksHeavyLLMLikePhysicalDevice() async throws {
+    func testMemoryPressureGuardStillQueryable() async throws {
         OnDeviceMemoryGuard.testTreatSimulatorLikeDevice = true
         OnDeviceMemoryGuard.testForceLowMemory = true
         defer { OnDeviceMemoryGuard.testForceLowMemory = false }
@@ -112,16 +76,13 @@ final class DocumentImportCrashSimulationTests: XCTestCase {
         let bridge = RustCoreBridgeService()
         let doc = syntheticNormalizedDocument()
         let result = await bridge.enrichScanReview(document: doc, runOnDeviceLLM: true)
-        XCTAssertTrue(
-            result.pipelineTrace.contains { $0.contains("llm:heavy:skipped:available_memory_low") }
-                || result.pipelineTrace.contains { $0.contains("llm:heavy:deferred:available_memory_low") }
-        )
+        XCTAssertFalse(result.suggestions.isEmpty)
     }
 
     // MARK: - Helpers
 
     private func phase(_ name: String, _ snapshot: OnDeviceMemoryGuard.Snapshot) -> String {
-        "\(name): \(snapshot.logLine) llm_allowed=\(OnDeviceMemoryGuard.mayRunHeavyInference())"
+        "\(name): \(snapshot.logLine) heavy_allowed=\(OnDeviceMemoryGuard.mayRunHeavyInference())"
     }
 
     private func syntheticNormalizedDocument() -> VisionOcrAdapter.NormalizedDocument {

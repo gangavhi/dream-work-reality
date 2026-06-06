@@ -138,15 +138,13 @@ final class AppState: ObservableObject {
         pendingScanPageCount = pageCount
         pendingScanBlockCount = blockCount
 
-        isRunningOnDeviceExtraction = GenAISettings.provider == .onDevice
+        isRunningOnDeviceExtraction = true
         defer { isRunningOnDeviceExtraction = false }
 
-        let runAutomaticFullPipeline = GenAISettings.provider == .onDevice
-            && OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
         let enrichment = await coreService.enrichScanReview(
             document: document,
             fileURL: fileURL,
-            runOnDeviceLLM: runAutomaticFullPipeline
+            runOnDeviceLLM: OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
         )
         applyScanReviewEnrichment(
             enrichment,
@@ -158,7 +156,6 @@ final class AppState: ObservableObject {
     /// User-initiated on-device extraction (safe default on physical iPhone).
     func runOnDeviceExtractionForCurrentScan() async {
         guard let document = pendingScanDocument else { return }
-        guard GenAISettings.provider == .onDevice else { return }
         guard !isRunningOnDeviceExtraction else { return }
 
         isRunningOnDeviceExtraction = true

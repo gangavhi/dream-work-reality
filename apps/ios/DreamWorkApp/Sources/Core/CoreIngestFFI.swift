@@ -95,22 +95,6 @@ enum CoreIngestFFI {
         return decodeStoragePlan(out)
     }
 
-    /// Executes DDL + row writes from a planner JSON payload.
-    static func applyStoragePlan(_ plan: StoragePlanSuggestion) -> StoragePlanApplyResult? {
-        guard let json = encodeJSON(plan),
-              let out = callRustJSON(json, dreamwork_apply_storage_plan_json)
-        else {
-            return nil
-        }
-        return try? JSONDecoder().decode(StoragePlanApplyResult.self, from: Data(out.utf8))
-    }
-
-    static func peekSQLiteSchemaJSON() -> String? {
-        guard let raw = dreamwork_sqlite_schema_json() else { return nil }
-        defer { dreamwork_string_free(raw) }
-        return String(cString: raw)
-    }
-
     private static func decodeStoragePlan(_ json: String) -> StoragePlanSuggestion? {
         guard let data = json.data(using: .utf8) else { return nil }
         guard let decoded = try? JSONDecoder().decode(StoragePlanWire.self, from: data) else {
@@ -227,12 +211,6 @@ private func dreamwork_resolve_person_json(_ jsonUtf8: UnsafePointer<CChar>) -> 
 
 @_silgen_name("dreamwork_plan_storage_json")
 private func dreamwork_plan_storage_json(_ jsonUtf8: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
-
-@_silgen_name("dreamwork_apply_storage_plan_json")
-private func dreamwork_apply_storage_plan_json(_ jsonUtf8: UnsafePointer<CChar>) -> UnsafeMutablePointer<CChar>?
-
-@_silgen_name("dreamwork_sqlite_schema_json")
-private func dreamwork_sqlite_schema_json() -> UnsafeMutablePointer<CChar>?
 
 @_silgen_name("dreamwork_string_free")
 private func dreamwork_string_free(_ pointer: UnsafeMutablePointer<CChar>?)

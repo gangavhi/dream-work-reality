@@ -15,7 +15,7 @@ enum FieldMappingSource: String, Hashable {
         case .mrz: return "MRZ"
         case .template: return "Template"
         case .learned: return "Learned"
-        case .onDevice: return "On-device"
+        case .onDevice: return "Apple native"
         case .networkLLM: return "Network model"
         case .estimated: return "Estimated"
         }

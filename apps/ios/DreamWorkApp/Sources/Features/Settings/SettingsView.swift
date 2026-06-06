@@ -1,55 +1,69 @@
 import SwiftUI
 
 struct SettingsView: View {
+    @State private var devAPIKey: String = DevAPIKeyStore.openAIAPIKey ?? ""
     @State private var llmProvider: GenAISettings.Provider = GenAISettings.provider
+    @State private var llmBaseURL: String = GenAISettings.baseURL
+    @State private var llmModel: String = GenAISettings.model
     @State private var auditEntries: [IngestAuditEntry] = IngestAuditLog.load()
-    #if DEBUG
-    @State private var coreAPISyncEnabled: Bool = ZeroEgressPolicy.isDeveloperCoreAPISyncEnabled
-    #endif
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Your data stays on this device. TrustNest does not send document images, OCR text, or profile fields to remote AI services over the internet.")
+                    Text("TrustNest uses Apple Vision and NaturalLanguage on-device by default. Optionally enable Ollama or a cloud API for extra field extraction (data may leave the device).")
                         .appHelperText()
-                } header: {
-                    Text("Zero egress")
                 }
 
-                Section("Document AI") {
+                Section("Document AI provider") {
                     Picker("Provider", selection: $llmProvider) {
                         ForEach(GenAISettings.Provider.allCases) { provider in
-                            Text(provider.displayName).tag(provider)
+                            Text(provider.rawValue).tag(provider)
                         }
                     }
 
-                    if llmProvider == .onDevice {
-                        Text(BundledModelStore.installStatusMessage())
-                            .appHelperText()
-                        Text(ModelArtifactRegistry.statusSummary())
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Text("Field mapping uses on-device heuristics, layout analysis, and barcode/MRZ parsing. Optional bundled models load when present in the app bundle.")
-                            .appHelperText()
-                    } else {
-                        Text("Scans use on-device OCR, barcode parsing, and heuristics. Person matching and storage routing remain offline via the embedded Rust core.")
-                            .appHelperText()
+                    if llmProvider == .ollama || llmProvider == .openAI {
+                        TextField("API base URL", text: $llmBaseURL)
+                            .fieldInputStyle()
+                            .textContentType(.URL)
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+
+                        TextField("Model name", text: $llmModel)
+                            .fieldInputStyle()
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
+                    }
+
+                    if llmProvider == .openAI {
+                        SecureField("OpenAI API key", text: $devAPIKey)
+                            .fieldInputStyle()
+                            .textContentType(.password)
+                            .autocorrectionDisabled()
+                            #if os(iOS)
+                            .textInputAutocapitalization(.never)
+                            #endif
                     }
 
                     Button("Save AI settings") {
                         GenAISettings.provider = llmProvider
-                        #if DEBUG
-                        ZeroEgressPolicy.setDeveloperCoreAPISyncEnabled(coreAPISyncEnabled)
-                        #endif
+                        GenAISettings.baseURL = llmBaseURL
+                        GenAISettings.model = llmModel
+                        DevAPIKeyStore.saveOpenAIAPIKey(devAPIKey)
                     }
                     .fontWeight(.semibold)
 
-                    #if DEBUG
-                    Toggle("Sync to localhost core-api (extension demo)", isOn: $coreAPISyncEnabled)
-                    Text("When enabled, profile changes sync to http://127.0.0.1:18081 for the Chrome extension demo. Disabled in Release builds.")
-                        .appHelperText()
-                    #endif
+                    if llmProvider == .ollama {
+                        Text("Run Ollama on your Mac (e.g. llama3.2, phi3, mistral). On a physical iPhone, use your Mac's LAN IP instead of 127.0.0.1.")
+                            .appHelperText()
+                    } else {
+                        Text("Scans use Apple Vision OCR, NaturalLanguage, barcode/MRZ parsing, and on-device profile building. SQLite persistence uses the embedded Rust core.")
+                            .appHelperText()
+                    }
                 }
 
                 Section("Ingest audit log") {

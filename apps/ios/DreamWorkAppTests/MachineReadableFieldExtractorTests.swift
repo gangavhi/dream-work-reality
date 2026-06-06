@@ -87,7 +87,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
         let previous = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
         defer { GenAISettings.provider = previous }
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
@@ -138,7 +138,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
         let previous = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
         defer { GenAISettings.provider = previous }
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)
@@ -167,7 +167,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
         let doc = VisionOcrAdapter.NormalizedDocument(pages: [VisionOcrAdapter.Page(blocks: blocks)])
 
         let previous = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
         defer { GenAISettings.provider = previous }
 
         let result = await DocumentIntelligencePipeline.extract(document: doc)

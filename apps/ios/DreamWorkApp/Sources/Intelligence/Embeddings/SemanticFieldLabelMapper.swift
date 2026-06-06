@@ -68,7 +68,11 @@ enum SemanticFieldLabelMapper {
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))
         }
 
-        if let key = OnnxFieldLabelMapper.canonicalKey(for: normalizedLabel) {
+        if let key = NLFieldLabelMapper.profileKey(
+            forLabel: normalizedLabel,
+            documentType: .other,
+            schemaKeys: ProfileSchema.allFields.map(\.key)
+        ) {
             let display = ProfileSchema.definition(for: key)?.label
                 ?? ProfileSchema.label(forExtensionKey: key)
             return ResolvedField(profileKey: key, displayLabel: display, isExtension: !ProfileSchema.isCanonicalKey(key))

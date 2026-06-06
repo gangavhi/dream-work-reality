@@ -68,10 +68,12 @@ final class DocumentFieldIdentificationDiagnosticsTests: XCTestCase {
         let payloadHints = EmbeddedPayloadHints.Result.empty
         let layout = LayoutIntelligenceAgent.analyze(document: doc, payloadHints: payloadHints)
         let machineReadable = MachineReadableFieldExtractor.extract(from: payloadHints, plainOCRText: layout.layoutText)
-        let classification = ClassificationAgent.classify(
+        _ = machineReadable
+        let classification = LocalDocumentClassifier.classify(
+            layoutText: layout.layoutText,
             modelInput: layout.modelInput,
-            mappedDocumentType: nil,
-            machineReadableSources: machineReadable.sources
+            payloadHints: payloadHints,
+            allowHeavyLLM: false
         )
         let template = DocumentTemplateAgent.match(layout: layout, classification: classification)
         let strategy = ExtractionStrategyAgent.determine(

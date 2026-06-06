@@ -15,65 +15,24 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// General-purpose ingest: layout OCR → ONNX field mapping (always on device) → optional GGUF → validators → Rust FFI.
-    /// Storage ML is deferred during scan review to avoid loading a second GGUF on device (jetsam).
+    /// Vision OCR → Apple NL intelligence orchestrator → Rust person resolve + optional SQLite apply.
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
         fileURL: URL? = nil,
         runStoragePipeline: Bool = false,
         runOnDeviceLLM: Bool = true
     ) async -> ScanReviewEnrichment {
+        _ = runOnDeviceLLM
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
-
-        let shouldRunOnDevicePipeline = GenAISettings.provider == .onDevice
-        let allowHeavyLLM = runOnDeviceLLM && OnDeviceMemoryGuard.mayRunHeavyInference()
-
-        guard shouldRunOnDevicePipeline else {
-            let layoutText = OcrLayoutSerializer.serialize(document: document)
-            let plainText = layoutText.trimmingCharacters(in: .whitespacesAndNewlines)
-            let blocks = OcrLayoutSerializer.orderedBlocks(from: document)
-            let labelValuePairsText = OcrLayoutSerializer.labelValuePairs(from: blocks)
-                .map { "\($0.label) → \($0.value)" }
-                .joined(separator: "\n")
-            let emptyGraph = DocumentKnowledgeGraph.buildIdentityGraph(
-                from: [],
-                documentType: "other"
-            )
-            return ScanReviewEnrichment(
-                understanding: nil,
-                personResolution: nil,
-                storagePlan: nil,
-                suggestions: [],
-                usedAI: false,
-                displayDocumentType: .other,
-                openDocumentTypeLabel: "Document",
-                plainText: plainText,
-                mappingNotice: nil,
-                usedMachineReadablePayload: false,
-                usedHeuristicFallback: false,
-                identityGraph: emptyGraph,
-                autofillPayload: emptyGraph.autofillPayload,
-                pipelineTrace: ["ocr:vision.en.v1", "extract:skipped:provider_off", "storage:deferred:scan_review"],
-                ocrModelInput: OcrLayoutSerializer.modelInput(document: document),
-                ocrLabelValuePairs: labelValuePairsText,
-                standardizedOutput: nil,
-                fieldsRequiringReview: [],
-                heavyLLMDeferred: false,
-                ranFullOnDevicePipeline: false
-            )
-        }
 
         let extracted = await Task.detached(priority: .utility) {
             await DocumentIntelligencePipeline.extract(
                 document: document,
                 fileURL: fileURL,
-                allowHeavyLLM: allowHeavyLLM
+                allowHeavyLLM: false
             )
         }.value
-        if allowHeavyLLM {
-            LlamaRuntime.releaseCachedModel()
-        }
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
         let personResolution = CoreIngestFFI.resolvePerson(fields: fieldMap, people: people)
@@ -86,37 +45,7 @@ extension CoreBridgeService {
 
         var mappingNotice = extracted.mappingNotice
         var storagePlan: StoragePlanSuggestion?
-        var pipelineTrace = extracted.pipelineTrace
-
-        let heavyLLMDeferred: Bool
-        let ranFullOnDevicePipeline: Bool
-
-        if runOnDeviceLLM {
-            pipelineTrace.append(allowHeavyLLM ? "llm:phase:auto_complete" : "llm:phase:auto_light_only")
-            heavyLLMDeferred = !allowHeavyLLM
-            ranFullOnDevicePipeline = allowHeavyLLM
-            if !allowHeavyLLM {
-                pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
-                mappingNotice = [
-                    mappingNotice,
-                    OnDeviceMLPolicy.autoGGUFDeferredNotice,
-                    OnDeviceMemoryGuard.userFacingSkipNotice
-                ].compactMap { $0 }.joined(separator: "\n")
-            }
-        } else {
-            pipelineTrace.append("llm:phase:light_only")
-            heavyLLMDeferred = OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
-                && !OnDeviceMemoryGuard.mayRunHeavyInference()
-            ranFullOnDevicePipeline = false
-            if heavyLLMDeferred {
-                pipelineTrace.append("llm:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)")
-                mappingNotice = [
-                    mappingNotice,
-                    OnDeviceMLPolicy.autoGGUFDeferredNotice,
-                    OnDeviceMemoryGuard.userFacingSkipNotice
-                ].compactMap { $0 }.joined(separator: "\n")
-            }
-        }
+        var pipelineTrace = extracted.pipelineTrace + ["stack:apple_native_v1"]
 
         if runStoragePipeline {
             let planPersonID: String? = {
@@ -126,48 +55,13 @@ extension CoreBridgeService {
                 else { return nil }
                 return id
             }()
-            storagePlan = CoreIngestFFI.planStorage(
+            storagePlan = AppleStoragePlanner.plan(
                 fields: fieldMap,
                 personID: planPersonID,
                 profileSchemaKeys: schemaKeys,
                 documentType: extracted.understanding?.documentType ?? extracted.openDocumentTypeLabel
             )
-            LlamaRuntime.releaseCachedModel()
-
-            if let plan = storagePlan,
-               plan.summary.plannerStatus != "storage_planner_active"
-            {
-                mappingNotice = [
-                    mappingNotice,
-                    "The local ML storage planner failed. No rules-only SQLite routing fallback was used; install the storage planner model or retry after extraction succeeds."
-                ].compactMap { $0 }.joined(separator: "\n")
-            } else if storagePlan == nil {
-                mappingNotice = [
-                    mappingNotice,
-                    "The local ML storage planner bridge failed. No rules-only SQLite routing fallback was used."
-                ].compactMap { $0 }.joined(separator: "\n")
-            }
-            if var plan = storagePlan {
-                pipelineTrace.append("storage:\(plan.summary.plannerEngine):\(plan.summary.plannerStatus)")
-                if plan.summary.plannerStatus == "storage_planner_active",
-                   let apply = CoreIngestFFI.applyStoragePlan(plan)
-                {
-                    storagePlan = StoragePlanSuggestion(
-                        storageTarget: plan.storageTarget,
-                        schemaActions: plan.schemaActions,
-                        operations: plan.operations,
-                        summary: plan.summary,
-                        applyResult: apply
-                    )
-                    pipelineTrace.append("storage_apply:\(apply.status)")
-                    if !apply.applied {
-                        mappingNotice = [
-                            mappingNotice,
-                            "The local ML storage planner produced a plan but SQLite apply failed (\(apply.status))."
-                        ].compactMap { $0 }.joined(separator: "\n")
-                    }
-                }
-            }
+            pipelineTrace.append("storage:apple_native:active")
         } else {
             pipelineTrace.append("storage:deferred:scan_review")
         }
@@ -191,11 +85,10 @@ extension CoreBridgeService {
             ocrLabelValuePairs: extracted.ocrLabelValuePairs,
             standardizedOutput: extracted.standardizedOutput,
             fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? [],
-            heavyLLMDeferred: heavyLLMDeferred,
-            ranFullOnDevicePipeline: ranFullOnDevicePipeline
+            heavyLLMDeferred: false,
+            ranFullOnDevicePipeline: true
         )
     }
-
 }
 
 @_silgen_name("dreamwork_fetch_status")
