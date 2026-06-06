@@ -46,6 +46,35 @@ final class PersonNameResolverTests: XCTestCase {
         XCTAssertEqual(resolved?.last, "Chen")
     }
 
+    /// Noisy TX scan: lone given-name line + garbled street fragment `MARLY COURT` must not become the name.
+    func testGarbledStreetFragmentDoesNotBecomeTexasName() {
+        let text = """
+        L Texas!
+        DRIVER LICENSE
+        clame: C
+        06/01/1983
+        04/22/2025
+        03/17/2028
+        ALEXANDER
+        12. Rest NONE
+        CELA 1TRO
+        MARLY COURT
+        5. De: 12124500141
+        05/01/1981
+        """
+        let resolved = PersonNameResolver.resolve(from: text, documentType: .driversLicense)
+        XCTAssertEqual(resolved?.first, "Alexander")
+        XCTAssertFalse(resolved?.display.localizedCaseInsensitiveContains("court") ?? true)
+        XCTAssertFalse(resolved?.display.localizedCaseInsensitiveContains("marly") ?? true)
+
+        let suggestions = OcrFieldSuggester.suggest(from: text, documentType: .driversLicense)
+        let byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0.value) })
+        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Alexander")
+        XCTAssertEqual(byKey[ProfileFieldKey.dateOfBirth], "06/01/1983")
+        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseIssueDate], "04/22/2025")
+        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseExpiry], "03/17/2028")
+    }
+
     func testApplyOverridesWrongGenAIDisplayName() {
         let ocrText = DriverLicenseParserTests.texasSampleNoisyOCRText
         let suggestions = [

@@ -8,7 +8,7 @@ final class FieldMappingRootCauseTests: XCTestCase {
     override func setUp() {
         super.setUp()
         previousProvider = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
     }
 
     override func tearDown() {
@@ -136,11 +136,7 @@ final class FieldMappingRootCauseTests: XCTestCase {
         )
     }
 
-    func testOnnxLabelMappingsForCommonDriverLicenseLabels() throws {
-        guard MiniLMOnnxFieldEmbedder.shared.isAvailable else {
-            throw XCTSkip("MiniLM ONNX not installed")
-        }
-
+    func testNLAndBagLabelMappingsForCommonDriverLicenseLabels() {
         let probes: [(label: String, expected: String)] = [
             ("First Name", ProfileFieldKey.legalFirstName),
             ("Last Name", ProfileFieldKey.legalLastName),
@@ -154,9 +150,20 @@ final class FieldMappingRootCauseTests: XCTestCase {
 
         for probe in probes {
             let bag = SemanticFieldLabelMapper.canonicalKey(for: probe.label)
-            let onnx = OnnxFieldLabelMapper.canonicalKey(for: probe.label)
-            let resolved = SemanticFieldLabelMapper.resolve(label: probe.label, documentTypeHint: "drivers_license")?.profileKey
-            print("ROOT|onnx_probe|\(probe.label)|bag=\(bag ?? "nil")|onnx=\(onnx ?? "nil")|resolved=\(resolved ?? "nil")|expected=\(probe.expected)")
+            let nl = NLFieldLabelMapper.profileKey(
+                forLabel: probe.label,
+                documentType: .driversLicense,
+                schemaKeys: ProfileSchema.allFields.map(\.key)
+            )
+            let resolved = SemanticFieldLabelMapper.resolve(
+                label: probe.label,
+                documentTypeHint: "drivers_license"
+            )?.profileKey
+            XCTAssertEqual(
+                resolved ?? bag ?? nl,
+                probe.expected,
+                "Expected mapping for \(probe.label)"
+            )
         }
     }
 

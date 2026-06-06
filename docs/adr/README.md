@@ -25,7 +25,7 @@ This folder records **significant, stable** architecture choices for the Dream W
 | [0017](0017-on-device-inference-runtimes-per-platform.md) | On-device inference: ONNX Runtime + llama.cpp-class LLM per platform |
 | [0018](0018-mobile-device-tier-and-english-only-ocr-v1.md) | Mobile tier: latest flagship iPhone & Samsung; OCR v1 English-only |
 
-Operational reference (non-ADR): **[Privacy-first document intelligence architecture](../privacy-first-document-intelligence-architecture.md)** · **[Project requirements & implementation gap](../project-requirements-and-implementation-gap.md)** · **[TestFlight build 29](../implementation-status-testflight-build-29.md)** · **[TrustNest zero-egress constraint](../trustnest-zero-egress-design-constraint.md)** · **[Document intelligence deep dive](../document-intelligence-deep-dive.md)** · **[Field mapping accuracy analysis](../field-mapping-accuracy-analysis.md)** · **[device matrix & model IDs](../device-matrix.md)** · **[Rust core dev / CI](../core-development.md)** · **[Android ML Kit OCR adapter](../android/mlkit-ocr-adapter.md)**.
+Operational reference (non-ADR): **[TrustNest zero-egress constraint](../trustnest-zero-egress-design-constraint.md)** · **[Document intelligence deep dive](../document-intelligence-deep-dive.md)** · **[Field mapping accuracy analysis](../field-mapping-accuracy-analysis.md)** · **[device matrix & model IDs](../device-matrix.md)** · **[Rust core dev / CI](../core-development.md)** · **[Android ML Kit OCR adapter](../android/mlkit-ocr-adapter.md)**.
 
 **Status values:** `Proposed`, `Accepted`, `Superseded` (with pointer to replacement ADR).
 

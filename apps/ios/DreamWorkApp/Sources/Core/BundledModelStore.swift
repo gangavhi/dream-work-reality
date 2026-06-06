@@ -1,7 +1,6 @@
 import Foundation
 
-/// Locates required on-device model weights. TestFlight builds can ship models inside the app
-/// bundle, while local/dev installs may sideload them under Application Support.
+/// Optional bundled artifacts (Create ML, legacy Rust planner). Apple NL is the default path.
 enum BundledModelStore {
     struct Manifest: Decodable {
         struct Artifact: Decodable {
@@ -52,33 +51,15 @@ enum BundledModelStore {
         return nil
     }
 
-    static func liteArtifactPath() -> String? {
-        artifactPath(artifactID: "llm.schema.lite.v1")
-    }
-
-    static func documentClassifierArtifactPath() -> String? {
-        artifactPath(artifactID: "document.classifier.v1")
-    }
-
+    /// Legacy Rust storage planner GGUF (optional; `AppleStoragePlanner` is default).
     static func storagePlannerArtifactPath() -> String? {
         artifactPath(artifactID: "sql.storage.planner.v1")
     }
 
-    static func fieldEmbedderOnnxPath() -> String? {
-        artifactPath(artifactID: "embed.minilm.v1")
-    }
-
     static func installStatusMessage() -> String {
-        if liteArtifactPath() != nil,
-           documentClassifierArtifactPath() != nil,
-           storagePlannerArtifactPath() != nil
-        {
-            return "Required local ML models are installed. Classification, parsing, and storage planning run locally with no heuristic fallback."
+        if CreateMLModelRegistry.hasBundledClassifier || CreateMLModelRegistry.hasBundledFieldTagger {
+            return "Apple Vision + NaturalLanguage are active. Optional Create ML models are installed for higher document-type accuracy."
         }
-        if let artifact = manifest()?.artifacts.first(where: { $0.artifact_id == "llm.schema.lite.v1" }) {
-            let gb = Double(artifact.bytes_approx ?? 0) / 1_000_000_000.0
-            return String(format: "Required local ML models are not fully installed. Parser artifact %@ (~%.1f GB) is required, and classifier/storage planner artifacts must also be installed before the strict ML pipeline can complete.", artifact.filename, gb)
-        }
-        return "Required on-device parser model manifest is missing. Document data parsing is unavailable."
+        return "Apple Vision OCR, NaturalLanguage field mapping, and barcode/MRZ parsing run on-device. Add Create ML models under Resources/MLModels for optional tuning."
     }
 }

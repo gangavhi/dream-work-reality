@@ -1,6 +1,6 @@
 import Foundation
 
-/// Local ML extraction — routes known documents to fast parsers, unknown to semantic models.
+/// Field extraction via Vision layout + NaturalLanguage (no ONNX / GGUF).
 enum ExtractionAgent {
     struct Result: Hashable {
         var suggestions: [OcrFieldSuggestion]
@@ -25,141 +25,44 @@ enum ExtractionAgent {
         allowHeavyLLM: Bool = true
     ) async -> Result {
         _ = templateMatch
+        _ = allowHeavyLLM
 
         let resolvedSchemaKeys = schemaKeys.isEmpty
             ? ProfileSchema.allFields.map(\.key)
             : schemaKeys
 
-        guard GenAISettings.provider == .onDevice else {
-            return emptyResult(route: strategy.route, runtimeStatus: "llm_document_parser_failed:provider_off")
-        }
-
         switch strategy.route {
         case .knownFastPath:
-            return extractKnownFastPath(
+            return await extractPath(
                 layout: layout,
                 payloadHints: payloadHints,
                 classification: classification,
                 schemaKeys: resolvedSchemaKeys,
-                allowHeavyLLM: allowHeavyLLM,
-                route: strategy.route
+                route: strategy.route,
+                statusPrefix: "known_fast"
             )
         case .unknownSemantic:
-            return extractUnknownSemanticPath(
+            return await extractPath(
                 layout: layout,
                 payloadHints: payloadHints,
                 classification: classification,
                 schemaKeys: resolvedSchemaKeys,
-                allowHeavyLLM: allowHeavyLLM,
-                route: strategy.route
+                route: strategy.route,
+                statusPrefix: "unknown_semantic"
             )
         }
     }
 
-    // MARK: - Known fast path
-
-    private static func extractKnownFastPath(
+    private static func extractPath(
         layout: LayoutIntelligenceAgent.LayoutDocument,
         payloadHints: EmbeddedPayloadHints.Result,
         classification: ClassificationAgent.Result,
         schemaKeys: [String],
-        allowHeavyLLM: Bool,
-        route: DocumentExtractionRouter.Route
-    ) -> Result {
+        route: DocumentExtractionRouter.Route,
+        statusPrefix: String
+    ) async -> Result {
         var runtimeStatus: String?
         var usedSemanticExtractor = false
-        var usedAI = false
-        var usedHeuristicFallback = false
-        var openType = classification.openDocumentType ?? inferredDocumentType(from: layout)
-
-        let documentTypeHint = openType
-        let machineReadable = MachineReadableFieldExtractor.extract(
-            from: payloadHints,
-            plainOCRText: layout.layoutText
-        )
-        let specialized = SpecializedDocumentExtractors.suggestions(
-            layout: layout,
-            openDocumentType: documentTypeHint,
-            classification: classification
-        )
-        let onnxSuggestions = OpenVocabularyFieldExtractor.suggestions(
-            from: layout,
-            documentTypeHint: documentTypeHint
-        )
-        var suggestions = CoreIngestHTTPClient.mergeSuggestions(
-            trusted: machineReadable.suggestions,
-            supplemental: specialized
-        )
-        suggestions = CoreIngestHTTPClient.mergeSuggestions(
-            trusted: suggestions,
-            supplemental: onnxSuggestions
-        )
-        if !specialized.isEmpty {
-            runtimeStatus = "known_fast:specialized:\(specialized.count)"
-        }
-
-        if !onnxSuggestions.isEmpty {
-            usedSemanticExtractor = true
-            usedAI = MiniLMOnnxFieldEmbedder.shared.isAvailable
-            runtimeStatus = "known_fast:onnx:\(OnnxFieldLabelMapper.runtimeStatus())"
-            openType = openType ?? documentTypeHint
-        } else if !machineReadable.suggestions.isEmpty {
-            runtimeStatus = "known_fast:machine_readable:\(machineReadable.sources.joined(separator: ","))"
-        } else if MiniLMOnnxFieldEmbedder.shared.isAvailable {
-            runtimeStatus = "known_fast:onnx:\(OnnxFieldLabelMapper.runtimeStatus()):no_pairs_mapped"
-        }
-
-        if needsMoreExtraction(suggestions, schemaKeys: schemaKeys),
-           allowHeavyLLM,
-           OnDeviceMemoryGuard.mayRunHeavyInference()
-        {
-            if let mapped = OnDeviceFieldMapper.mapFields(
-                layoutText: layout.modelInput,
-                profileSchemaKeys: schemaKeys
-            ) {
-                suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: mapped.suggestions)
-                openType = openType ?? mapped.documentType
-                usedAI = true
-                usedSemanticExtractor = true
-                runtimeStatus = "known_fast:llm_retry:\(mapped.llmRuntimeStatus)"
-            }
-        }
-
-        if needsMoreExtraction(suggestions, schemaKeys: schemaKeys) {
-            let heuristic = UniversalDocumentParser.parse(from: layout.layoutText)
-            if !heuristic.isEmpty {
-                suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: heuristic)
-                usedHeuristicFallback = true
-            }
-        }
-
-        return finalize(
-            suggestions: suggestions,
-            openType: openType,
-            usedAI: usedAI,
-            usedHeuristicFallback: usedHeuristicFallback,
-            usedSemanticExtractor: usedSemanticExtractor,
-            machineReadable: machineReadable,
-            classification: classification,
-            layout: layout,
-            route: route,
-            runtimeStatus: runtimeStatus
-        )
-    }
-
-    // MARK: - Unknown semantic path
-
-    private static func extractUnknownSemanticPath(
-        layout: LayoutIntelligenceAgent.LayoutDocument,
-        payloadHints: EmbeddedPayloadHints.Result,
-        classification: ClassificationAgent.Result,
-        schemaKeys: [String],
-        allowHeavyLLM: Bool,
-        route: DocumentExtractionRouter.Route
-    ) -> Result {
-        var runtimeStatus: String?
-        var usedSemanticExtractor = false
-        var usedAI = false
         var usedHeuristicFallback = false
         var openType = classification.openDocumentType ?? inferredDocumentType(from: layout)
 
@@ -177,45 +80,19 @@ enum ExtractionAgent {
             supplemental: specialized
         )
         if !machineReadable.suggestions.isEmpty {
-            runtimeStatus = "unknown_semantic:machine_readable:\(machineReadable.sources.joined(separator: ","))"
+            runtimeStatus = "\(statusPrefix):machine_readable:\(machineReadable.sources.joined(separator: ","))"
         } else if !specialized.isEmpty {
-            runtimeStatus = "unknown_semantic:specialized:\(specialized.count)"
+            runtimeStatus = "\(statusPrefix):specialized:\(specialized.count)"
         }
 
-        let onnxSuggestions = OpenVocabularyFieldExtractor.suggestions(
+        let semantic = AppleSemanticFieldExtractor.suggestions(
             from: layout,
             documentTypeHint: openType
         )
-        if !onnxSuggestions.isEmpty {
-            suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: onnxSuggestions)
+        if !semantic.isEmpty {
+            suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: semantic)
             usedSemanticExtractor = true
-            usedAI = MiniLMOnnxFieldEmbedder.shared.isAvailable
-            runtimeStatus = "unknown_semantic:onnx:\(onnxSuggestions.count)"
-        }
-
-        if allowHeavyLLM, OnDeviceMemoryGuard.mayRunHeavyInference() {
-            let chunked = LayoutAwareSemanticExtractor.extract(
-                layout: layout,
-                classification: classification,
-                schemaKeys: schemaKeys
-            )
-            if !chunked.isEmpty {
-                suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: chunked)
-                usedSemanticExtractor = true
-                usedAI = true
-                runtimeStatus = "unknown_semantic:layout_ai:\(chunked.count)"
-            } else if let mapped = OnDeviceFieldMapper.mapFields(
-                layoutText: layout.modelInput,
-                profileSchemaKeys: schemaKeys
-            ) {
-                suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: mapped.suggestions)
-                openType = openType ?? mapped.documentType
-                usedAI = true
-                usedSemanticExtractor = true
-                runtimeStatus = "unknown_semantic:llm:\(mapped.llmRuntimeStatus)"
-            }
-        } else if runtimeStatus == nil {
-            runtimeStatus = "unknown_semantic:heavy:deferred:\(OnDeviceMemoryGuard.skipTraceToken)"
+            runtimeStatus = (runtimeStatus ?? statusPrefix) + ":nl:\(semantic.count)"
         }
 
         if needsMoreExtraction(suggestions, schemaKeys: schemaKeys) {
@@ -223,22 +100,36 @@ enum ExtractionAgent {
             if !heuristic.isEmpty {
                 suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: heuristic)
                 usedHeuristicFallback = true
-                runtimeStatus = (runtimeStatus ?? "unknown_semantic") + ":heuristic:\(heuristic.count)"
+                runtimeStatus = (runtimeStatus ?? statusPrefix) + ":heuristic:\(heuristic.count)"
             }
         }
 
-        if case .installed = ModelArtifactRegistry.loadState(for: .visionLanguage),
+        if GenAISettings.shouldUseOptionalNetworkLLM,
            needsMoreExtraction(suggestions, schemaKeys: schemaKeys),
-           allowHeavyLLM,
-           OnDeviceMemoryGuard.mayRunHeavyInference()
+           let mapped = await GenAIFieldMapper.mapFields(
+               layoutText: layout.modelInput,
+               profileSchemaKeys: schemaKeys
+           )
         {
-            runtimeStatus = (runtimeStatus ?? "unknown_semantic") + ":vlm:slot_ready:not_wired"
+            suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: suggestions, supplemental: mapped.suggestions)
+            openType = openType ?? mapped.documentType
+            runtimeStatus = (runtimeStatus ?? statusPrefix) + ":network_llm"
+        }
+
+        let universalIdentity = UniversalDocumentParser.parse(from: layout.layoutText).filter {
+            [
+                ProfileFieldKey.displayName, ProfileFieldKey.legalFirstName, ProfileFieldKey.legalLastName,
+                ProfileFieldKey.dateOfBirth, ProfileFieldKey.taxFormType,
+            ].contains($0.profileKey)
+        }
+        if !universalIdentity.isEmpty {
+            suggestions = CoreIngestHTTPClient.mergeSuggestions(trusted: universalIdentity, supplemental: suggestions)
         }
 
         return finalize(
             suggestions: suggestions,
             openType: openType,
-            usedAI: usedAI,
+            usedAI: false,
             usedHeuristicFallback: usedHeuristicFallback,
             usedSemanticExtractor: usedSemanticExtractor,
             machineReadable: machineReadable,
@@ -248,8 +139,6 @@ enum ExtractionAgent {
             runtimeStatus: runtimeStatus
         )
     }
-
-    // MARK: - Shared
 
     private static func finalize(
         suggestions: [OcrFieldSuggestion],
@@ -292,30 +181,11 @@ enum ExtractionAgent {
         )
     }
 
-    private static func emptyResult(
-        route: DocumentExtractionRouter.Route,
-        runtimeStatus: String
-    ) -> Result {
-        Result(
-            suggestions: [],
-            openDocumentType: nil,
-            usedAI: false,
-            usedHeuristicFallback: false,
-            usedTemplateExtractor: false,
-            usedSemanticExtractor: false,
-            usedMachineReadablePayload: false,
-            learnedSuggestionCount: 0,
-            onDeviceRuntimeStatus: runtimeStatus,
-            extractionRoute: route
-        )
-    }
-
     private static func inferredDocumentType(from layout: LayoutIntelligenceAgent.LayoutDocument) -> String? {
         let inferred = ProfileSchemaKeysForDocument.inferOpenType(from: layout.layoutText + "\n" + layout.modelInput)
         return inferred == "other" ? nil : inferred
     }
 
-    /// Continue extraction until a reasonable fraction of document-specific schema keys are filled.
     private static func needsMoreExtraction(_ suggestions: [OcrFieldSuggestion], schemaKeys: [String]) -> Bool {
         let keys = schemaKeys.isEmpty ? ProfileSchema.allFields.map(\.key) : schemaKeys
         guard !keys.isEmpty else { return suggestions.count < 4 }

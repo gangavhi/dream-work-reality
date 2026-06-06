@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single ingest path for all document scans/uploads (ADR §0 — no per-format parser routing).
+/// Single ingest path for scans/uploads — Vision OCR + Intelligence orchestrator (Apple NL, no GGUF/ONNX).
 enum DocumentIntelligencePipeline {
     struct Result: Hashable {
         let layoutText: String

@@ -9,6 +9,7 @@ enum ScanFieldValidator {
         "commercial", "non", "compliant", "federal", "usa", "united", "states",
         "texas", "texass", "california", "florida", "new", "york", "dmv", "dds", "dps",
         "none", "eno",
+        "locial", "seourta", "securi", "local", "secur", "social", "security", "administration",
     ]
 
     private static let usStateCodes: Set<String> = [
@@ -52,6 +53,7 @@ enum ScanFieldValidator {
         guard trimmed.count >= 2, trimmed.count <= 48 else { return false }
         let lower = trimmed.lowercased()
         if nonNameTokens.contains(lower) { return false }
+        if DriverLicenseParserSupport.isStreetSuffixToken(trimmed) { return false }
         return trimmed.range(of: #"^[A-Za-z][A-Za-z\-']*$"#, options: .regularExpression) != nil
     }
 
@@ -68,6 +70,7 @@ enum ScanFieldValidator {
         let bannedPhrases = [
             "limited term", "driver license", "drivers license", "identification card",
             "motor vehicle", "department of", "director of",
+            "locial seourta", "social security", "localsecuri",
         ]
         if bannedPhrases.contains(where: { lower.contains($0) }) { return false }
 
@@ -78,6 +81,8 @@ enum ScanFieldValidator {
 
         let words = trimmed.split(separator: " ").map(String.init)
         guard words.count >= 2 || trimmed.contains(",") else { return false }
+        if words.contains(where: { DriverLicenseParserSupport.isStreetSuffixToken($0) }) { return false }
+        if DriverLicenseParserSupport.looksLikeStreetNameLine(trimmed) { return false }
 
         // Reject all-caps boilerplate under 3 words unless "LAST, FIRST" pattern.
         if trimmed == trimmed.uppercased(), !trimmed.contains(",") {

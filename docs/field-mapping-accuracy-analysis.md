@@ -18,8 +18,6 @@ OCR and field mapping are **two different systems** in the app today. OCR (`OcrE
 
 Fixing accuracy is not “tune OCR more”; it is **ship a default on-device extraction path**, **stop harmful post-processors on the general pipeline**, and **tighten validation + UX honesty**.
 
-**Status (May 21, 2026):** Phase A and follow-on grounding work are **shipped** in `DocumentIntelligencePipeline` (see [project-requirements-and-implementation-gap.md](project-requirements-and-implementation-gap.md) §10). Phase B (bundled Qwen GGUF inference) remains open.
-
 ---
 
 ## 2. Pipeline today (what actually runs)
@@ -30,27 +28,20 @@ flowchart TB
   OCR[OcrEngine.recognizePageBlocks]
   NORM[NormalizedDocument in SQLite]
   PIPE[DocumentIntelligencePipeline.extract]
-  MR[MachineReadableFieldExtractor]
-  ONDEV[OnDeviceFieldMapper Rust]
-  GEN{GenAI provider}
-  LLM[GenAIFieldMapper HTTP optional]
-  UNI[UniversalDocumentParser regex last resort]
-  GND[OcrGroundingValidator]
-  REC[NameFieldReconciler]
+  GEN{GenAISettings.activeLLMConfig?}
+  LLM[GenAIFieldMapper HTTP]
+  UNI[UniversalDocumentParser regex]
+  POST[PersonNameResolver + finalizeSuggestions]
   REV[ScanReviewView]
 
   IMG --> OCR --> NORM
   OCR --> PIPE
-  PIPE --> MR --> ONDEV
-  ONDEV --> GEN
-  GEN -->|onDevice default| ONDEV
-  GEN -->|localLLM| LLM
-  LLM -->|fail| ONDEV
-  GEN -->|off| UNI
-  ONDEV --> GND
-  LLM --> GND
-  UNI --> GND
-  GND --> REC --> REV
+  PIPE --> GEN
+  GEN -->|yes| LLM
+  GEN -->|no default| UNI
+  LLM --> POST
+  UNI --> POST
+  POST --> REV
 ```
 
 **Entry:** `AppState.importDocument` → `DocumentTextExtractor` → `CoreBridgeService.enrichScanReview` → `DocumentIntelligencePipeline.extract`.
@@ -267,24 +258,15 @@ Users cannot tell **heuristic guess** vs **model extraction** vs **failed LLM fa
 
 ## 6. How to address (prioritized)
 
-### Phase A — Stop making it worse (**shipped** May 2026)
+### Phase A — Stop making it worse (days)
 
-| # | Action | Status |
-|---|--------|--------|
-| A1 | **Disable `PersonNameResolver` on general ingest** | **Done** — `NameFieldReconciler` only |
-| A2 | **Disable DL bleed in `UniversalDocumentParser`** | **Done** |
-| A3 | **Surface LLM failure** in scan review | **Done** — `mappingNotice` |
-| A4 | **“Estimated” confidence** for regex fallback | **Done** |
-| A5 | **Decode PDF417/MRZ without LLM** | **Done** — `MachineReadableFieldExtractor` |
-
-### Phase A+ — Grounding & India IDs (**shipped** May 21, 2026)
-
-| # | Action | Status |
-|---|--------|--------|
-| A6 | **`OcrGroundingValidator`** — drop values not in OCR | **Done** |
-| A7 | Per-field **`mappingSource`** in review UI | **Done** |
-| A8 | **`ProfileSchemaKeysForDocument`** — narrower network LLM prompts | **Done** |
-| A9 | Rust **Aadhaar/PAN** + SSN context gate | **Done** — `local_document_mapper.rs` |
+| # | Action | Rationale |
+|---|--------|-----------|
+| A1 | **Disable `PersonNameResolver` on general ingest** (or only run when barcode/MRZ decode succeeded) | Stops Texas/passport overrides on arbitrary docs |
+| A2 | **Disable `shouldIncludeDriverLicenseFields` in `UniversalDocumentParser`** for default fallback | Stops DL parser bleed |
+| A3 | **Surface LLM failure** in scan review (“Mapping unavailable — check Settings”) when `activeLLMConfig` set but `fetchExtraction` nil | Stops silent fallback |
+| A4 | **Lower default confidence** for regex-only fields; show “Estimated” badge | Honest UX |
+| A5 | **Decode PDF417/MRZ to fields** when detected, **without** LLM (payload path) | Free accuracy for IDs |
 
 ### Phase B — Default on-device mapper (weeks)
 
@@ -339,15 +321,14 @@ When investigating a bad scan in QA:
 
 | File | Role |
 |------|------|
-| `DocumentIntelligencePipeline.swift` | MR → on-device → optional LLM → regex; grounding |
-| `GenAISettings.swift` | Default **onDevice**; Ollama URL |
-| `OnDeviceFieldMapper.swift` | Rust FFI default path |
-| `OcrGroundingValidator.swift` | OCR substring validation |
-| `MachineReadableFieldExtractor.swift` | PDF417/MRZ fields |
-| `GenAIFieldMapper.swift` | HTTP LLM; narrowed schema keys |
-| `UniversalDocumentParser.swift` | Last-resort regex |
-| `PersonNameResolver.swift` | DL scanner only (not general ingest) |
-| `ScanReviewView.swift` | Mapping notice + field source |
+| `DocumentIntelligencePipeline.swift` | Chooses LLM vs UniversalDocumentParser |
+| `GenAISettings.swift` | Default off; Ollama URL |
+| `GenAIFieldMapper.swift` | HTTP LLM; silent errors |
+| `UniversalDocumentParser.swift` | Regex fallback |
+| `PersonNameResolver.swift` | **High-risk post-process** |
+| `OcrLayoutSerializer.swift` | Layout prompt |
+| `EmbeddedPayloadHints.swift` | Barcode/MRZ appendix only |
+| `ScanReviewView.swift` | Should show source + errors |
 
 ---
 
@@ -355,8 +336,8 @@ When investigating a bad scan in QA:
 
 **OCR is not the bottleneck.** Field mapping is inaccurate because production ingest **usually does not run a real document-understanding model**, falls back to **aggressive regex**, then **re-applies ID-specific name logic** that conflicts with arbitrary documents. Optional HTTP LLM **fails on phone without clear errors**, and the **planned on-device model is still absent**.
 
-**Next accuracy win:** (B) ship default bundled on-device LLM with schema validation ([device-matrix.md](device-matrix.md)).
+**Fastest accuracy wins:** (A) stop `PersonNameResolver` + DL bleed on general path, (A) decode barcodes/MRZ to fields, (B) ship default bundled on-device LLM with schema validation and honest review UX.
 
 ---
 
-*Last updated: May 21, 2026 — Phase A/A+ shipped on `ganga-2026-05-16-2`.*
+*Last updated: May 2026 — branch `ganga-2026-05-16-3`.*

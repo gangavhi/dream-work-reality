@@ -15,7 +15,7 @@ final class ZeroEgressPolicyTests: XCTestCase {
         XCTAssertFalse(ZeroEgressPolicy.allowsCoreAPILocalhost(lan))
     }
 
-    func testMigratesLegacyNetworkProviderToOnDevice() {
+    func testMigratesLegacyGGUFProviderToAppleNative() {
         let providerKey = "dreamwork.genai.provider"
         let previous = UserDefaults.standard.string(forKey: providerKey)
         defer {
@@ -25,13 +25,11 @@ final class ZeroEgressPolicyTests: XCTestCase {
                 UserDefaults.standard.removeObject(forKey: providerKey)
             }
         }
-        UserDefaults.standard.set("ollama", forKey: providerKey)
-        XCTAssertEqual(GenAISettings.provider, .onDevice)
-        UserDefaults.standard.set("openAI", forKey: providerKey)
-        XCTAssertEqual(GenAISettings.provider, .onDevice)
+        UserDefaults.standard.set("On-device GGUF", forKey: providerKey)
+        XCTAssertEqual(GenAISettings.provider, .appleNative)
     }
 
-    func testGenAISettingsDefaultProviderIsOnDevice() {
+    func testGenAISettingsDefaultProviderIsAppleNative() {
         let providerKey = "dreamwork.genai.provider"
         let previous = UserDefaults.standard.string(forKey: providerKey)
         defer {
@@ -42,11 +40,13 @@ final class ZeroEgressPolicyTests: XCTestCase {
             }
         }
         UserDefaults.standard.removeObject(forKey: providerKey)
-        XCTAssertEqual(GenAISettings.provider, .onDevice)
+        XCTAssertEqual(GenAISettings.provider, .appleNative)
     }
 
-    func testActiveLLMConfigAlwaysNil() {
-        GenAISettings.provider = .onDevice
+    func testActiveLLMConfigNilForAppleNativeProviders() {
+        let previous = GenAISettings.provider
+        defer { GenAISettings.provider = previous }
+        GenAISettings.provider = .appleNative
         XCTAssertNil(GenAISettings.activeLLMConfig)
         GenAISettings.provider = .off
         XCTAssertNil(GenAISettings.activeLLMConfig)

@@ -62,9 +62,10 @@ enum DocumentTypeClassifier {
             return DocumentClassification(documentType: .other, confidence: 0.45, matchedSignals: ["no OCR text"])
         }
 
-        if let dl = detectDriversLicense(in: text) { return dl }
+        if let vital = detectVitalRecord(in: text) { return vital }
         if let passport = detectPassport(in: text) { return passport }
         if let stateId = detectStateId(in: text) { return stateId }
+        if let dl = detectDriversLicense(in: text) { return dl }
         if let insurance = detectInsuranceCard(in: text) { return insurance }
         if let utility = detectUtilityBill(in: text) { return utility }
         if let bank = detectBankStatement(in: text) { return bank }
@@ -76,22 +77,49 @@ enum DocumentTypeClassifier {
     }
 
     private static func detectSSNCard(in text: String) -> DocumentClassification? {
+        guard UniversalDocumentParser.looksLikeSSNDocument(text) else { return nil }
         var signals: [String] = []
-        if text.contains("SOCIAL SECURITY") { signals.append("Social Security header") }
-        if text.range(of: #"(?i)SOCIAL\s+SECURITY\s+ADMINISTRATION"#, options: .regularExpression) != nil {
-            signals.append("SSA header")
+        if text.contains("SOCIAL SECURITY") || text.contains("YOUR SOCIAL SECURITY CARD") {
+            signals.append("Social Security header")
+        }
+        if text.contains("ESTABLISHED FOR") || text.range(of: #"(?i)LOCIAL\s+SEC"#, options: .regularExpression) != nil {
+            signals.append("SSA stub layout")
         }
         if text.range(of: #"\d{3}-\d{2}-\d{4}"#, options: .regularExpression) != nil {
             signals.append("SSN number format")
         }
-        guard !signals.isEmpty else { return nil }
-        let confidence = signals.count >= 2 ? fullConfidence : 0.88
+        let confidence = signals.count >= 2 ? fullConfidence : 0.9
         return DocumentClassification(documentType: .ssnCard, confidence: confidence, matchedSignals: signals)
+    }
+
+    private static func detectVitalRecord(in text: String) -> DocumentClassification? {
+        if text.contains("CERTIFICATE OF LIVE BIRTH")
+            || (text.contains("BIRTH") && text.contains("CERTIFICATE") && text.contains("LIVE"))
+        {
+            return DocumentClassification(
+                documentType: .other,
+                confidence: 0.92,
+                matchedSignals: ["birth certificate"]
+            )
+        }
+        if text.contains("CERTIFICATE OF MARRIAGE")
+            || (text.contains("MARRIAGE") && text.contains("CERTIFICATE"))
+        {
+            return DocumentClassification(
+                documentType: .other,
+                confidence: 0.92,
+                matchedSignals: ["marriage certificate"]
+            )
+        }
+        return nil
     }
 
     private static func detectDriversLicense(in text: String) -> DocumentClassification? {
         let hasDriverHeader = text.contains("DRIVER") || text.contains("OPERATOR")
         let hasLicenseHeader = text.contains("LICENSE") || text.contains("LICENCE")
+        if text.contains("IDENTIFICATION CARD"), !hasDriverHeader, !hasLicenseHeader {
+            return nil
+        }
         let hasDLField = text.range(of: #"(?i)4\s*D\.?\s*DL"#, options: .regularExpression) != nil
             || text.contains("DL:")
         let hasStateIssuer = text.range(
@@ -192,7 +220,10 @@ enum DocumentTypeClassifier {
 
     private static func detectBankStatement(in text: String) -> DocumentClassification? {
         var signals: [String] = []
-        if text.contains("ACCOUNT STATEMENT") { signals.append("account statement") }
+        if text.contains("ACCOUNT STATEMENT") || text.contains("STATEMENT OF ACCOUNT") {
+            signals.append("account statement")
+        }
+        if text.contains("BANK STATEMENT") { signals.append("bank statement") }
         if text.contains("ROUTING") { signals.append("routing number") }
         if text.contains("DEPOSIT") { signals.append("deposit") }
         if text.contains("BALANCE") { signals.append("balance") }

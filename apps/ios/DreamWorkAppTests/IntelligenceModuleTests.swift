@@ -125,7 +125,12 @@ final class IntelligenceModuleTests: XCTestCase {
             labelValuePairs: [],
             engineID: "test"
         )
-        let unknown = ClassificationAgent.classify(modelInput: unknownLayout.layoutText, mappedDocumentType: nil, machineReadableSources: [])
+        let unknown = LocalDocumentClassifier.classify(
+            layoutText: unknownLayout.layoutText,
+            modelInput: unknownLayout.modelInput,
+            payloadHints: .empty,
+            allowHeavyLLM: false
+        )
         XCTAssertEqual(
             ExtractionStrategyAgent.determine(
                 layout: unknownLayout,
@@ -154,13 +159,6 @@ final class IntelligenceModuleTests: XCTestCase {
             SemanticFieldLabelMapper.resolve(label: "Applicant Mailing Street")?.profileKey,
             ProfileFieldKey.addressLine1
         )
-    }
-
-    func testLayoutAwareExtractorChunksLongInput() {
-        let text = (0..<120).map { "Line \($0) Account Number 12345" }.joined(separator: "\n")
-        let chunks = LayoutAwareSemanticExtractor.makeChunks(from: text, documentType: "unknown", maxCharacters: 400)
-        XCTAssertGreaterThan(chunks.count, 1)
-        XCTAssertTrue(chunks.allSatisfy { !$0.text.isEmpty })
     }
 
     func testLearningAppliesOnlyGroundedCorrections() {

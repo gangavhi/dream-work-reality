@@ -98,9 +98,7 @@ enum DocumentIntelligenceOrchestrator {
             extraction: extraction,
             fallback: classification
         )
-        if GenAISettings.provider == .onDevice {
-            trace.append("classify:resolved:\(resolvedClassification.runtimeStatus)")
-        }
+        trace.append("classify:resolved:\(resolvedClassification.runtimeStatus)")
 
         var mappingNotice: String?
         if isClassifierFailure(resolvedClassification.runtimeStatus),
@@ -122,7 +120,7 @@ enum DocumentIntelligenceOrchestrator {
             mappingNotice =
                 [
                     mappingNotice,
-                    "The on-device LLM model meant for document data parsing failed. No heuristic fallback was used; try reinstalling the model or scanning again."
+                    "Field extraction could not complete with high confidence. Review detected values or scan again in better lighting."
                 ].compactMap { $0 }.joined(separator: "\n")
         }
 
@@ -225,9 +223,8 @@ enum DocumentIntelligenceOrchestrator {
     }
 
     private static func isDocumentParserFailure(_ runtimeStatus: String) -> Bool {
-        runtimeStatus.contains("llm_document_parser_failed")
-            || runtimeStatus.contains("gguf_valid_llama_cpp_generation_failed")
-            || runtimeStatus.contains("gguf_valid_llama_cpp_no_fields")
+        runtimeStatus.contains("extract:ml_failed")
+            || runtimeStatus.contains("semantic:empty")
     }
 
     private static func isClassifierFailure(_ runtimeStatus: String) -> Bool {
@@ -240,8 +237,7 @@ enum DocumentIntelligenceOrchestrator {
         extraction: ExtractionAgent.Result,
         fallback: ClassificationAgent.Result
     ) -> ClassificationAgent.Result {
-        guard GenAISettings.provider == .onDevice,
-              let openType = extraction.openDocumentType?.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let openType = extraction.openDocumentType?.trimmingCharacters(in: .whitespacesAndNewlines),
               !openType.isEmpty
         else {
             return fallback
@@ -251,11 +247,11 @@ enum DocumentIntelligenceOrchestrator {
             openDocumentType: openType,
             displayLabel: presentation.displayLabel,
             enumType: presentation.enumType,
-            confidence: extraction.usedAI ? 0.72 : 0,
-            engineID: ModelArtifactSlot.generativeLLM.rawValue,
+            confidence: max(fallback.confidence, 0.72),
+            engineID: ModelArtifactSlot.fieldEmbedder.rawValue,
             issuerRegion: nil,
             country: nil,
-            runtimeStatus: extraction.usedAI ? "classifier_active" : "classifier_pending_parser"
+            runtimeStatus: "classifier_active:extraction_hint"
         )
     }
 }
