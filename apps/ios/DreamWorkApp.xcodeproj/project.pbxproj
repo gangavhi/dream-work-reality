@@ -116,6 +116,7 @@
 		A37324CAA74E64183C7CEA19 /* CreateMLModelRegistry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C8219900C977A99CCD67356 /* CreateMLModelRegistry.swift */; };
 		A41E8669D7413C78EB9EB1FF /* LifecycleDocumentSimulationHarness.swift in Sources */ = {isa = PBXBuildFile; fileRef = E881EAD0E8F6FF532F3DD925 /* LifecycleDocumentSimulationHarness.swift */; };
 		A41EE15B0436BA75538BB98F /* ClassificationAgent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68A62B34354536B3AB45D78C /* ClassificationAgent.swift */; };
+		A6549048EFE75D98C5FD9D9D /* HouseholdProfileResolutionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D9599ABC9E36775E8961862 /* HouseholdProfileResolutionTests.swift */; };
 		A85C262E600797A9F73B40DF /* PersonRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6310837B4F979A95D6F66923 /* PersonRecord.swift */; };
 		A92C9EE47DC52207A65A77EE /* DocumentUnderstandingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A6D8EE10E559868B559435C /* DocumentUnderstandingService.swift */; };
 		AFD667110EB821271C644C01 /* IngestAuditLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0C76AD5061181BF6BA9D8C1 /* IngestAuditLog.swift */; };
@@ -262,6 +263,7 @@
 		8752D8A15E9299F5DDE8AA4D /* UniversalDocumentParser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UniversalDocumentParser.swift; sourceTree = "<group>"; };
 		8A35682B479DDEB412DAD331 /* OcrTextPostProcessorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrTextPostProcessorTests.swift; sourceTree = "<group>"; };
 		8D341EE963CF49848FC79A23 /* DocumentImportHelperTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelperTests.swift; sourceTree = "<group>"; };
+		8D9599ABC9E36775E8961862 /* HouseholdProfileResolutionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseholdProfileResolutionTests.swift; sourceTree = "<group>"; };
 		8E005FA6FFAE8999C411F565 /* DocumentFingerprintStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentFingerprintStore.swift; sourceTree = "<group>"; };
 		8F5F477E26EB2040C1F96936 /* PersonEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersonEditorView.swift; sourceTree = "<group>"; };
 		906A9539626888BBB20C3C4D /* ProfileFieldInputTraits.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileFieldInputTraits.swift; sourceTree = "<group>"; };
@@ -376,6 +378,7 @@
 				DDDD5F947481B0B59175B540 /* DriverLicenseParserTests.swift */,
 				C63BB12F6B0A8F980516E47E /* FieldMappingRootCauseTests.swift */,
 				9A6B7A46076212D9486FEA98 /* GenAIFieldMapperTests.swift */,
+				8D9599ABC9E36775E8961862 /* HouseholdProfileResolutionTests.swift */,
 				CA2BFAC498203670E2CB6E8A /* IndianPassportParserTests.swift */,
 				916E489FF23211A616AD37CF /* IntelligenceModuleTests.swift */,
 				1EBE46035BA65CBE9CBF5416 /* LaptopDocumentListingTests.swift */,
@@ -1055,6 +1058,7 @@
 				5F2D01C32DC003A47D7C1BF4 /* DriverLicenseParserTests.swift in Sources */,
 				2861063E06716C248BA406DF /* FieldMappingRootCauseTests.swift in Sources */,
 				1478DA4D18C50204BF346935 /* GenAIFieldMapperTests.swift in Sources */,
+				A6549048EFE75D98C5FD9D9D /* HouseholdProfileResolutionTests.swift in Sources */,
 				9D850A93CDA92C5687266197 /* IndianPassportParserTests.swift in Sources */,
 				9628ACE533E535193118052D /* IntelligenceModuleTests.swift in Sources */,
 				21A67DC904796019CD10D711 /* LaptopDocumentListingTests.swift in Sources */,
@@ -1241,7 +1245,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = K2L95UX84H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;
@@ -1277,7 +1281,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 32;
+				CURRENT_PROJECT_VERSION = 33;
 				DEVELOPMENT_TEAM = K2L95UX84H;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_ENABLE_CFBUNDLEICONS_MERGE = NO;

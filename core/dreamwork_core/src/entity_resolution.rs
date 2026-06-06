@@ -72,6 +72,13 @@ pub fn resolve_person(
         .iter()
         .map(|person| {
             let norm = normalize_fields(&person.fields);
+            if has_identity_conflict(&query, &norm) {
+                return ResolutionCandidate {
+                    person_id: person.person_id.clone(),
+                    score: 0.0,
+                    reasons: vec!["identity_conflict".to_string()],
+                };
+            }
             let (score, reasons) = score_pair(&query, &norm);
             ResolutionCandidate {
                 person_id: person.person_id.clone(),
@@ -100,6 +107,8 @@ pub fn resolve_person(
                     r.as_str(),
                     "drivers_license_number_exact"
                         | "passport_number_exact"
+                        | "state_id_number_exact"
+                        | "ssn_full_exact"
                         | "ssn_last4_exact"
                 )
             })
@@ -107,9 +116,14 @@ pub fn resolve_person(
         .map(|c| c.person_id.as_str())
         .collect();
 
+    let top_has_strong_signal = candidates
+        .first()
+        .map(|c| has_strong_match_signal(&c.reasons))
+        .unwrap_or(false);
+
     let resolution = if exact_id_persons.len() > 1 {
         PersonResolution::Ambiguous
-    } else if top_score >= MATCH_THRESHOLD && gap >= AMBIGUOUS_SCORE_GAP {
+    } else if top_score >= MATCH_THRESHOLD && gap >= AMBIGUOUS_SCORE_GAP && top_has_strong_signal {
         PersonResolution::MatchExisting
     } else if top_score >= MATCH_THRESHOLD && gap < AMBIGUOUS_SCORE_GAP {
         PersonResolution::Ambiguous
@@ -162,8 +176,11 @@ pub fn manual_entry_to_fields(entry: &crate::ingestion::ManualEntry) -> BTreeMap
 struct NormalizedFields {
     drivers_license_number: Option<String>,
     passport_number: Option<String>,
+    state_id_number: Option<String>,
+    ssn_full: Option<String>,
     ssn_last4: Option<String>,
     legal_last_name: Option<String>,
+    legal_first_name: Option<String>,
     name_key: Option<String>,
     date_of_birth: Option<String>,
     address_line1: Option<String>,
@@ -187,7 +204,14 @@ fn score_pair(query: &NormalizedFields, existing: &NormalizedFields) -> (f64, Ve
         score += SCORE_EXACT_ID;
         reasons.push("passport_number_exact".to_string());
     }
-    if exact_id_match(&query.ssn_last4, &existing.ssn_last4) {
+    if exact_id_match(&query.state_id_number, &existing.state_id_number) {
+        score += SCORE_EXACT_ID;
+        reasons.push("state_id_number_exact".to_string());
+    }
+    if exact_id_match(&query.ssn_full, &existing.ssn_full) {
+        score += SCORE_EXACT_ID;
+        reasons.push("ssn_full_exact".to_string());
+    } else if exact_id_match(&query.ssn_last4, &existing.ssn_last4) {
         score += SCORE_EXACT_ID;
         reasons.push("ssn_last4_exact".to_string());
     }
@@ -307,13 +331,17 @@ fn normalize_fields(fields: &BTreeMap<String, String>) -> NormalizedFields {
     );
 
     let ssn_raw = get(&["ssn_last4", "ssn"]);
+    let ssn_full = ssn_raw.as_deref().map(normalize_ssn_full).filter(|s| s.len() == 9);
     let ssn_last4 = ssn_raw.as_deref().map(normalize_ssn_last4).filter(|s| s.len() == 4);
 
     NormalizedFields {
         drivers_license_number: get(&["drivers_license_number", "dl_number"]).map(normalize_id),
         passport_number: get(&["passport_number"]).map(normalize_id),
+        state_id_number: get(&["state_id_number", "id_number"]).map(normalize_id),
+        ssn_full,
         ssn_last4,
         legal_last_name: legal_last.as_deref().map(normalize_name).filter(|s| !s.is_empty()),
+        legal_first_name: legal_first.as_deref().map(normalize_name).filter(|s| !s.is_empty()),
         name_key,
         date_of_birth: get(&["date_of_birth", "dob", "dob_mmddyyyy"]),
         address_line1: get(&["address_line1", "address1", "address"]).map(normalize_address),
@@ -370,6 +398,90 @@ fn normalize_ssn_last4(value: &str) -> String {
     } else {
         digits
     }
+}
+
+fn normalize_ssn_full(value: &str) -> String {
+    value.chars().filter(|c| c.is_ascii_digit()).collect()
+}
+
+fn has_identity_conflict(query: &NormalizedFields, existing: &NormalizedFields) -> bool {
+    let id_conflicts = [
+        (
+            &query.drivers_license_number,
+            &existing.drivers_license_number,
+        ),
+        (&query.passport_number, &existing.passport_number),
+        (&query.state_id_number, &existing.state_id_number),
+        (&query.ssn_full, &existing.ssn_full),
+    ];
+    for (left, right) in id_conflicts {
+        if both_some_and_differ(left, right) {
+            return true;
+        }
+    }
+
+    if let (Some(qf), Some(ql), Some(ef), Some(el)) = (
+        &query.legal_first_name,
+        &query.legal_last_name,
+        &existing.legal_first_name,
+        &existing.legal_last_name,
+    ) {
+        if ql != el {
+            return true;
+        }
+        if name_similarity(qf, ef) < 0.65 {
+            return true;
+        }
+    }
+
+    if query.date_of_birth.is_some() && existing.date_of_birth.is_some() {
+        if !dob_equal(&query.date_of_birth, &existing.date_of_birth) {
+            let name_overlap = match (
+                &query.legal_first_name,
+                &query.legal_last_name,
+                &existing.legal_first_name,
+                &existing.legal_last_name,
+            ) {
+                (Some(qf), Some(ql), Some(ef), Some(el)) => {
+                    ql == el && name_similarity(qf, ef) >= 0.65
+                }
+                _ => false,
+            };
+            if name_overlap {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+fn both_some_and_differ(left: &Option<String>, right: &Option<String>) -> bool {
+    match (left, right) {
+        (Some(a), Some(b)) if !a.is_empty() && !b.is_empty() => a != b,
+        _ => false,
+    }
+}
+
+fn has_strong_match_signal(reasons: &[String]) -> bool {
+    let government_ids = [
+        "drivers_license_number_exact",
+        "passport_number_exact",
+        "state_id_number_exact",
+        "ssn_full_exact",
+        "ssn_last4_exact",
+    ];
+    if reasons.iter().any(|r| government_ids.contains(&r.as_str())) {
+        return true;
+    }
+
+    let has_dob = reasons.iter().any(|r| r == "date_of_birth_exact");
+    let has_last = reasons.iter().any(|r| r == "legal_last_name_exact");
+    let has_name = reasons
+        .iter()
+        .any(|r| r.starts_with("name_exact") || r.starts_with("name_fuzzy"));
+    let has_display = reasons.iter().any(|r| r == "display_name_match");
+    has_dob && has_last && (has_name || has_display)
 }
 
 fn normalize_dob(value: String) -> String {
@@ -720,5 +832,89 @@ mod tests {
         assert!(result.candidates[0]
             .reasons
             .contains(&"profile_key_exact".to_string()));
+    }
+
+    #[test]
+    fn household_spouses_with_shared_address_stay_separate() {
+        let existing = vec![
+            person(
+                "jane",
+                &[
+                    ("legal_first_name", "Jane"),
+                    ("legal_last_name", "Doe"),
+                    ("date_of_birth", "03/15/1985"),
+                    ("drivers_license_number", "D11111111"),
+                    ("address_line1", "100 Main St"),
+                    ("postal_code", "78701"),
+                ],
+            ),
+            person(
+                "john",
+                &[
+                    ("legal_first_name", "John"),
+                    ("legal_last_name", "Smith"),
+                    ("date_of_birth", "06/01/1980"),
+                    ("ssn", "123-45-6789"),
+                    ("address_line1", "100 Main St"),
+                    ("postal_code", "78701"),
+                ],
+            ),
+        ];
+
+        let jane_birth_cert = fields(&[
+            ("legal_first_name", "Jane"),
+            ("legal_last_name", "Doe"),
+            ("date_of_birth", "03/15/1985"),
+            ("address_line1", "100 Main St"),
+            ("postal_code", "78701"),
+        ]);
+        let jane_result = resolve_person(&jane_birth_cert, &existing);
+        assert_eq!(jane_result.resolution, PersonResolution::MatchExisting);
+        assert_eq!(jane_result.person_id.as_deref(), Some("jane"));
+
+        let john_ssn = fields(&[
+            ("legal_first_name", "John"),
+            ("legal_last_name", "Smith"),
+            ("ssn", "123-45-6789"),
+            ("address_line1", "100 Main St"),
+            ("postal_code", "78701"),
+        ]);
+        let john_result = resolve_person(&john_ssn, &existing);
+        assert_eq!(john_result.resolution, PersonResolution::MatchExisting);
+        assert_eq!(john_result.person_id.as_deref(), Some("john"));
+
+        let other_dl = fields(&[
+            ("legal_first_name", "Emma"),
+            ("legal_last_name", "Smith"),
+            ("date_of_birth", "09/10/2012"),
+            ("drivers_license_number", "D99999999"),
+            ("address_line1", "100 Main St"),
+            ("postal_code", "78701"),
+        ]);
+        let child_result = resolve_person(&other_dl, &existing);
+        assert_eq!(child_result.resolution, PersonResolution::NewPerson);
+        assert!(child_result.person_id.is_none());
+    }
+
+    #[test]
+    fn conflicting_drivers_license_blocks_wrong_match() {
+        let existing = vec![person(
+            "jane",
+            &[
+                ("legal_first_name", "Jane"),
+                ("legal_last_name", "Doe"),
+                ("drivers_license_number", "D11111111"),
+                ("postal_code", "78701"),
+            ],
+        )];
+        let query = fields(&[
+            ("legal_first_name", "John"),
+            ("legal_last_name", "Smith"),
+            ("drivers_license_number", "D22222222"),
+            ("postal_code", "78701"),
+        ]);
+        let result = resolve_person(&query, &existing);
+        assert_eq!(result.resolution, PersonResolution::NewPerson);
+        assert!(result.person_id.is_none());
     }
 }

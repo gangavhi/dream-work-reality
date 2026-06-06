@@ -59,4 +59,50 @@ final class PersonProfileMatcherTests: XCTestCase {
 
         XCTAssertEqual(match?.personID, "person-dl")
     }
+
+    func testSharedPostalCodeAloneDoesNotMatchDifferentPerson() {
+        let existing = PersonRecord.empty(id: "person-a")
+            .withValue("Jane", for: ProfileFieldKey.legalFirstName)
+            .withValue("Doe", for: ProfileFieldKey.legalLastName)
+            .withValue("03/15/1985", for: ProfileFieldKey.dateOfBirth)
+            .withValue("78701", for: ProfileFieldKey.postalCode)
+
+        let updates: [String: String] = [
+            ProfileFieldKey.legalFirstName: "John",
+            ProfileFieldKey.legalLastName: "Smith",
+            ProfileFieldKey.dateOfBirth: "06/01/1980",
+            ProfileFieldKey.postalCode: "78701",
+        ]
+
+        let match = PersonProfileMatcher.matchExistingPerson(
+            among: [existing],
+            fieldUpdates: updates,
+            resolution: nil
+        )
+
+        XCTAssertNil(match)
+        XCTAssertTrue(PersonProfileMatcher.hasIdentityConflict(person: existing, fieldUpdates: updates))
+    }
+
+    func testConflictingDriversLicenseDoesNotMatch() {
+        let existing = PersonRecord.empty(id: "person-a")
+            .withValue("Jane", for: ProfileFieldKey.legalFirstName)
+            .withValue("Doe", for: ProfileFieldKey.legalLastName)
+            .withValue("D11111111", for: ProfileFieldKey.driversLicenseNumber)
+
+        let updates: [String: String] = [
+            ProfileFieldKey.legalFirstName: "John",
+            ProfileFieldKey.legalLastName: "Smith",
+            ProfileFieldKey.driversLicenseNumber: "D22222222",
+            ProfileFieldKey.postalCode: "78701",
+        ]
+
+        let match = PersonProfileMatcher.matchExistingPerson(
+            among: [existing],
+            fieldUpdates: updates,
+            resolution: nil
+        )
+
+        XCTAssertNil(match)
+    }
 }
