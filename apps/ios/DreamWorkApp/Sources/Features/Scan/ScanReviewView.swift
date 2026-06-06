@@ -271,14 +271,7 @@ struct ScanReviewView: View {
                             .foregroundStyle(.secondary)
                     }
 
-                    if appState.people.count > 1 {
-                        Picker("Profile", selection: $selectedPersonID) {
-                            Text("Choose profile…").tag("")
-                            ForEach(appState.people) { person in
-                                Text(person.displayTitle).tag(person.id)
-                            }
-                        }
-                    }
+                    profilePicker(includeCreateNew: false)
                 }
             } else if payload.personResolution?.resolution == .ambiguous {
                 VStack(alignment: .leading, spacing: 8) {
@@ -287,16 +280,22 @@ struct ScanReviewView: View {
                     Text("Pick the profile to update, or save to create a new one.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Picker("Profile", selection: $selectedPersonID) {
-                        Text("Create new profile").tag("")
-                        ForEach(appState.people) { person in
-                            Text(person.displayTitle).tag(person.id)
-                        }
-                    }
+                    profilePicker(includeCreateNew: true)
                 }
             } else {
-                Label("No matching profile found — a new profile will be created.", systemImage: "person.badge.plus")
-                    .foregroundStyle(.secondary)
+                if appState.people.isEmpty {
+                    Label("A new profile will be created when you save.", systemImage: "person.badge.plus")
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("No matching profile found", systemImage: "person.badge.plus")
+                            .font(.headline)
+                        Text("Choose an existing profile or create a new one for this document.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        profilePicker(includeCreateNew: true)
+                    }
+                }
             }
         } header: {
             Text("Save to profile")
@@ -309,6 +308,20 @@ struct ScanReviewView: View {
             fieldUpdates: currentUpdates(),
             resolution: payload.personResolution
         )
+    }
+
+    @ViewBuilder
+    private func profilePicker(includeCreateNew: Bool) -> some View {
+        Picker("Profile", selection: $selectedPersonID) {
+            if includeCreateNew {
+                Text("Create new profile").tag("")
+            } else {
+                Text("Choose profile…").tag("")
+            }
+            ForEach(appState.people) { person in
+                Text(person.displayTitle).tag(person.id)
+            }
+        }
     }
 
     private func matchReasonSummary(_ reasons: [String]) -> String {
@@ -419,7 +432,10 @@ struct ScanReviewView: View {
             }
         }
 
-        if let match = resolvedProfileMatch {
+        if let match = resolvedProfileMatch,
+           let person = appState.people.first(where: { $0.id == match.personID }),
+           !PersonProfileMatcher.hasIdentityConflict(person: person, fieldUpdates: currentUpdates())
+        {
             return match.personID
         }
 
@@ -431,6 +447,9 @@ struct ScanReviewView: View {
     }
 
     private func personMatchesScan(_ person: PersonRecord) -> Bool {
+        if PersonProfileMatcher.hasIdentityConflict(person: person, fieldUpdates: currentUpdates()) {
+            return false
+        }
         let updates = currentUpdates()
         let scannedDisplay = updates[ProfileFieldKey.displayName]
         let scannedFirst = updates[ProfileFieldKey.legalFirstName]
@@ -509,7 +528,9 @@ struct ScanReviewView: View {
                among: appState.people,
                fieldUpdates: updates,
                resolution: payload.personResolution
-           )
+           ),
+           let person = appState.people.first(where: { $0.id == match.personID }),
+           !PersonProfileMatcher.hasIdentityConflict(person: person, fieldUpdates: updates)
         {
             personID = match.personID
         }
@@ -517,6 +538,13 @@ struct ScanReviewView: View {
            let match = appState.people.first(where: { personMatchesScan($0) })
         {
             personID = match.id
+        }
+
+        if !personID.isEmpty,
+           let person = appState.people.first(where: { $0.id == personID }),
+           PersonProfileMatcher.hasIdentityConflict(person: person, fieldUpdates: updates)
+        {
+            personID = ""
         }
 
         if personID.isEmpty {

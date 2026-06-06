@@ -16,6 +16,8 @@ enum PersonProfileMatcher {
         if let resolution,
            resolution.resolution == .matchExisting,
            let personID = resolution.personID,
+           let person = people.first(where: { $0.id == personID }),
+           !hasIdentityConflict(person: person, fieldUpdates: fieldUpdates),
            people.contains(where: { $0.id == personID })
         {
             let reasons = resolution.candidates.first(where: { $0.personID == personID })?.reasons ?? []
@@ -29,11 +31,17 @@ enum PersonProfileMatcher {
         let scannedPostal = fieldUpdates[ProfileFieldKey.postalCode]
         let scannedDL = fieldUpdates[ProfileFieldKey.driversLicenseNumber]
         let scannedPassport = fieldUpdates[ProfileFieldKey.passportNumber]
+        let scannedStateID = fieldUpdates[ProfileFieldKey.stateIdNumber]
+        let scannedSSN = fieldUpdates[ProfileFieldKey.ssn]
 
         var best: MatchResult?
         var bestScore = 0
 
         for person in people {
+            if hasIdentityConflict(person: person, fieldUpdates: fieldUpdates) {
+                continue
+            }
+
             var reasons: [String] = []
             var score = 0
 
@@ -49,6 +57,20 @@ enum PersonProfileMatcher {
             {
                 score += 100
                 reasons.append("passport_number")
+            }
+
+            if let scannedStateID, !scannedStateID.isEmpty,
+               normalizeID(scannedStateID) == normalizeID(person.value(for: ProfileFieldKey.stateIdNumber))
+            {
+                score += 100
+                reasons.append("state_id_number")
+            }
+
+            if let scannedSSN, !scannedSSN.isEmpty,
+               normalizeSSN(scannedSSN) == normalizeSSN(person.value(for: ProfileFieldKey.ssn))
+            {
+                score += 100
+                reasons.append("ssn")
             }
 
             let personDOB = person.value(for: ProfileFieldKey.dateOfBirth)
@@ -113,8 +135,63 @@ enum PersonProfileMatcher {
             }
         }
 
-        guard let best, bestScore >= 72 else { return nil }
+        guard let best, bestScore >= 72, hasStrongMatchSignal(best.reasons) else { return nil }
         return best
+    }
+
+    /// Returns true when scan fields disagree with an existing profile on government IDs or personal name.
+    static func hasIdentityConflict(person: PersonRecord, fieldUpdates: [String: String]) -> Bool {
+        let idPairs = [
+            ProfileFieldKey.driversLicenseNumber,
+            ProfileFieldKey.passportNumber,
+            ProfileFieldKey.stateIdNumber,
+            ProfileFieldKey.ssn,
+        ]
+        for key in idPairs {
+            let scanned = fieldUpdates[key]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            let existing = person.value(for: key).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !scanned.isEmpty, !existing.isEmpty else { continue }
+            let normScanned = key == ProfileFieldKey.ssn ? normalizeSSN(scanned) : normalizeID(scanned)
+            let normExisting = key == ProfileFieldKey.ssn ? normalizeSSN(existing) : normalizeID(existing)
+            if normScanned != normExisting { return true }
+        }
+
+        let scannedFirst = fieldUpdates[ProfileFieldKey.legalFirstName]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let scannedLast = fieldUpdates[ProfileFieldKey.legalLastName]?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let personFirst = person.value(for: ProfileFieldKey.legalFirstName).trimmingCharacters(in: .whitespacesAndNewlines)
+        let personLast = person.value(for: ProfileFieldKey.legalLastName).trimmingCharacters(in: .whitespacesAndNewlines)
+
+        if !scannedFirst.isEmpty, !scannedLast.isEmpty, !personFirst.isEmpty, !personLast.isEmpty {
+            if normalizeName(scannedLast) != normalizeName(personLast) { return true }
+            if !namesSimilar(scannedFirst, personFirst) { return true }
+        }
+
+        if let scannedDOB = fieldUpdates[ProfileFieldKey.dateOfBirth]?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !scannedDOB.isEmpty
+        {
+            let personDOB = person.value(for: ProfileFieldKey.dateOfBirth).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !personDOB.isEmpty, !dobMatches(scannedDOB, personDOB) {
+                let hasNameOverlap = (!scannedFirst.isEmpty && !personFirst.isEmpty && namesSimilar(scannedFirst, personFirst))
+                    || (!scannedLast.isEmpty && !personLast.isEmpty && normalizeName(scannedLast) == normalizeName(personLast))
+                if hasNameOverlap { return true }
+            }
+        }
+
+        return false
+    }
+
+    private static func hasStrongMatchSignal(_ reasons: [String]) -> Bool {
+        let governmentIDs: Set<String> = [
+            "drivers_license_number", "passport_number", "state_id_number", "ssn",
+        ]
+        if reasons.contains(where: { governmentIDs.contains($0) }) { return true }
+
+        let hasDOB = reasons.contains("date_of_birth")
+        let hasLast = reasons.contains("legal_last_name")
+        let hasFirst = reasons.contains("legal_first_name")
+        let hasDisplay = reasons.contains("display_name")
+        if hasDOB, hasLast, (hasFirst || hasDisplay) { return true }
+        return false
     }
 
     static func dobMatches(_ left: String, _ right: String) -> Bool {
@@ -185,6 +262,10 @@ enum PersonProfileMatcher {
 
     private static func normalizeID(_ raw: String) -> String {
         raw.uppercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    private static func normalizeSSN(_ raw: String) -> String {
+        String(raw.filter(\.isNumber))
     }
 
     private static func normalizePostal(_ raw: String) -> String {
