@@ -10,39 +10,59 @@
 
 ## North star: automate forms from a trusted household vault
 
-**End goal:** Help users **submit forms** (school intake, medical portals, government sites, in-app flows) by **reusing household data stored in SQLite over months and years** — without retyping the same fields every time.
+**End goal:** Help users **submit forms** (school intake, medical portals, government sites, in-app flows) by **reusing household data** — without retyping fields **or** re-scanning proof documents every time.
 
-**Data model:** The vault is **data-centric**, not document-centric. **Canonical identity fields** (name, SSN, DL#, address, …) are the source of truth per person. **Documents are evidence only** — they classify, extract, and update canonical fields via OCR; they are not how data is organized or stored.
+**Two jobs on every vendor form:**
 
-**Storage model:** We **do not store document images or PDFs**. We persist **OCR raw data** in `extraction_run` (evidence layer) and **user-confirmed canonical fields** + **lineage** in SQLite. Camera/import bytes are **ephemeral** — used only to produce OCR, then discarded after the run is saved.
+| Job | What vendors want | TrustNest |
+|-----|-------------------|-----------|
+| **1. Fill fields** | Type name, DOB, insurance ID, address, … | Scan → extract → canonical vault → auto-fill |
+| **2. Upload proof** | Attach immunization PDF, birth certificate, utility bill, insurance card photo, … | Scan → **auto-save file** → attach at form submit |
+
+**Data model:** The vault is **data-centric** for typed fields — **canonical identity fields** (Layer B) are the source of truth per person. **Submission documents** are a separate, scoped file stash for vendor upload — not how profile fields are organized.
+
+**Storage model (dual path):**
+
+| Path | What we persist | When |
+|------|-----------------|------|
+| **Field vault** | `extraction_run` OCR JSON + confirmed Layer B fields + lineage | Always (after OCR) |
+| **Submission stash** | Encrypted image/PDF on device for [submission-document types](#submission-document-stash-upload-at-form-submit) | **Auto-save** when user scans a stash-listed type |
+
+Non-stash scans: OCR JSON only; image bytes released after run save. Stash scans: file kept locally for re-upload; never synced to cloud.
 
 **Why extraction must work first:** Form fill is only as trustworthy as the profile values behind it. Wrong DL number or spouse’s name in a school form is worse than an empty field. That is why this rewrite starts with field accuracy, not with more form UI.
+
+**Form-relevance rule:** TrustNest exists to **auto-fill forms**. Extraction runs only when a document supplies **canonical fields that form matchers actually use** — not merely because we recognize the paper type. Birth certificates, marriage certs, and similar archival docs may be **classified** but **never extracted** (name/DOB already come from passport/DL). Classify (Layer A) → inclusion test → **stop** or run mapping (Layer C) only for form-relevant types.
 
 ### Product arc (the full loop)
 
 ```text
-┌──────────────┐    ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│ Scan / upload│ →  │ Extract + review │ →  │ SQLite profiles  │ →  │ Form fill       │
-│ (new DL, etc)│    │ (user confirms)  │    │ (accumulate)     │    │ (user confirms) │
-└──────────────┘    └─────────────────┘    └──────────────────┘    └─────────────────┘
-        │                     │                      │                       │
-        └─────────────────────┴──────────────────────┴───────────────────────┘
-                                    DATA LINEAGE AT EVERY STEP
+┌──────────────┐    ┌──────────────────────────────────────┐    ┌──────────────────┐
+│ Scan / upload│ →  │ Classify → dual path                 │ →  │ Form submit      │
+│              │    │  • Fields: extract → Layer B vault   │    │  • Auto-fill     │
+│              │    │  • Upload: auto-save submission stash  │    │  • Attach files  │
+└──────────────┘    └──────────────────────────────────────┘    └──────────────────┘
+        │                              │                                    │
+        └──────────────────────────────┴────────────────────────────────────┘
+                              DATA LINEAGE + LOCAL FILES ONLY
                                               │
                     ┌─────────────────────────▼─────────────────────────┐
-                    │ Proximity share (NFC tap) — scoped subset, TTL      │
-                    │ device-to-device only; no internet / no cloud relay  │
+                    │ Proximity share (NFC tap) — scoped fields, TTL    │
+                    │ device-to-device only; no internet / no cloud relay │
                     └─────────────────────────────────────────────────────┘
 ```
 
 | Stage | User intent | What we must guarantee |
 |-------|-------------|------------------------|
-| **Ingest** | “Scan my new Texas DL — my address changed” | Correct fields from photo; OCR JSON persisted; **image bytes discarded**; user reviews before save |
-| **Store** | “Keep my household up to date over time” | Each **canonical field** has **current value** + **history**; evidence links via `extraction_run_id`, not via stored document files |
+| **Ingest** | “Scan my new Texas DL — my address changed” | Classify → extract fields + **auto-save** to submission stash; user reviews fields before save |
+| **Stash** | “Scan Emma’s immunization record for school” | Classify → **auto-save** as `Immunization Record — Emma — 2026-06-01`; extract vaccine rows if form-relevant |
+| **Reject** | “I scanned a random receipt / photo” | Classify → not on any list → **no extraction, no stash**; show message |
+| **Store** | “Keep my household up to date over time” | Canonical fields + history in SQLite; submission files superseded on rescan (old file retained in history) |
 | **Refresh** | “Replace old DL# with the one from this scan” | Rescan **supersedes** stale values; old version retained in history |
 | **Remind** | “My DL expires today — don’t let me forget” | **Local notifications** before/on expiry; profile shows dataset health |
-| **Fill** | “Fill this form for my child” | Matcher picks values from vault; user sees **which OCR run / manual edit** each value came from; **expired datasets prompt rescan** before applying |
-| **Submit** | “I trust what went into the form” | User confirms fill batch; optional write-back from form edits also gets lineage (`source=form`) |
+| **Fill** | “Fill this form for my child” | Matcher picks values from vault; user sees lineage per field; **expired datasets prompt rescan** |
+| **Attach** | “School wants immunization record upload” | Matcher proposes **stored submission doc** for matching `document_type` + person; user confirms attach to file input |
+| **Submit** | “I trust what went into the form” | User confirms fill batch + attachments; write-back from form edits gets lineage (`source=form`) |
 | **Share** | “Give my spouse only my DL fields for 24 hours” | User picks **person + dataset scope + TTL**; transfer over **proximity radio only**; receiver sees **foreign provenance** |
 
 ### Data lineage (non-negotiable product requirement)
@@ -63,7 +83,8 @@ profile_key, value, effective_from,
   source_kind:       scan | manual | form_writeback | proximity_share
   extraction_run_id: required when source_kind=scan — links to persisted OCR JSON (blocks, bounds, fullText)
   document_type:     driversLicense | passport | insuranceCard | ...
-  scanned_at:        when the OCR run was captured (image/PDF bytes already discarded)
+  scanned_at:        when the OCR run was captured
+  submission_doc_id: optional — links to stored file when type is on submission stash
   user_confirmed:    true after review or fill confirm
   share_grant_id:    optional — proximity grant when source_kind=proximity_share
   sharer_display:    optional — who shared (receiver-side foreign provenance)
@@ -74,15 +95,16 @@ profile_key, value, effective_from,
 
 | Persisted | Not persisted |
 |-----------|---------------|
-| `extraction_run` — normalized OCR JSON per scan | JPEG / PNG / PDF / HEIC bytes |
-| `field_value_current` + `field_value_history` — confirmed profile values | Thumbnails or “document library” folders |
-| Lineage metadata (`extraction_run_id`, `document_type`, `scanned_at`) | Re-openable scans of the original photo |
-
-Users can **re-read OCR text** from a past run for audit (“what did we see on that scan?”) but cannot **view the original image** unless they scan again.
+| `extraction_run` — normalized OCR JSON per scan | Random photos / receipts (no stash, no extract) |
+| `field_value_current` + `field_value_history` — confirmed profile values | Unbounded “scan everything” archive |
+| `stored_submission_document` — metadata + encrypted local file path | Cloud copies of submission files |
+| Lineage metadata (`extraction_run_id`, `document_type`, `submission_doc_id`) | |
 
 **Rules:**
 
-- **No document file storage** — after OCR is written to `extraction_run`, release image memory and do not write image paths to Application Support.
+- **Submission stash only** — persist image/PDF bytes **only** for [submission-document types](#submission-document-stash-upload-at-form-submit); all other types release bytes after OCR.
+- **Auto-save on scan** — stash-listed types save automatically with a generated display name; user can rename or delete.
+- **Supersede on rescan** — new scan of same `person_id` + `document_type` becomes current; prior file kept in history.
 - **No silent overwrite** — rescan or form edit creates a new history row; previous value stays queryable.
 - **No fill without disclosure** — form automation never applies a value the user cannot trace to a source.
 - **Expired data is visible and actionable** — see [dataset expiry reminders](#dataset-expiry-reminders--form-fill-guardrails) below; never auto-fill expired government ID fields without explicit user acknowledgment.
@@ -235,6 +257,134 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 - **SSN is a field, not a document** — `ssn` is a government identifier; SSN card, W-2, and 1099 are **evidence sources** that may populate it.
 - **Sensitive fields** — SSN, bank account, routing never in default share presets; opt in per field group.
 - **Layer C is where accuracy is won or lost** — classifiers and canonical schema are necessary, but **wrong field mapping** is the failure mode users see. Every extractor is a explicit **document → field** contract; ship no mapping without a photo E2E test.
+- **Form-relevance gate** — extraction runs **only** for document types on the [form-relevant allowlist](#form-relevant-allowlist-layer-c-extraction-only). All other uploads: classification optional, **zero field extraction**.
+
+#### Form-relevant allowlist (Layer C extraction only)
+
+The app **only** runs Layer C extractors when a document supplies **at least one canonical field that form matchers actually use** — not merely because we can classify the paper.
+
+**Inclusion test (all must pass):**
+
+1. **Form-use** — the field appears on school, medical, government, insurance, or in-app forms we automate.
+2. **Unique or best source** — the value is not already covered reliably by a higher-priority allowlisted type (e.g. name/DOB from passport/DL, not birth certificate).
+3. **Grounded mapping** — Layer C can anchor the value in OCR with photo E2E proof (no free-text mining).
+
+If a type fails the test → **classify-only** (Layer A may label it; `form_relevant: false`; no extractor).
+
+**Form-relevant — extract (Layer C):**
+
+| `document_type` | Why it stays | Layer C extractor |
+|-----------------|--------------|-------------------|
+| `passport` | `passport_number`, `passport_expiry`, nationality | `PassportExtractor` |
+| `driversLicense` | DL#, state, address, expiry | `TexasDriverLicenseExtractor` |
+| `stateId` | State ID#, expiry | `StateIdExtractor` |
+| `ssnCard` | `ssn` | `SSNCardExtractor` |
+| `insuranceCard` | provider, policy#, group ID | `InsuranceCardExtractor` |
+| `w2`, `form1099` | `ssn`, employer, income | `TaxFormExtractor` |
+| `payStub` | employer, income, pay frequency | `PayStubExtractor` |
+| `utility_bill` / `utilityBill` | `current_address` | `AddressProofExtractor` |
+| `lease` | `current_address` | `AddressProofExtractor` |
+| `financial.bank_statement` / `bankStatement` | address, account/routing | `BankStatementExtractor` |
+| `immunizationRecord` | `vaccination_status[]` (school health forms) | `ImmunizationRecordExtractor` |
+| `visa`, `workAuthorization`, `immigrationForm` | visa/work-auth # + expiry | `ImmigrationDocumentExtractor` |
+
+**Classify-only — recognize, do not extract:**
+
+| `document_type` | Why excluded | Product behavior |
+|-----------------|--------------|------------------|
+| `birthCertificate` | No unique typed fields (name/DOB from passport/DL); **stash for school upload** instead | `form_relevant: false`, **stash: true** |
+| `marriageCertificate` | `marital_status` is a one-tap manual field on forms | `form_relevant: false` |
+| `taxReturn` | Same tax fields as W-2/1099; full return not needed for form automation | `form_relevant: false` |
+| `transcript`, `degree`, `studentId` | Education history is manual or form write-back; not reliable scan→fill | `form_relevant: false` |
+| `medicationList`, `medicalRecord` | Unstructured clinical text; poor form-fill signal | `form_relevant: false` |
+| `emergencyContact` | Emergency blocks are typed on forms; scan path adds noise | `form_relevant: false` |
+| `unknown`, receipts, photos, menus, etc. | Not household form evidence | `form_relevant: false` |
+
+**When not form-relevant:**
+
+```json
+{
+  "document_type": "unknown",
+  "confidence": 0.88,
+  "form_relevant": false,
+  "extracted_fields": null
+}
+```
+
+**User-facing copy:** “This document isn’t used for form filling. No profile fields were extracted.”
+
+**Example — birth certificate (classify-only):**
+
+```json
+{
+  "document_type": "birthCertificate",
+  "confidence": 0.91,
+  "form_relevant": false,
+  "extracted_fields": null
+}
+```
+
+Child person records are created **manually** or via form write-back. Birth certificate scan **auto-saves the file** for school upload — no field extraction.
+
+**Hard rules:**
+
+- **No** `UniversalDocumentParser` on general scan/upload.
+- **No** `LabeledFormExtractor` unless user is in an **active form-fill session** and the doc is explicitly tied to that form (future optional path — not default camera scan).
+- **No** persisting guessed name/DOB/SSN from non-allowlisted types.
+- OCR run may record `document_type` + `form_relevant: false` for audit; **do not** open scan review with empty guessed fields.
+
+#### Submission document stash (upload at form submit)
+
+Schools, clinics, and benefits portals often require **file uploads** in addition to typed fields. When the user scans a **submission-document** type, the app **automatically saves** the image/PDF locally so it can be **attached during form submit** — no re-scan at submission time.
+
+**Auto-save rule:** classify → if type is on stash list → encrypt and persist file **before** user leaves scan review. Display name is generated immediately.
+
+**Display name format (auto):**
+
+```text
+{DocumentTypeLabel} — {PersonName} — {YYYY-MM-DD}
+```
+
+Examples: `Immunization Record — Emma Chen — 2026-06-01` · `Birth Certificate — Emma Chen — 2026-06-01` · `Utility Bill — John Doe — 2026-05-15`
+
+**Submission-document types (auto-stash on scan):**
+
+| `document_type` | Typical vendor upload | Field extract too? |
+|-----------------|----------------------|:------------------:|
+| `immunizationRecord` | School health / camp forms | ✅ `vaccination_status[]` |
+| `birthCertificate` | School age verification | ❌ classify-only for fields |
+| `utility_bill` / `utilityBill` | School proof of residence | ✅ `current_address` |
+| `lease` | School / rental proof of address | ✅ `current_address` |
+| `insuranceCard` | Medical / school nurse portals | ✅ provider, member ID, group |
+| `driversLicense` | Parent/guardian ID verification | ✅ identity + address |
+| `stateId` | Child ID verification (non-driver) | ✅ identity fields |
+| `passport` | ID verification (travel, some schools) | ✅ passport fields |
+| `bankStatement` | Benefits / loan proof (when requested) | ✅ address, routing/account |
+
+**Not auto-stashed:** `unknown`, receipts, W-2, 1099, pay stub, marriage cert, medical records, tax returns — unless added to stash list in a future scope.
+
+**`stored_submission_document` record:**
+
+```text
+id, person_id, document_type, display_name,
+  file_path,          -- encrypted local path (Application Support)
+  mime_type,          -- image/jpeg, application/pdf, …
+  scanned_at,
+  extraction_run_id,  -- optional link to OCR run
+  is_current,         -- true for latest person+type
+  superseded_at       -- set when replaced by rescan
+```
+
+**Form attach flow:**
+
+1. User starts school (or other) form fill; extension/matcher detects `<input type="file">` or labeled upload slot.
+2. Match upload label to `document_type` (e.g. “immunization”, “birth certificate”, “proof of residence”).
+3. Propose **current** `stored_submission_document` for active **person** + type.
+4. User confirms → file bytes injected into vendor upload field (local browser only; zero egress from TrustNest servers).
+
+**Settings:** `Automatically save documents for form upload` — **on by default** for stash types; when off, scan still runs OCR/extract but does not persist file.
+
+**Security:** Files encrypted at rest (same keychain scope as vault); never included in proximity share unless user explicitly shares a document grant (future); zero cloud sync.
 
 ---
 
@@ -253,22 +403,22 @@ document_type, canonical_key, value,
   confidence:    VERIFIED | HIGH | MEDIUM | EMPTY (never fake HIGH on regex)
 ```
 
-**JSON output contract (API / extractor response):**
-
-Layer C uses two JSON shapes depending on pipeline stage:
+**JSON output contract:**
 
 ```json
-// Layer A — classification only (type picked, extraction not run yet)
+// Layer A — classification only (before Layer C)
 {
   "document_type": "financial.bank_statement",
-  "confidence": 0.94
+  "confidence": 0.94,
+  "form_relevant": true
 }
 ```
 
 ```json
-// Layer C — extraction complete (document → field mapping applied)
+// Layer C — after mapping (form-relevant types only)
 {
   "document_type": "passport",
+  "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
     "date_of_birth": "1990-01-01",
@@ -282,13 +432,15 @@ Layer C uses two JSON shapes depending on pipeline stage:
 | JSON key | Meaning |
 |----------|---------|
 | `document_type` | Layer A type — snake_case or dotted (`utility_bill`, `financial.bank_statement`) |
-| `confidence` | Classifier score (Layer A only) |
-| `extracted_fields` | Document-native field names from Layer C mapping — **normalized to Layer B** on save |
+| `confidence` | Classifier score (Layer A) |
+| `form_relevant` | `true` only if type is on allowlist — then Layer C may run |
+| `extracted_fields` | Document-native keys from mapping; `null` if not form-relevant |
 
-**Save path:** `extracted_fields` → map to canonical Layer B keys → user confirms → `field_value_current` + lineage.
+**Save path:** `extracted_fields` → normalize to Layer B canonical keys → user confirms → SQLite + lineage.
 
 **Rules:**
 
+- **No extraction without `form_relevant: true`** — gate runs after Layer A, before any extractor.
 - **Explicit map only** — if a field is not in the document’s mapping table, the extractor returns `EMPTY` for that key.
 - **No cross-document bleed** — utility bill mapping must not include `driver_license_number`.
 - **Multi-source fields** — `ssn` may be set by `ssnCard`, `w2`, or `form1099`; each uses its own Layer C table; Layer B holds one current `ssn` with lineage to the winning evidence run.
@@ -313,11 +465,12 @@ Layer C uses two JSON shapes depending on pipeline stage:
 
 **Extractor:** `PassportExtractor` · **Registry:** `passport` → `PassportExtractor`
 
-**Layer C JSON output (example):**
+**Layer C JSON output:**
 
 ```json
 {
   "document_type": "passport",
+  "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
     "date_of_birth": "1990-01-01",
@@ -328,15 +481,13 @@ Layer C uses two JSON shapes depending on pipeline stage:
 }
 ```
 
-**Normalize → Layer B on save:**
-
-| `extracted_fields` key | Layer B canonical key | Notes |
-|------------------------|----------------------|-------|
-| `full_name` | `full_name` (+ split `first_name`, `last_name` if parser supports) | |
-| `date_of_birth` | `date_of_birth` | ISO `YYYY-MM-DD` |
-| `passport_number` | `passport_number` | |
-| `nationality` | `nationality` | |
-| `expiry_date` | `passport_expiry` | Document-native name → canonical expiry key |
+| `extracted_fields` key | Layer B canonical key |
+|------------------------|----------------------|
+| `full_name` | `full_name` |
+| `date_of_birth` | `date_of_birth` |
+| `passport_number` | `passport_number` |
+| `nationality` | `nationality` |
+| `expiry_date` | `passport_expiry` |
 
 ---
 
@@ -422,20 +573,21 @@ Layer C uses two JSON shapes depending on pipeline stage:
 
 ##### Example: Utility bill (`utility_bill` / `utilityBill`)
 
-| `extracted_fields` key | Layer B canonical key | OCR anchor | Notes |
-|------------------------|----------------------|------------|-------|
-| `full_name` | `full_name` | Account holder name | Optional; split to `first_name` / `last_name` if labeled |
-| `service_address` | `current_address` | Service address block | **Primary** address field for this document |
-| `billing_date` | — (metadata) | Bill date line | Stored on `extraction_run`; not a vault profile key |
-| `provider` | — (metadata) | Utility company header | e.g. `Xcel Energy` — audit only unless schema adds `utility_provider` |
+| `extracted_fields` key | Layer B key | OCR anchor | Notes |
+|------------------------|-------------|------------|-------|
+| `full_name` | `full_name` | Account holder | Optional |
+| `service_address` | `current_address` | Service address block | Primary field |
+| `billing_date` | — (metadata) | Bill date | On `extraction_run` only |
+| `provider` | — (metadata) | Utility header | e.g. `Xcel Energy` — audit only |
 
-**Does not map:** `ssn`, `passport_number`, `driver_license_number`, `passport_expiry` — **hard block** in extractor.
+**Does not map:** any government identifier — **hard block** in extractor.
 
-**Layer C JSON output (example):**
+**Layer C JSON output:**
 
 ```json
 {
   "document_type": "utility_bill",
+  "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
     "service_address": "123 Main St",
@@ -444,8 +596,6 @@ Layer C uses two JSON shapes depending on pipeline stage:
   }
 }
 ```
-
-**Normalize → Layer B on save:** only `full_name` and `service_address` → `current_address` become profile fields; `billing_date` and `provider` stay on the OCR run for lineage display.
 
 ---
 
@@ -460,28 +610,41 @@ Layer C uses two JSON shapes depending on pipeline stage:
 
 ##### Example: Bank statement (`financial.bank_statement` / `bankStatement`)
 
-**Step 1 — Layer A classification (no `extracted_fields` yet):**
+**Step 1 — Layer A (classification only):**
 
 ```json
 {
   "document_type": "financial.bank_statement",
-  "confidence": 0.94
+  "confidence": 0.94,
+  "form_relevant": true
 }
 ```
 
-Classifier returns type + confidence; pipeline then runs `AddressProofExtractor` / `BankStatementExtractor` for Layer C.
+**Step 2 — Layer C (after allowlist check + extract):**
 
-**Step 2 — Layer C field mapping (after OCR extract):**
+| `extracted_fields` key | Layer B key | OCR anchor |
+|------------------------|-------------|------------|
+| `mailing_address` | `mailing_address` | Mailing block |
+| `service_address` | `current_address` | Service address |
+| `account_number` | `bank_account_number` | Account line (last-4 display) |
+| `routing_number` | `routing_number` | ABA / routing |
+| `statement_date` | — (metadata) | Statement period |
 
-| `extracted_fields` key | Layer B canonical key | OCR anchor | Notes |
-|------------------------|----------------------|------------|-------|
-| `mailing_address` | `mailing_address` | Statement mailing block | |
-| `service_address` | `current_address` | Service address if distinct | |
-| `account_number` | `bank_account_number` | Account number line | Last-4 display default |
-| `routing_number` | `routing_number` | Routing / ABA | Labeled only |
-| `statement_date` | — (metadata) | Statement period | On `extraction_run` only |
+**Layer C JSON output:**
 
-**Does not map:** government identifiers.
+```json
+{
+  "document_type": "financial.bank_statement",
+  "form_relevant": true,
+  "extracted_fields": {
+    "mailing_address": "123 Main St",
+    "service_address": "123 Main St",
+    "account_number": "****1234",
+    "routing_number": "021000021",
+    "statement_date": "2026-01-31"
+  }
+}
+```
 
 ---
 
@@ -495,16 +658,16 @@ Classifier returns type + confidence; pipeline then runs `AddressProofExtractor`
 
 ---
 
-##### Example: Birth certificate (`birthCertificate`)
+##### Classify-only + stash: Birth certificate (`birthCertificate`)
 
-| Canonical field | OCR anchor | Notes |
-|-----------------|------------|-------|
-| `first_name` | Child given name field | |
-| `last_name` | Child surname field | |
-| `date_of_birth` | Date of birth field | |
-| `full_name` | Derived | |
+**Not form-relevant for fields.** Layer A detects the type; Layer C **does not run**; **submission stash auto-saves** the file.
 
-Used for **child person records**; may link `dependents[]` on parent.
+| Would-be field | Why no extract | What we do instead |
+|----------------|----------------|-------------------|
+| `first_name`, `last_name`, `date_of_birth` | Already from passport/state ID/DL | Type identity fields from ID scans |
+| School upload slot | Vendor wants the **file**, not typed fields | Auto-save as `Birth Certificate — {Person} — {date}` |
+
+Use passport/DL/state ID for child identity **fields**; use birth certificate scan for **school file upload**.
 
 ---
 
@@ -538,20 +701,9 @@ Used for **child person records**; may link `dependents[]` on parent.
 
 ---
 
-##### Example: Marriage certificate (`marriageCertificate`)
+##### Classify-only: Marriage certificate, emergency contact, medical records
 
-| Canonical field | OCR anchor | Notes |
-|-----------------|------------|-------|
-| `marital_status` | Set to `married` on confirm | Enum update |
-| Spouse names | Link / merge spouse `person_id` | Not duplicate `first_name` on wrong person |
-
----
-
-##### Example: Emergency contact (`emergencyContact`)
-
-| Canonical field | OCR anchor | Notes |
-|-----------------|------------|-------|
-| `emergency_contacts[]` | Labeled name, relationship, phone | Manual entry OK; no free-text mining |
+**Not form-relevant** — same gate as birth certificate. `marital_status` and `emergency_contacts[]` are set via **manual entry** or **form write-back** when the user fills those sections on a form.
 
 ---
 
@@ -566,9 +718,10 @@ Used for **child person records**; may link `dependents[]` on parent.
 | `insuranceCard` | `InsuranceCardExtractor` | 6 |
 | `w2` | `TaxFormExtractor` | 3–4 |
 | `utilityBill` | `AddressProofExtractor` | 1–2 |
-| `birthCertificate` | `BirthCertificateExtractor` | 3 |
+| `immunizationRecord` | `ImmunizationRecordExtractor` | 1+ (list) |
 | `visa` | `ImmigrationDocumentExtractor` | 4+ |
-| *unclassified* | `LabeledFormExtractor` | Label→key map only |
+| `birthCertificate`, `marriageCertificate`, `taxReturn`, `transcript`, `degree`, … | **none** | Classify-only — `form_relevant: false` |
+| `unknown` / off-allowlist | **none** | `form_relevant: false` — **no extraction** |
 
 Full extractor list: [extractor registry](#extractor-registry-initial).
 
@@ -576,17 +729,17 @@ Full extractor list: [extractor registry](#extractor-registry-initial).
 
 #### Layer A — Document types (classification only)
 
-Used by `DocumentClassifier` and [extractor registry](#extractor-registry-initial). **Not** used as SQLite primary keys or profile navigation.
+Used by `DocumentClassifier`. **Classification taxonomy is broader than the form-relevant allowlist** — we may recognize birth certificates and marriage certs without extracting from them.
 
-| Category | Document types (`ScannedDocumentType`) |
-|----------|----------------------------------------|
-| **Identity** | Passport, driver’s license / state ID, birth certificate, SSN card |
-| **Financial / tax** | W-2, 1099, tax returns, bank statements, pay stubs |
-| **Address proof** | Utility bills, lease agreements, bank statements (address line) |
-| **Education** | Transcripts, degree certificates, immunization records, student ID |
-| **Healthcare** | Insurance card, vaccination records, medication list, medical records |
-| **Immigration / travel** | Visa documents, work authorization (EAD), immigration forms (I-94, etc.) |
-| **Emergency / family** | Marriage certificate, children’s birth certificates, emergency contacts |
+| Category | Classify (`ScannedDocumentType`) | Form-relevant extract |
+|----------|----------------------------------|:---------------------:|
+| **Identity** | Passport, DL / state ID, birth certificate, SSN card | Passport, DL, state ID, SSN card only |
+| **Financial / tax** | W-2, 1099, tax returns, bank statements, pay stubs | W-2, 1099, bank statement, pay stub |
+| **Address proof** | Utility bills, lease, bank statements | Utility bill, lease, bank statement |
+| **Education** | Transcripts, degrees, immunization records, student ID | Immunization record only |
+| **Healthcare** | Insurance card, medication lists, medical records | Insurance card only |
+| **Immigration / travel** | Visa, EAD, I-94, etc. | Visa, work authorization, immigration form |
+| **Family / emergency** | Marriage certificate, birth certificates, emergency contacts | Birth certificate: **stash only** (school upload) |
 
 **Classifier guardrail:** address-proof and utility types must **not** trigger identity parsers (no DL# / passport# from a gas bill).
 
@@ -611,7 +764,7 @@ Used by `DocumentClassifier` and [extractor registry](#extractor-registry-initia
 
 | Canonical key | Expiry key (if applicable) | Evidence document types |
 |---------------|---------------------------|-------------------------|
-| `ssn` | — | SSN card, W-2, 1099, tax return |
+| `ssn` | — | SSN card, W-2, 1099 |
 | `passport_number` | `passport_expiry` | Passport |
 | `driver_license_number` | `driver_license_expiry` | Driver’s license, state ID |
 | `driver_license_state` | — | Driver’s license, state ID |
@@ -642,9 +795,9 @@ Used by `DocumentClassifier` and [extractor registry](#extractor-registry-initia
 
 | Canonical key | Evidence document types |
 |---------------|-------------------------|
-| `highest_degree` | Degree certificate |
-| `institution_name` | Transcript, degree, student ID |
-| `graduation_year` | Transcript, degree |
+| `highest_degree` | Manual, form write-back |
+| `institution_name` | Manual, form write-back |
+| `graduation_year` | Manual, form write-back |
 
 Structured lists (separate tables or JSON blobs per person):
 
@@ -657,17 +810,17 @@ Structured lists (separate tables or JSON blobs per person):
 | `insurance_provider` | `insurance_carrier` | Insurance card |
 | `policy_number` | `insurance_member_id` | Insurance card |
 | `insurance_group_id` | — | Insurance card |
-| `blood_type` | Optional | Medical record |
+| `blood_type` | Optional | Manual, form write-back |
 
 **7. Family / emergency**
 
 | Canonical key | Structure | Evidence |
 |---------------|-----------|----------|
-| `emergency_contacts[]` | `{ name, relationship, phone }` | Emergency contact form, manual |
-| `dependents[]` | Links to child `person_id` | Children’s birth certificates |
-| `marital_status` | enum / string | Marriage certificate, manual |
+| `emergency_contacts[]` | `{ name, relationship, phone }` | Manual, form write-back |
+| `dependents[]` | Links to child `person_id` | Manual household setup |
+| `marital_status` | enum / string | Manual, form write-back |
 
-**Household model:** Each **person** (parent, child, spouse) has their own Layer B record. Children’s birth certs attach to **child person records**; marriage cert updates `marital_status` and links spouses — no duplicate `first_name` rows.
+**Household model:** Each **person** (parent, child, spouse) has their own Layer B record. Add children as persons manually; populate their identity fields from **passport / state ID / DL** scans — not birth certificates.
 
 **Expiry guardrails** apply to government identifier keys (`driver_license_expiry`, `passport_expiry`, `visa_expiry`, …) — see [dataset expiry](#dataset-expiry-reminders--form-fill-guardrails).
 
@@ -675,12 +828,13 @@ Structured lists (separate tables or JSON blobs per person):
 
 #### Single rollout (all layers together)
 
-All Layer A classifiers, Layer B schema groups, and Layer C extractors ship in **one rollout**.
+All Layer B schema groups, **form-relevant** Layer C extractors, and Layer A classifiers (including classify-only types) ship in **one rollout**.
 
 | What ships | Gate |
 |------------|------|
 | **Layer B schema** + history/lineage | [Form automation gate](#form-automation--lineage-gate) |
-| **Layer A + C** — all document types | Per-type photo E2E; [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green |
+| **Layer C** — form-relevant types only | Per-type photo E2E; [acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green |
+| **Layer A** — classify-only types | Classifier accuracy; must return `form_relevant: false` without extraction |
 | **Expiry + share** | [Expiry gate](#dataset-expiry--reminders-gate), [proximity share gate](#proximity-share-gate) |
 
 **Share presets** (proximity) map to **canonical field groups**, not document folders: `Government IDs`, `Contact & address`, `Healthcare`, `Financial` — never “all documents for this person.”
@@ -699,8 +853,8 @@ Examples that must work before anything else (canonical fields populated via [La
 
 | Field | Document examples |
 |-------|-------------------|
-| First name / last name | DL, passport, SSN card, insurance card, birth certificate |
-| Date of birth | DL, passport, insurance card, birth certificate |
+| First name / last name | DL, passport, state ID, SSN card, insurance card |
+| Date of birth | DL, passport, state ID, insurance card |
 | SSN | SSN card, W-2 |
 | Driver license number | Texas DL, state ID |
 | Passport number | US passport |
@@ -874,8 +1028,9 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | N8 | Expand schema/prompt with 40+ keys before core 10 fields work |
 | N9 | Fix one document type by hardcoding without regression on others |
 | N10 | Commit architecture docs instead of **field accuracy metrics** |
-| N11 | Add “save document image” or document vault features — store **OCR raw data only** |
+| N11 | Unbounded document archive for every scan — use **submission stash whitelist** only |
 | N12 | Organize vault navigation by document type — use **canonical fields** (Layer B) as source of truth |
+| N13 | Extract fields from non-form-relevant uploads (receipts, random photos) — **allowlist gate only** |
 
 ### Technical anti-patterns
 
@@ -888,7 +1043,8 @@ The orchestrator has 15 steps, 12+ agents, 6 model artifact slots. Adding a step
 | T5 | Flattening layout to string before structured docs (DL, W-2, insurance card) |
 | T6 | Swift + Rust duplicate person matching logic that can diverge |
 | T7 | Building ONNX/GGUF/LayoutLM paths before photo tests pass with rules-only |
-| T8 | Persisting JPEG/PNG/PDF scans, thumbnails, or a “document library” — **OCR JSON only** |
+| T8 | Persisting scan bytes **outside** the [submission stash whitelist](#submission-document-stash-upload-at-form-submit) |
+| T9 | Running `UniversalDocumentParser` / generic regex on `unknown` or off-allowlist scans |
 
 ---
 
@@ -908,16 +1064,18 @@ The product is **automated form submission backed by a trusted household vault**
 
 We do not ship form autofill that cannot show per-field source. We do not ship extraction that poisons the vault with guesses. We do not ship share flows that upload PII to the internet as a fallback. We do not silently fill **expired** government ID fields without asking the user to update.
 
-### Principle 2 — **One pipeline, four stages**
+### Principle 2 — **One pipeline, six stages (dual path)**
 
 ```text
-1. CAPTURE   → image/PDF bytes (memory only — not persisted)
-2. OCR       → Vision → NormalizedDocument → persist JSON to extraction_run → discard image bytes
-3. EXTRACT   → type-specific extractor → [FieldSuggestion]
-4. REVIEW    → user confirms → profile fields + lineage → Rust SQLite
+1. CAPTURE           → image/PDF bytes in memory
+2. OCR               → Vision → NormalizedDocument → persist JSON to extraction_run
+3. CLASSIFY          → Layer A document_type + confidence
+4. SUBMISSION STASH? → if on stash list → auto-save encrypted file + display name (link extraction_run_id)
+5. FORM-RELEVANT?    → if on extract allowlist → Layer C mapping; else skip field extract
+6. REVIEW+SAVE       → user confirms fields (if any) → Layer B + lineage; stash already saved
 ```
 
-No orchestrator with 15 steps. No parallel semantic/heuristic/learning paths in v1.
+Release image bytes only when type is **not** on submission stash. No orchestrator with 15 steps.
 
 ### Principle 3 — **Extraction priority order (strict)**
 
@@ -932,11 +1090,13 @@ For every document, extraction tries **only** this order:
 
 If step 4 would have been “guess from first date in document” in the old app — **leave the field empty**.
 
-### Principle 4 — **Classify once, extract once**
+### Principle 4 — **Classify once; extract only if form-relevant**
 
 - One classifier: keyword + layout signals + optional Create ML (single model).
+- After classify: **`form_relevant` gate** — only allowlisted types proceed to Layer C.
 - Classification picks **exactly one** extractor from a **registry** (map, not inheritance tree).
 - Extractor **never** calls another extractor as fallback inside the same run.
+- Off-allowlist types: **no** `LabeledFormExtractor`, **no** universal regex parser.
 
 ### Principle 5 — **Ground every value**
 
@@ -993,8 +1153,10 @@ Synthetic perfect-line tests are NOT in the top two tiers.
 | Profile CRUD + SQLite | Rust FFI | Single persistence path |
 | **Field value history + lineage** | Rust SQLite ([ADR 0008](adr/0008-provenance-and-field-value-history.md)) | One source of truth for “where did this value come from?” |
 | Person match on save | Rust `entity_resolution` only | No duplicate Swift matcher |
-| **OCR run persistence** | Rust `extraction_run` | **Only** durable scan artifact — normalized OCR JSON; no image bytes |
-| OCR run audit | Rust `extraction_run` | Links profile values to the OCR snapshot that produced them |
+| **OCR run persistence** | Rust `extraction_run` | Normalized OCR JSON per scan |
+| **Submission stash metadata** | Rust `stored_submission_document` | File path, display name, person, type; links to `extraction_run_id` |
+| **Submission file bytes** | iOS encrypted Application Support | Stash whitelist types only; Rust holds metadata |
+| OCR run audit | Rust `extraction_run` | Links profile values + stash records to OCR snapshot |
 | Form field match | Rust `form.rs` (rules-first) | Same matcher for extension + in-app; returns value **and** `sourcePersonId` + provenance pointer |
 | **Proximity share** | Rust `proximity` + grant store | x25519 session + encrypted scoped export; NFC/BLE transport in Swift platform layer ([ADR 0009](adr/0009-proximity-sharing-ble-secure-channel-time-bound-grants.md)) |
 | **Dataset expiry evaluation** | Rust (query `profile_key` expiry fields) | Single health status per dataset; drives reminders + form-fill guard |
@@ -1103,6 +1265,18 @@ Each cell must pass **photo fixture E2E** (Vision OCR on PNG, not synthetic line
 | Form needs DL#; user taps **Use anyway** | Field applies with `Expired` badge; audit log entry |
 | DL `expires_on` = today (local time) | “Expires today” notification fires; form fill shows same-day warning |
 
+### Submission document stash + attach gate
+
+| Scenario | Must pass |
+|----------|-----------|
+| Scan immunization record for child | File auto-saved as `Immunization Record — {Child} — {date}`; vaccine fields extracted if allowlisted |
+| Scan birth certificate for child | File auto-saved; **no** field extract; name shows in People → Documents |
+| Rescan utility bill | New file becomes `is_current`; prior file `superseded_at` set |
+| School form file upload (“immunization”) | Matcher proposes current immunization file for active person; user confirms attach |
+| Scan receipt / unknown | **No** file saved; no field extract |
+| Settings: auto-save off | OCR + extract run; file **not** persisted |
+| Stash file at rest | Encrypted local path only; zero cloud egress |
+
 ### Dataset expiry & reminders gate
 
 | Scenario | Must pass |
@@ -1192,14 +1366,13 @@ flowchart TB
 | `ssnCard` | Identity | `SSNCardExtractor` | SSN pattern, name above street, `ESTABLISHED FOR` |
 | `insuranceCard` | Healthcare | `InsuranceCardExtractor` | `MEMBER ID`, `GROUP`, `SUBSCRIBER`, `RXBIN` |
 | `stateId` | Identity | `StateIdExtractor` | `STATE ID`, `ID:`, `DOB:` |
-| `birthCertificate` | Identity / family | `BirthCertificateExtractor` | labeled name, DOB, place of birth |
-| `w2`, `form1099`, `taxReturn` | Financial / tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
+| `w2`, `form1099` | Financial / tax | `TaxFormExtractor` | IRS numbered boxes, labeled fields |
+| `payStub` | Financial / tax | `PayStubExtractor` | employer, gross/net pay |
 | `utilityBill`, `lease`, `bankStatement` | Address proof | `AddressProofExtractor` | service/mailing address only |
-| `transcript`, `degree`, `immunizationRecord`, `studentId` | Education | `EducationDocumentExtractor` | school, student name, dates |
+| `immunizationRecord` | Education / health | `ImmunizationRecordExtractor` | vaccine row table only |
 | `visa`, `workAuthorization`, `immigrationForm` | Immigration / travel | `ImmigrationDocumentExtractor` | visa class, auth number, expiry |
-| `marriageCertificate`, `emergencyContact` | Family / emergency | `FamilyDocumentExtractor` | spouse names, contacts (labeled only) |
-| `medicationList`, `medicalRecord` | Healthcare | `MedicalRecordExtractor` | structured lines only; no diagnosis mining |
-| *unclassified* | — | `LabeledFormExtractor` | Label → canonical key map only; **no** flat-text guess |
+| `birthCertificate`, `marriageCertificate`, `taxReturn`, `transcript`, `degree`, `studentId`, `medicationList`, `medicalRecord`, `emergencyContact` | Various | **none** | Classify-only — `form_relevant: false` |
+| *unknown / off-allowlist* | — | **none** | `form_relevant: false` — pipeline stops before extract |
 
 ### Files we do **not** port to v1
 
@@ -1268,6 +1441,7 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 
 - [ ] [Acceptance matrix](#acceptance-matrix-definition-of-basic-things-right) green on photo fixtures
 - [ ] [Form automation + lineage gate](#form-automation--lineage-gate) green
+- [ ] [Submission document stash + attach gate](#submission-document-stash--attach-gate) green
 - [ ] [Dataset expiry & reminders gate](#dataset-expiry--reminders-gate) green
 - [ ] [Proximity share gate](#proximity-share-gate) green
 - [ ] TestFlight → **one** external tester runs matrix on physical cards (sanitized)
@@ -1299,10 +1473,15 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 | Expiry reminders? | **Local notifications** | On-device schedule; no remote push with PII |
 | Default reminder offsets? | **30d, 7d, 1d, day-of** | User-configurable in Settings |
 | Fill with expired ID silently? | **Never** | Guard at form preview; same rules for extension when wired |
-| Store scanned image/PDF bytes? | **No** | Persist OCR JSON in `extraction_run` only; image is ephemeral |
-| Re-open original scan photo later? | **No** (v1) | Lineage points to OCR run text; user rescans if they need a new capture |
+| Store scanned image/PDF bytes? | **Yes — stash types only** | Auto-save for [submission-document types](#submission-document-stash-upload-at-form-submit); encrypted local |
+| Re-open original scan for upload? | **Yes — stash types** | Attach at form submit; supersede on rescan |
+| Auto-save on scan? | **Yes** (default on) | Generated name `{Type} — {Person} — {date}`; user can rename/delete |
+| Birth certificate scan? | **Stash, no extract** | School wants file upload; fields come from ID scans |
 | Vault organized by document type? | **No** | **Data-centric:** Layer B canonical fields are source of truth; documents are evidence ([3-layer model](#three-layer-data-model-not-document-centric)) |
 | SSN as a document? | **No** | `ssn` is a government identifier field; SSN card / W-2 / 1099 are evidence sources |
+| Extract on non-form-relevant scan? | **No** | Allowlist gate; no Layer C; `extracted_fields: null` |
+| Extract from birth certificate? | **No** | Classify-only; name/DOB come from passport/DL/state ID |
+| Default `LabeledFormExtractor` on camera scan? | **No** | Only allowlisted types; optional form-session path later |
 
 ---
 
@@ -1324,12 +1503,15 @@ One release wave — extraction, lineage, form fill, expiry reminders, and proxi
 - Adds a new document type before existing types pass  
 - Adds form fill UI without persisted lineage ([ADR 0008](adr/0008-provenance-and-field-value-history.md))  
 - Saves profile fields without `extraction_run_id` / source metadata when value came from a scan  
-- Persists document image/PDF bytes, thumbnails, or file paths to stored scans  
+- Persists scan bytes for types **outside** the submission stash whitelist  
+- Attaches submission files to forms without user confirm  
 - Adds share path that uploads payload or uses internet as fallback  
 - Ships share without TTL + scope manifest + revoke  
 - Auto-fills government ID fields without checking dataset expiry status  
 - Ships DL extractor without `driver_license_expiry` when matrix requires it  
 - Stores profile data under document-type folders instead of canonical keys  
+- Runs Layer C extraction when `form_relevant` is false  
+- Adds universal / regex extraction for `unknown` document types  
 
 ### Weekly review (15 min):
 
@@ -1367,13 +1549,15 @@ The rewrite is not “try another ML approach.” It is:
 2. **Layout-first extractors**  
 3. **Photo tests as gate**  
 4. **Empty beats wrong**  
-5. **Lineage from OCR run → profile → form → share** (no stored document files)  
-6. **Remind on expiry; guard forms when data is stale**  
-7. **One metric dashboard**  
-8. **OCR raw data only** — profile values + lineage, not a document archive
+5. **Lineage from OCR run → profile → form → share**  
+6. **Submission stash** — auto-save proof documents for vendor upload (school immunization, birth cert, utility bill, …)  
+7. **Remind on expiry; guard forms when data is stale**  
+8. **One metric dashboard**  
+9. **Dual path** — extract fields when form-relevant; stash file when vendors want uploads  
+10. **Form-relevant extract only** — birth cert and similar: **stash, no field mining**
 
-When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: full [Layer B canonical schema](#layer-b--canonical-identity-schema-core), all [Layer A classifiers + Layer C extractors](#three-layer-data-model-not-document-centric), **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped canonical field groups with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
+When the acceptance matrix and all ship gates are green on photos, we release **one complete rollout**: full [Layer B canonical schema](#layer-b--canonical-identity-schema-core), **form-relevant** [Layer C extractors](#form-relevant-allowlist-layer-c-extraction-only), **[submission document stash](#submission-document-stash-upload-at-form-submit)** with auto-save and form attach, **lineage in SQLite**, **confirmed form automation** with **expiry guardrails**, **local renewal reminders**, and **proximity share** — scoped canonical field groups with TTL over NFC-initiated device-to-device transfer, never cloud upload. Semantic models are optional enhancement only after the rules-first single rollout is trustworthy.
 
 ---
 
-*Document version: 2.3 — branch `docs/fresh-start-principles`, June 2026. Layer C JSON output contracts (passport, utility bill, bank statement classification).*
+*Document version: 2.6 FINAL — branch `docs/fresh-start-principles`, June 2026. Dual path: field extraction for auto-fill + submission document stash (auto-save on scan, attach at form submit). Entry point: [trustnest-rewrite-final.md](trustnest-rewrite-final.md).*

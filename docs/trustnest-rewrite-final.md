@@ -1,7 +1,8 @@
 # TrustNest Rewrite — Final Blueprint
 
 **Status:** FINAL  
-**Branch:** `docs/fresh-start-principles`  
+**Repository:** [gangavhi/dream-work-reality](https://github.com/gangavhi/dream-work-reality)  
+**Branch:** `docs/fresh-start-principles` (also synced to `ganga-2026-05-16-2`)  
 **Date:** June 2026  
 **Audience:** Sreeni, Ganga, Srikanth — anyone implementing the TrustNest / DreamWork rewrite  
 
@@ -16,92 +17,122 @@
 
 ## Executive summary
 
-TrustNest helps households **fill forms** (school, medical, government, in-app) from a **trusted local vault** — not from retyping the same fields every year.
+TrustNest helps households **submit forms** (school, medical, government, in-app) — **auto-fill typed fields** and **attach proof documents** — without retyping or re-scanning every year.
 
 | Principle | Decision |
 |-----------|----------|
-| **North star** | Confirmed form automation from a household SQLite vault |
-| **Data model** | **Data-centric, not document-centric** — canonical fields are source of truth; documents are evidence only |
-| **3 layers** | **A** classify → **C** document→field mapping (**MOST IMPORTANT**) → **B** canonical profile fields |
-| **Storage** | **OCR raw data only** in `extraction_run`; **no** stored images/PDFs |
-| **Accuracy first** | OCR is mostly fine; **field mapping** was the failure — fix mapping before more ML |
-| **Pipeline** | CAPTURE (ephemeral) → OCR → EXTRACT → REVIEW → canonical SQLite fields |
+| **North star** | Confirmed form submission: field auto-fill + document attach from local vault |
+| **Dual path** | **Fields** → Layer C extract → Layer B vault · **Uploads** → submission stash auto-save on scan |
+| **Data model** | **Data-centric** for typed fields; **scoped file stash** for vendor uploads — not a general document library |
+| **3 layers** | **A** classify → stash? + form-relevant? → **C** mapping (**MOST IMPORTANT**) → **B** canonical fields |
+| **Form-relevance** | Extract only unique form-fill fields; W-2/1099/pay stub → **no extract**; birth cert → **stash only** |
+| **Auto-save** | Stash-listed types save on scan: `{Type} — {Person} — {date}` |
+| **Storage** | `extraction_run` OCR JSON always; encrypted image/PDF **only** for stash types |
+| **Pipeline** | CAPTURE → OCR → CLASSIFY → **STASH?** → **EXTRACT?** → REVIEW → submit (fill + attach) |
 | **Extraction order** | MRZ/barcode → type extractor → label-anchored → **stop** (empty beats wrong) |
-| **Lineage** | Every canonical value traceable to `extraction_run_id`, manual edit, form write-back, or proximity share |
-| **Share** | Proximity only — scoped **canonical field groups**, TTL, zero cloud egress |
-| **Rollout** | **Single phase** — all layers and ship gates pass together before release |
+| **Lineage** | Every field traceable to `extraction_run_id`, manual edit, form write-back, or proximity share |
+| **Share** | Proximity only — canonical field groups, TTL, zero cloud egress |
+| **Rollout** | **Single phase** — fields, stash, attach, lineage, expiry, share together |
+
+---
+
+## Two jobs on vendor forms
+
+| Job | School / doctor / DMV example | TrustNest |
+|-----|------------------------------|-----------|
+| **Fill fields** | Name, DOB, insurance member ID, address | Scan → extract → auto-fill |
+| **Upload proof** | Immunization PDF, birth certificate, utility bill, insurance card photo | Scan → **auto-save** → attach at submit |
+
+Vendors often require **both** on one submission. TrustNest covers each with a separate path.
 
 ---
 
 ## Three-layer model
 
 ```text
-Layer B — Canonical schema (SOURCE OF TRUTH)
-          first_name, ssn, driver_license_number, …
+Layer B — Canonical schema (SOURCE OF TRUTH for typed fields)
+          first_name, ssn, driver_license_number, current_address, …
                               ▲
                               │ user-confirmed mapping
 Layer C — Document → Field Mapping (MOST IMPORTANT)
           passport → passport_number, passport_expiry, …
-          w2 → ssn, employer_name, income
+          insuranceCard → insurance_provider, policy_number, …
           + extraction_run OCR JSON + lineage
                               ▲
-                              │ classify + OCR
+                              │ form_relevant gate + OCR
 Layer A — Document types (CLASSIFICATION ONLY)
-          passport, w2, utilityBill, …
+          passport, utility_bill, birthCertificate, …
 ```
 
-**Fix:** Do not organize the vault as “Identity Documents → Passport, DL, SSN card.” Real systems store **universal fields**; documents only **update** them.
+**Rule:** Profile navigation uses **canonical fields** (Layer B), not document-type folders.
 
 ---
 
-## Layer A — Document types (classification)
+## Form-relevant extract allowlist (Layer C)
 
-| Category | Types |
-|----------|-------|
-| Identity | Passport, driver’s license / state ID, birth certificate, SSN card |
-| Financial / tax | W-2, 1099, tax returns, bank statements, pay stubs |
-| Address proof | Utility bills, lease agreements, bank statements |
-| Education | Transcripts, degree certificates, immunization records, student ID |
-| Healthcare | Insurance card, vaccination records, medication list, medical records |
-| Immigration / travel | Visa documents, work authorization (EAD), immigration forms (I-94) |
-| Family / emergency | Marriage certificate, children’s birth certificates, emergency contacts |
+Extract **only** when a document supplies canonical fields that form matchers use and that are not already covered by passport/DL/state ID.
 
-**Note:** `ssn` is a **field** in Layer B, not a document. SSN card, W-2, and 1099 are evidence sources.
+| `document_type` | Key fields extracted |
+|-----------------|---------------------|
+| `passport` | name, DOB, `passport_number`, `passport_expiry`, nationality |
+| `driversLicense` | name, DOB, DL#, state, expiry, `current_address` |
+| `stateId` | name, DOB, state ID#, expiry |
+| `ssnCard` | name, `ssn` |
+| `insuranceCard` | name, DOB, provider, policy#, group ID |
+| `utility_bill`, `lease` | `current_address` |
+| `bankStatement` | address, routing/account (direct deposit) |
+| `immunizationRecord` | `vaccination_status[]` |
+
+**Classify-only (no field extract):** `birthCertificate`, `marriageCertificate`, `taxReturn`, `w2`, `form1099`, `payStub`, `transcript`, `degree`, `studentId`, medical records, `unknown`, receipts.
+
+**Birth certificate:** stash file for school upload; identity fields come from passport/state ID/DL.
+
+Full mapping tables: [Layer C § Document → Field Mapping](fresh-start-lessons-and-principles.md#layer-c--document--field-mapping-most-important).
 
 ---
 
-## Layer B — Canonical schema (core)
+## Submission document stash (auto-save on scan)
 
-| Group | Key fields |
-|-------|------------|
-| **Personal identity** | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality` |
-| **Government IDs** | `ssn`, `passport_number`, `driver_license_number`, `visa_number`, `work_authorization_number` + expiry keys |
-| **Contact & address** | `current_address`, `mailing_address`, `phone_number`, `email` |
-| **Financial** | `bank_account_number`, `routing_number`, `employer_name`, `income`, `pay_frequency` |
-| **Education** | `highest_degree`, `institution_name`, `graduation_year`, `vaccination_status[]` |
-| **Healthcare** | `insurance_provider`, `policy_number`, `blood_type` |
-| **Family / emergency** | `emergency_contacts[]`, `dependents[]`, `marital_status` |
+When user scans a **stash-listed** type, the app **automatically** saves the encrypted file locally for form upload.
 
-**Legacy rename:** `insurance_carrier` → `insurance_provider`, `insurance_member_id` → `policy_number`, `drivers_license_*` → `driver_license_*`.
+| `document_type` | Auto-stash | Field extract | Typical vendor use |
+|-----------------|:----------:|:-------------:|-------------------|
+| `immunizationRecord` | ✅ | ✅ | School health form upload |
+| `birthCertificate` | ✅ | ❌ | School age verification |
+| `utility_bill`, `lease` | ✅ | ✅ | Proof of residence |
+| `insuranceCard` | ✅ | ✅ | Medical/school card photo |
+| `driversLicense`, `stateId`, `passport` | ✅ | ✅ | ID verification upload |
+| `bankStatement` | ✅ | partial | Benefits / loan proof |
+| W-2, 1099, pay stub, receipts, unknown | ❌ | ❌ | — |
 
-### Layer C — Passport example (document → fields)
+**Display name:** `Immunization Record — Emma Chen — 2026-06-01`  
+**Rescan:** new file supersedes current for same person + type; history retained.  
+**Setting:** “Automatically save documents for form upload” — on by default.
 
-| Canonical field | OCR anchor |
-|-----------------|------------|
-| `first_name` | MRZ TD3 given names |
-| `last_name` | MRZ TD3 surname |
-| `date_of_birth` | MRZ TD3 DOB |
-| `nationality` | MRZ country code |
-| `passport_number` | MRZ document number |
-| `passport_expiry` | MRZ expiry |
+**Form attach:** Matcher detects file upload slot → proposes stored doc for person + type → user confirms.
 
-**Does not map:** `ssn`, `driver_license_number`, `insurance_provider`.
+Full spec: [Submission document stash](fresh-start-lessons-and-principles.md#submission-document-stash-upload-at-form-submit).
 
-**Layer C JSON (passport):**
+---
+
+## Layer C JSON contracts
+
+**Classification (Layer A):**
+
+```json
+{
+  "document_type": "immunizationRecord",
+  "confidence": 0.94,
+  "form_relevant": true
+}
+```
+
+**Extraction (Layer C):**
 
 ```json
 {
   "document_type": "passport",
+  "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
     "date_of_birth": "1990-01-01",
@@ -112,36 +143,17 @@ Layer A — Document types (CLASSIFICATION ONLY)
 }
 ```
 
-`expiry_date` → canonical `passport_expiry` on save.
-
-**Layer C JSON (utility bill):**
+**Stash-only (birth certificate):**
 
 ```json
 {
-  "document_type": "utility_bill",
-  "extracted_fields": {
-    "full_name": "John Doe",
-    "service_address": "123 Main St",
-    "billing_date": "2026-01-01",
-    "provider": "Xcel Energy"
-  }
+  "document_type": "birthCertificate",
+  "confidence": 0.91,
+  "form_relevant": false,
+  "extracted_fields": null,
+  "submission_doc_id": "uuid-of-saved-file"
 }
 ```
-
-`service_address` → `current_address`; `billing_date` / `provider` stay on `extraction_run` (metadata).
-
-**Layer A JSON (bank statement — classification only):**
-
-```json
-{
-  "document_type": "financial.bank_statement",
-  "confidence": 0.94
-}
-```
-
-No `extracted_fields` until Layer C extractor runs.
-
-All document mapping tables: [Layer C § Document → Field Mapping](fresh-start-lessons-and-principles.md#layer-c--document--field-mapping-most-important).
 
 ---
 
@@ -149,8 +161,24 @@ All document mapping tables: [Layer C § Document → Field Mapping](fresh-start
 
 | Persisted | Not persisted |
 |-----------|---------------|
-| Layer B: `field_value_current` + `field_value_history` | Document images / PDFs |
-| Layer C: `extraction_run` OCR JSON + lineage | Document library / thumbnails |
+| Layer B: `field_value_current` + `field_value_history` | Random scan archive |
+| Layer C: `extraction_run` OCR JSON + lineage | Cloud document sync |
+| `stored_submission_document` + encrypted local files (stash whitelist) | Receipts, unknown uploads |
+
+---
+
+## Pipeline
+
+```text
+1. CAPTURE        → image/PDF in memory
+2. OCR            → Vision → extraction_run JSON
+3. CLASSIFY       → Layer A document_type
+4. SUBMISSION STASH? → whitelist → auto-save file + display name
+5. FORM-RELEVANT? → extract allowlist → Layer C mapping
+6. REVIEW+SAVE    → user confirms fields → Layer B + lineage
+
+Form submit → auto-fill fields + propose stash attachments → user confirms
+```
 
 ---
 
@@ -165,29 +193,27 @@ All document mapping tables: [Layer C § Document → Field Mapping](fresh-start
 | SSN card | name, `ssn` |
 | Insurance card | name, DOB, `insurance_provider`, `policy_number`, `insurance_group_id` |
 
+### Submission stash + attach
+
+- [ ] Immunization scan auto-saves with display name  
+- [ ] Birth certificate scan auto-saves; no field extract  
+- [ ] School form upload slot proposes matching stash file  
+- [ ] Rescan supersedes prior file for same person + type  
+
 ### Product gates
 
 - [ ] **Canonical schema** — profile, form fill, share use Layer B keys only  
-- [ ] **Lineage** — every field shows evidence `document_type` + `extraction_run_id`  
-- [ ] **Expiry** — government identifier groups guarded at form fill  
-- [ ] **Proximity share** — canonical field groups, TTL, NFC+BLE, zero egress  
-- [ ] **OCR-only** — no image bytes after `extraction_run` save  
+- [ ] **Form-relevance gate** — no field extract off allowlist  
+- [ ] **Submission stash** — whitelist only; encrypted at rest; zero egress  
+- [ ] **Lineage** — every field shows `extraction_run_id`  
+- [ ] **Expiry** — government ID groups guarded at form fill  
+- [ ] **Proximity share** — field groups only; TTL; NFC+BLE  
+
+**Do not port:** document-centric vault UI, orchestrator agents, default LLM/ONNX paths, `UniversalDocumentParser` on general scan.
 
 ---
 
-## Architecture
-
-```text
-Scan → Vision OCR → Classify (Layer A) → Extract → Review → Save canonical fields (Layer B)
-                                                                    ↓
-                                              Form matcher reads Layer B + lineage (Layer C)
-```
-
-**Do not port:** document-centric vault UI, orchestrator agents, default LLM/ONNX paths, stored document files.
-
----
-
-## Branches
+## Implementation branches
 
 | Branch | Owner |
 |--------|-------|
@@ -195,17 +221,22 @@ Scan → Vision OCR → Classify (Layer A) → Extract → Review → Save canon
 | `TrustNest_Rewrite_Gnaga` | Ganga |
 | `TrustNest_Rewrite_Srikanth` | Srikanth |
 
+Doc branches: `docs/fresh-start-principles`, `ganga-2026-05-16-2`.
+
 ---
 
 ## Version history
 
 | Version | Change |
 |---------|--------|
-| 2.0 FINAL | Initial blueprint + segregation taxonomy |
-| **2.1** | Data-centric 3-layer model |
-| **2.2** | **Layer C document → field mapping** (MOST IMPORTANT) — per-type tables |
-| **2.3** | Layer C JSON contracts — passport, utility bill, bank statement classification |
+| 2.0 FINAL | Initial blueprint + household document taxonomy |
+| 2.1 | Data-centric 3-layer model |
+| 2.2 | Layer C document → field mapping (MOST IMPORTANT) |
+| 2.3 | Layer C JSON output contracts |
+| 2.4 | Form-relevant allowlist — no extract on irrelevant scans |
+| 2.5 | Tightened extract list (birth cert classify-only; W-2/1099 deferred) |
+| **2.6 FINAL** | **Dual path:** field auto-fill + submission document stash (auto-save, attach at submit) |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.3 — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.6 FINAL — June 2026.*
