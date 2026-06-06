@@ -216,9 +216,9 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 └───────────────────────────────▲─────────────────────────────────────────┘
                                 │ extract + user confirm
 ┌───────────────────────────────┴─────────────────────────────────────────┐
-│ Layer C — Evidence (audit only)                                           │
-│   extraction_run: OCR JSON + document_type + scanned_at                   │
-│   Lineage: which evidence run last updated each canonical field           │
+│ Layer C — Document → Field Mapping (MOST IMPORTANT)                       │
+│   Per document_type: OCR anchors → canonical Layer B fields                 │
+│   + extraction_run (OCR JSON) + lineage for audit                         │
 └───────────────────────────────▲─────────────────────────────────────────┘
                                 │ classify + OCR
 ┌───────────────────────────────┴─────────────────────────────────────────┐
@@ -234,6 +234,250 @@ Users must be able to **share a specific slice** of their vault — e.g., only *
 - **One scan → one `document_type`** — user confirms Layer A type if classifier confidence is low; never run DL parsers on utility bills.
 - **SSN is a field, not a document** — `ssn` is a government identifier; SSN card, W-2, and 1099 are **evidence sources** that may populate it.
 - **Sensitive fields** — SSN, bank account, routing never in default share presets; opt in per field group.
+- **Layer C is where accuracy is won or lost** — classifiers and canonical schema are necessary, but **wrong field mapping** is the failure mode users see. Every extractor is a explicit **document → field** contract; ship no mapping without a photo E2E test.
+
+---
+
+#### Layer C — Document → Field Mapping (MOST IMPORTANT)
+
+Layer C answers: **“Given this `document_type` and this OCR, which canonical fields do we set — and from which anchors?”**
+
+This is **not** optional metadata. It is the **core engineering artifact**: one registered mapping per `document_type`, implemented by an extractor, validated by photo E2E, persisted with lineage (`extraction_run_id` + `document_type`).
+
+**Mapping record shape (per field proposal):**
+
+```text
+document_type, canonical_key, value,
+  anchor:        MRZ | Barcode | Layout label | Line number | Manual
+  ocr_span:      substring proof in extraction_run (grounding)
+  confidence:    VERIFIED | HIGH | MEDIUM | EMPTY (never fake HIGH on regex)
+```
+
+**Rules:**
+
+- **Explicit map only** — if a field is not in the document’s mapping table, the extractor returns `EMPTY` for that key.
+- **No cross-document bleed** — utility bill mapping must not include `driver_license_number`.
+- **Multi-source fields** — `ssn` may be set by `ssnCard`, `w2`, or `form1099`; each uses its own Layer C table; Layer B holds one current `ssn` with lineage to the winning evidence run.
+- **User confirm** — Layer C proposals become Layer B values only after review (or form write-back / proximity import).
+
+---
+
+##### Example: Passport (`passport`)
+
+| Canonical field (Layer B) | OCR anchor (Layer C) | Source | Notes |
+|---------------------------|----------------------|--------|-------|
+| `first_name` | MRZ TD3 given names | `VERIFIED` | Parse MRZ line 2; fallback biodata label `Given names` |
+| `last_name` | MRZ TD3 surname | `VERIFIED` | MRZ primary; fallback `Surname` |
+| `full_name` | Derived | `HIGH` | `first_name` + `last_name` — not guessed from free text |
+| `date_of_birth` | MRZ TD3 DOB (`YYMMDD`) | `VERIFIED` | Normalize to ISO date |
+| `nationality` | MRZ TD3 country code | `VERIFIED` | Map ISO → display nationality |
+| `gender` | MRZ TD3 sex field | `VERIFIED` | Optional; `M`/`F`/`X` |
+| `passport_number` | MRZ TD3 document number | `VERIFIED` | Must match visual zone if present |
+| `passport_expiry` | MRZ TD3 expiry (`YYMMDD`) | `VERIFIED` | Drives [expiry guardrails](#dataset-expiry-reminders--form-fill-guardrails) |
+
+**Does not map:** `ssn`, `driver_license_number`, `current_address`, `insurance_provider` — leave `EMPTY`.
+
+**Extractor:** `PassportExtractor` · **Registry:** `passport` → `PassportExtractor`
+
+---
+
+##### Example: Driver’s license / Texas DL (`driversLicense`)
+
+| Canonical field (Layer B) | OCR anchor (Layer C) | Source | Notes |
+|---------------------------|----------------------|--------|-------|
+| `first_name` | AAMVA `DAC` / field `1.` | `VERIFIED` if barcode, else `HIGH` if layout | Never from issuer name line |
+| `last_name` | AAMVA `DCS` / field `1.` | `VERIFIED` / `HIGH` | Same |
+| `date_of_birth` | AAMVA `DBB` / field `3. DOB` | `VERIFIED` / `HIGH` | |
+| `driver_license_number` | AAMVA `DAQ` / `4d. DL` | `VERIFIED` / `HIGH` | |
+| `driver_license_state` | Issuing state label | `HIGH` | e.g., `TX` |
+| `driver_license_expiry` | AAMVA `DBA` / `4b. EXP` | `VERIFIED` / `HIGH` | Required for expiry reminders |
+| `current_address` | Field `8.` address block | `HIGH` | Multi-line layout anchor |
+
+**Does not map:** `passport_number`, `ssn`, `insurance_provider`.
+
+**Extractor:** `TexasDriverLicenseExtractor`
+
+---
+
+##### Example: State ID (`stateId`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `first_name`, `last_name`, `date_of_birth` | `STATE ID`, `DOB:`, name lines | Layout anchors |
+| `state_id_number` | `ID:` / `ID NO` | |
+| `state_id_expiry` | `EXP` / `EXPIRES` | |
+
+**Does not map:** `driver_license_number` unless dual-purpose card — classify as `driversLicense` if DL fields present.
+
+---
+
+##### Example: SSN card (`ssnCard`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `ssn` | `###-##-####` pattern + grounding | `HIGH` — must appear in OCR span |
+| `first_name` | Name line **above** street address | Layout: not first two words of header |
+| `last_name` | Same name block | |
+
+**Does not map:** `driver_license_number`, `passport_number`.
+
+---
+
+##### Example: W-2 (`w2`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `ssn` | Box `a` Employee SSN | Labeled box only |
+| `employer_name` | Box `c` Employer name | |
+| `income` | Box `1` Wages | Numeric box only |
+| `current_address` | Employee address block | Optional |
+
+**Does not map:** `driver_license_number`, `passport_number`.
+
+---
+
+##### Example: 1099 (`form1099`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `ssn` | Recipient TIN box | Labeled box |
+| `income` | Box amount fields | Form-specific |
+| `employer_name` | Payer name | |
+
+---
+
+##### Example: Insurance card (`insuranceCard`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `first_name` | `SUBSCRIBER` / member name | |
+| `last_name` | Member name split | |
+| `date_of_birth` | `DOB` label | |
+| `insurance_provider` | Carrier / plan header | Migrate from `insurance_carrier` |
+| `policy_number` | `MEMBER ID` / `ID#` | Migrate from `insurance_member_id` |
+| `insurance_group_id` | `GROUP` / `GRP` | |
+
+**Does not map:** `ssn` unless labeled on card (rare) — do not regex-guess.
+
+---
+
+##### Example: Utility bill (`utilityBill`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `current_address` | Service address block | **Only** field this document may set |
+| `first_name` | Account holder | Optional `HIGH` if labeled |
+
+**Does not map:** any government identifier — **hard block** in extractor.
+
+---
+
+##### Example: Lease agreement (`lease`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `current_address` | Premises / property address | |
+| `first_name` / `last_name` | Lessee name | Labeled party block |
+
+---
+
+##### Example: Bank statement (`bankStatement`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `mailing_address` | Statement mailing block | |
+| `current_address` | Service address if distinct | |
+| `bank_account_number` | Account number (last-4 display) | Labeled only |
+| `routing_number` | Routing / ABA | Labeled only |
+
+---
+
+##### Example: Pay stub (`payStub`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `employer_name` | Employer header | |
+| `income` | Gross pay / net pay line | |
+| `pay_frequency` | Pay period label | |
+
+---
+
+##### Example: Birth certificate (`birthCertificate`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `first_name` | Child given name field | |
+| `last_name` | Child surname field | |
+| `date_of_birth` | Date of birth field | |
+| `full_name` | Derived | |
+
+Used for **child person records**; may link `dependents[]` on parent.
+
+---
+
+##### Example: Visa document (`visa`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `visa_number` | Visa control number | |
+| `visa_expiry` | Expiration date | |
+| `nationality` | Nationality field | If present |
+| `first_name`, `last_name` | Holder name | |
+
+---
+
+##### Example: Work authorization / EAD (`workAuthorization`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `work_authorization_number` | USCIS # / Card # | |
+| `work_authorization_expiry` | Valid thru | |
+| `first_name`, `last_name` | Name on card | |
+
+---
+
+##### Example: Immunization record (`immunizationRecord`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `vaccination_status[]` | Vaccine row table | Structured list: vaccine, date, site |
+| `first_name` | Patient name | Child or adult subject |
+
+---
+
+##### Example: Marriage certificate (`marriageCertificate`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `marital_status` | Set to `married` on confirm | Enum update |
+| Spouse names | Link / merge spouse `person_id` | Not duplicate `first_name` on wrong person |
+
+---
+
+##### Example: Emergency contact (`emergencyContact`)
+
+| Canonical field | OCR anchor | Notes |
+|-----------------|------------|-------|
+| `emergency_contacts[]` | Labeled name, relationship, phone | Manual entry OK; no free-text mining |
+
+---
+
+##### Layer C summary registry
+
+| `document_type` | Extractor | # canonical fields (typical) |
+|-----------------|-----------|------------------------------|
+| `passport` | `PassportExtractor` | 8 |
+| `driversLicense` | `TexasDriverLicenseExtractor` | 7 |
+| `stateId` | `StateIdExtractor` | 5 |
+| `ssnCard` | `SSNCardExtractor` | 3 |
+| `insuranceCard` | `InsuranceCardExtractor` | 6 |
+| `w2` | `TaxFormExtractor` | 3–4 |
+| `utilityBill` | `AddressProofExtractor` | 1–2 |
+| `birthCertificate` | `BirthCertificateExtractor` | 3 |
+| `visa` | `ImmigrationDocumentExtractor` | 4+ |
+| *unclassified* | `LabeledFormExtractor` | Label→key map only |
+
+Full extractor list: [extractor registry](#extractor-registry-initial).
 
 ---
 
@@ -336,25 +580,6 @@ Structured lists (separate tables or JSON blobs per person):
 
 ---
 
-#### Layer C — Evidence mapping (extractors → canonical fields)
-
-Extractors read OCR from Layer A and **propose updates** to Layer B. User confirms in review; lineage records `extraction_run_id` + `document_type`.
-
-| `document_type` | Extractor | Canonical fields updated (examples) |
-|-----------------|-----------|-------------------------------------|
-| `driversLicense` | `TexasDriverLicenseExtractor` | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_state`, `driver_license_expiry`, `current_address` |
-| `passport` | `PassportExtractor` | `first_name`, `last_name`, `date_of_birth`, `nationality`, `passport_number`, `passport_expiry` |
-| `ssnCard` | `SSNCardExtractor` | `ssn`, `first_name`, `last_name` |
-| `insuranceCard` | `InsuranceCardExtractor` | `insurance_provider`, `policy_number`, `insurance_group_id`, `first_name`, `date_of_birth` |
-| `w2` | `TaxFormExtractor` | `ssn`, `employer_name`, `income` |
-| `utilityBill` | `AddressProofExtractor` | `current_address` only — **no** government IDs |
-| `birthCertificate` | `BirthCertificateExtractor` | `first_name`, `last_name`, `date_of_birth` |
-| *unclassified* | `LabeledFormExtractor` | Label→canonical map only; **no** flat-text name/DOB/SSN guess |
-
-**Rule:** Never guess SSN or account numbers from unstructured text — **labeled box / anchor only** or leave empty.
-
----
-
 #### Single rollout (all layers together)
 
 All Layer A classifiers, Layer B schema groups, and Layer C extractors ship in **one rollout**.
@@ -377,7 +602,7 @@ We spent months iterating across **heuristics**, **optional HTTP LLM**, **Apple 
 
 > OCR text in review looks readable, but **basic profile fields are wrong, empty, or from the wrong document type.**
 
-Examples that must work before anything else (canonical fields populated from [Layer A evidence](#layer-c--evidence-mapping-extractors--canonical-fields)):
+Examples that must work before anything else (canonical fields populated via [Layer C document → field mapping](#layer-c--document--field-mapping-most-important)):
 
 | Field | Document examples |
 |-------|-------------------|
@@ -865,7 +1090,7 @@ flowchart TB
 
 ### Extractor registry (initial)
 
-**Layer A → Layer C:** each `ScannedDocumentType` registers one extractor that writes into [Layer B canonical keys](#layer-c--evidence-mapping-extractors--canonical-fields). Classifier picks type; extractor never defines vault structure.
+**Layer C contracts:** each `ScannedDocumentType` registers one extractor implementing the [document → field mapping](#layer-c--document--field-mapping-most-important) for that type. Classifier picks type; mapping table defines which Layer B keys may be set.
 
 | `ScannedDocumentType` | Layer A category | Extractor | Primary anchors |
 |----------------------|------------------|-----------|-----------------|
@@ -1058,4 +1283,4 @@ When the acceptance matrix and all ship gates are green on photos, we release **
 
 ---
 
-*Document version: 2.1 — branch `docs/fresh-start-principles`, June 2026. Data-centric 3-layer model (classification → canonical schema → evidence).*
+*Document version: 2.2 — branch `docs/fresh-start-principles`, June 2026. Layer C document → field mapping tables (MOST IMPORTANT).*

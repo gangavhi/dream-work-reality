@@ -22,7 +22,7 @@ TrustNest helps households **fill forms** (school, medical, government, in-app) 
 |-----------|----------|
 | **North star** | Confirmed form automation from a household SQLite vault |
 | **Data model** | **Data-centric, not document-centric** — canonical fields are source of truth; documents are evidence only |
-| **3 layers** | **A** classify document type → **C** OCR evidence → **B** canonical profile fields |
+| **3 layers** | **A** classify → **C** document→field mapping (**MOST IMPORTANT**) → **B** canonical profile fields |
 | **Storage** | **OCR raw data only** in `extraction_run`; **no** stored images/PDFs |
 | **Accuracy first** | OCR is mostly fine; **field mapping** was the failure — fix mapping before more ML |
 | **Pipeline** | CAPTURE (ephemeral) → OCR → EXTRACT → REVIEW → canonical SQLite fields |
@@ -36,15 +36,18 @@ TrustNest helps households **fill forms** (school, medical, government, in-app) 
 ## Three-layer model
 
 ```text
-Layer B — Canonical identity schema (SOURCE OF TRUTH)
-          first_name, ssn, driver_license_number, current_address, …
+Layer B — Canonical schema (SOURCE OF TRUTH)
+          first_name, ssn, driver_license_number, …
                               ▲
-                              │ user-confirmed extract
-Layer C — Evidence            │ extraction_run (OCR JSON) + document_type + lineage
+                              │ user-confirmed mapping
+Layer C — Document → Field Mapping (MOST IMPORTANT)
+          passport → passport_number, passport_expiry, …
+          w2 → ssn, employer_name, income
+          + extraction_run OCR JSON + lineage
                               ▲
                               │ classify + OCR
 Layer A — Document types (CLASSIFICATION ONLY)
-          passport, w2, utilityBill, … → pick extractor only
+          passport, w2, utilityBill, …
 ```
 
 **Fix:** Do not organize the vault as “Identity Documents → Passport, DL, SSN card.” Real systems store **universal fields**; documents only **update** them.
@@ -81,7 +84,20 @@ Layer A — Document types (CLASSIFICATION ONLY)
 
 **Legacy rename:** `insurance_carrier` → `insurance_provider`, `insurance_member_id` → `policy_number`, `drivers_license_*` → `driver_license_*`.
 
-Full tables and evidence mapping: [fresh-start-lessons-and-principles.md § Three-layer model](fresh-start-lessons-and-principles.md#three-layer-data-model-not-document-centric).
+### Layer C — Passport example (document → fields)
+
+| Canonical field | OCR anchor |
+|-----------------|------------|
+| `first_name` | MRZ TD3 given names |
+| `last_name` | MRZ TD3 surname |
+| `date_of_birth` | MRZ TD3 DOB |
+| `nationality` | MRZ country code |
+| `passport_number` | MRZ document number |
+| `passport_expiry` | MRZ expiry |
+
+**Does not map:** `ssn`, `driver_license_number`, `insurance_provider`.
+
+All document mapping tables: [Layer C § Document → Field Mapping](fresh-start-lessons-and-principles.md#layer-c--document--field-mapping-most-important).
 
 ---
 
@@ -142,8 +158,9 @@ Scan → Vision OCR → Classify (Layer A) → Extract → Review → Save canon
 | Version | Change |
 |---------|--------|
 | 2.0 FINAL | Initial blueprint + segregation taxonomy |
-| **2.1** | **Data-centric 3-layer model** — canonical schema as source of truth |
+| **2.1** | Data-centric 3-layer model |
+| **2.2** | **Layer C document → field mapping** (MOST IMPORTANT) — per-type tables |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.1 — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.2 — June 2026.*
