@@ -115,6 +115,25 @@ Full spec: [Submission document stash](fresh-start-lessons-and-principles.md#sub
 
 ---
 
+## Auto form fill extraction matrix (mandated documents)
+
+| Document | Extract fields | Stash file | Key Layer B fields |
+|----------|:--------------:|:----------:|-------------------|
+| Passport | ✅ | ✅ | name, DOB, `passport_number`, `passport_expiry`, nationality |
+| Driver’s license | ✅ | ✅ | name, DOB, DL#, state, expiry, `current_address` |
+| State ID | ✅ | ✅ | name, DOB, state ID#, expiry |
+| SSN card | ✅ | ❌ | name, `ssn` |
+| Insurance card | ✅ | ✅ | name, DOB, provider, policy#, group ID |
+| Utility bill / lease | ✅ | ✅ | `current_address`, name (optional) |
+| Bank statement | ✅ | ✅ | address, `routing_number`, `bank_account_number` |
+| Immunization record | ✅ | ✅ | `vaccination_status[]`, patient name |
+| Visa / EAD / I-94 | ✅ | ❌ | auth/visa #, expiry, name |
+| Birth certificate | ❌ | ✅ | — (upload only) |
+
+Full table: [Auto form fill extraction matrix](fresh-start-lessons-and-principles.md#auto-form-fill-extraction-matrix-mandated-documents).
+
+---
+
 ## Document file storage (SQLite metadata + encrypted files)
 
 Submission documents use a **split store** — SQLite is **not** used for image/PDF bytes.
@@ -265,8 +284,9 @@ Doc branches: `docs/fresh-start-principles`, `ganga-2026-05-16-2`.
 | 2.4 | Form-relevant allowlist — no extract on irrelevant scans |
 | 2.5 | Tightened extract list (birth cert classify-only; W-2/1099 deferred) |
 | 2.6 FINAL | Dual path: field auto-fill + submission document stash |
-| **2.7** | **Document file storage:** SQLite metadata only + encrypted filesystem for bytes |
+| 2.7 | Document file storage: SQLite metadata + encrypted filesystem |
+| **2.8** | **Auto form fill extraction matrix** by mandated document |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.7 — June 2026.*
+*TrustNest Rewrite Final Blueprint v2.8 — June 2026.*
