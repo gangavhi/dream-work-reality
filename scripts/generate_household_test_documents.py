@@ -6,18 +6,22 @@ All people, IDs, and addresses are fictional. Output: PNG + PDF per document.
 from __future__ import annotations
 
 import json
-import textwrap
+import sys
 from dataclasses import dataclass
-from datetime import date
 from pathlib import Path
 from typing import Callable
 
-from PIL import Image, ImageDraw, ImageFont
-
 ROOT = Path(__file__).resolve().parents[1]
 OUT_DIR = ROOT / "demo" / "sample-documents" / "household-fixtures"
+SCRIPTS_DIR = Path(__file__).resolve().parent
+if str(SCRIPTS_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS_DIR))
 
-WATERMARK = "SAMPLE — FICTIONAL — FOR TESTING ONLY"
+from household_document_renderers import (  # noqa: E402
+    RENDERERS,
+    render_marriage_certificate,
+    save_document,
+)
 
 
 @dataclass(frozen=True)
@@ -207,74 +211,11 @@ HOUSEHOLDS: list[Household] = [
     ),
 ]
 
-DOC_COLORS = {
-    "birth_certificate": ("#1a365d", "#ebf8ff"),
-    "ssn_card": ("#22543d", "#f0fff4"),
-    "drivers_license": ("#744210", "#fffaf0"),
-    "passport": ("#2c5282", "#ebf8ff"),
-    "state_id": ("#553c9a", "#faf5ff"),
-    "vehicle_registration": ("#9c4221", "#fff5f5"),
-    "property_tax": ("#285e61", "#e6fffa"),
-    "marriage_certificate": ("#702459", "#fff5f7"),
-    "utility_bill": ("#2b6cb0", "#ebf8ff"),
-    "insurance_card": ("#2f855a", "#f0fff4"),
-    "bank_statement": ("#4a5568", "#f7fafc"),
-    "w2_tax": ("#c05621", "#fffaf0"),
-    "pay_stub": ("#6b46c1", "#faf5ff"),
-}
-
-
-def load_font(size: int, bold: bool = False) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    candidates = [
-        "/System/Library/Fonts/Supplemental/Arial Bold.ttf" if bold else "/System/Library/Fonts/Supplemental/Arial.ttf",
-        "/System/Library/Fonts/Helvetica.ttc",
-        "/Library/Fonts/Arial.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-    ]
-    for path in candidates:
-        if Path(path).exists():
-            try:
-                return ImageFont.truetype(path, size)
-            except OSError:
-                continue
-    return ImageFont.load_default()
-
-
 def person_by_slug(household: Household, slug: str) -> Person:
     for member in household.members:
         if member.slug == slug:
             return member
     raise KeyError(slug)
-
-
-def render_document(title: str, doc_type: str, lines: list[str], out_png: Path) -> None:
-    header_color, bg_color = DOC_COLORS.get(doc_type, ("#2d3748", "#ffffff"))
-    width, height = 1400, max(900, 120 + len(lines) * 42)
-    img = Image.new("RGB", (width, height), bg_color)
-    draw = ImageDraw.Draw(img)
-
-    title_font = load_font(34, bold=True)
-    body_font = load_font(28)
-    small_font = load_font(20)
-
-    draw.rectangle((0, 0, width, 88), fill=header_color)
-    draw.text((36, 24), title, fill="white", font=title_font)
-
-    y = 110
-    for line in lines:
-        draw.text((48, y), line, fill="#1a202c", font=body_font)
-        y += 42
-
-    wm = small_font
-    bbox = draw.textbbox((0, 0), WATERMARK, font=wm)
-    wm_w = bbox[2] - bbox[0]
-    draw.text((width - wm_w - 24, height - 36), WATERMARK, fill="#a0aec0", font=wm)
-
-    draw.rectangle((16, 16, width - 16, height - 16), outline="#cbd5e0", width=3)
-
-    out_png.parent.mkdir(parents=True, exist_ok=True)
-    img.save(out_png, "PNG", optimize=True)
-    img.convert("RGB").save(out_png.with_suffix(".pdf"), "PDF", resolution=150.0)
 
 
 def birth_certificate(h: Household, p: Person) -> list[str]:
@@ -546,9 +487,9 @@ def write_index(manifest: list[dict]) -> None:
 </head>
 <body>
   <h1>Household Test Documents</h1>
-  <p class="note">10 fictional households with synthetic birth certificates, SSN cards, driver licenses,
-  passports, vehicle registrations, property tax statements, marriage certificates, and more.
-  All data is fake — safe for OCR and profile-routing tests.</p>
+  <p class="note">10 fictional households with realistic-looking synthetic documents: birth certificates,
+  SSN cards, driver licenses, passports, vehicle registrations, property tax statements, marriage certificates,
+  and more. Card documents are rendered on a desk background to mimic phone-camera scans. All data is fake.</p>
   <p class="zip"><strong>Download all:</strong> <a href="household-fixtures.zip">household-fixtures.zip</a></p>
   <table>
     <thead><tr><th>Household</th><th>Person</th><th>Document</th><th>PNG</th><th>PDF</th></tr></thead>
@@ -588,39 +529,35 @@ def main() -> None:
         }
 
         primary = household.members[0]
-        for doc_type, title, builder in HOUSEHOLD_DOC_PLAN["primary_adult"]:
-            lines = builder(household, primary)
+        for doc_type, title, _builder in HOUSEHOLD_DOC_PLAN["primary_adult"]:
             filename = f"{primary.slug}-{doc_type.replace('_', '-')}"
             out_png = folder / f"{filename}.png"
-            render_document(title, doc_type, lines, out_png)
+            save_document(RENDERERS[doc_type](household, primary), out_png)
             entry["documents"].append({"person": primary.display_name, "title": title, "filename": filename, "type": doc_type})
             total_files += 2
 
         if household.spouse_pair:
             a = person_by_slug(household, household.spouse_pair[0])
             b = person_by_slug(household, household.spouse_pair[1])
-            lines = marriage_certificate(household, a, b)
             filename = f"{household.slug}-marriage-certificate"
             out_png = folder / f"{filename}.png"
-            render_document("Marriage Certificate", "marriage_certificate", lines, out_png)
+            save_document(render_marriage_certificate(household, a, b), out_png)
             entry["documents"].append({"person": f"{a.display_name} & {b.display_name}", "title": "Marriage Certificate", "filename": filename, "type": "marriage_certificate"})
             total_files += 2
 
             spouse = household.members[1]
-            for doc_type, title, builder in HOUSEHOLD_DOC_PLAN["spouse"]:
-                lines = builder(household, spouse)
+            for doc_type, title, _builder in HOUSEHOLD_DOC_PLAN["spouse"]:
                 filename = f"{spouse.slug}-{doc_type.replace('_', '-')}"
                 out_png = folder / f"{filename}.png"
-                render_document(title, doc_type, lines, out_png)
+                save_document(RENDERERS[doc_type](household, spouse), out_png)
                 entry["documents"].append({"person": spouse.display_name, "title": title, "filename": filename, "type": doc_type})
                 total_files += 2
 
         for member in household.members[2:]:
-            for doc_type, title, builder in HOUSEHOLD_DOC_PLAN["child"]:
-                lines = builder(household, member)
+            for doc_type, title, _builder in HOUSEHOLD_DOC_PLAN["child"]:
                 filename = f"{member.slug}-{doc_type.replace('_', '-')}"
                 out_png = folder / f"{filename}.png"
-                render_document(title, doc_type, lines, out_png)
+                save_document(RENDERERS[doc_type](household, member), out_png)
                 entry["documents"].append({"person": member.display_name, "title": title, "filename": filename, "type": doc_type})
                 total_files += 2
 
