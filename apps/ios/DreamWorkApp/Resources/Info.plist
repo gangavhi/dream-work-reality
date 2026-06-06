@@ -7,7 +7,5 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
-	<key>NSLocalNetworkUsageDescription</key>
-	<string>Load test documents from your Mac while running in the Simulator or on the same Wi‑Fi network.</string>
 </dict>
 </plist>

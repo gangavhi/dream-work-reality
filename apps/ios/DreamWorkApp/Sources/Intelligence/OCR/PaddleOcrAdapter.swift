@@ -5,10 +5,7 @@ import Vision
 enum PaddleOcrAdapter {
     static let lowConfidenceThreshold: Float = 0.62
 
-    static var isAvailable: Bool {
-        if case .installed = ModelArtifactRegistry.loadState(for: .paddleOCR) { return true }
-        return false
-    }
+    static var isAvailable: Bool { false }
 
     static func recognizePageBlocksIfNeeded(
         from cgImage: CGImage,
