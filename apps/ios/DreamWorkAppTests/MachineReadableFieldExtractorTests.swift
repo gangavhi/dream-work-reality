@@ -27,7 +27,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
 
     func testIndianPassportMRZLinesProduceFields() {
         let mrzLines = [
-            "P<INDPATEL<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<<",
+            "P<INDPATEL<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
             "M1234567<0IND8503150M3001015<<<<<<<<<<<<<<04",
         ]
         let hints = EmbeddedPayloadHints.Result(barcodePayloads: [], mrzLines: mrzLines)
@@ -125,7 +125,7 @@ final class MachineReadableFieldExtractorTests: XCTestCase {
             }
         }
         blocks.append(VisionOcrAdapter.TextBlock(
-            text: "P<INDPATEL<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<<",
+            text: "P<INDPATEL<<AMIT<<<<<<<<<<<<<<<<<<<<<<<<<<<<<",
             confidence: 0.88,
             bounds: VisionOcrAdapter.NormRect(x: 0.05, y: 0.12, width: 0.9, height: 0.03)
         ))

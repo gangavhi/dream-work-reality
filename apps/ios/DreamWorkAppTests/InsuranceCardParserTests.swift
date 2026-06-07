@@ -25,7 +25,7 @@ final class InsuranceCardParserTests: XCTestCase {
         let suggestions = InsuranceCardParser.suggestions(from: Self.sampleUHCPortalOCR)
         let byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0.value) })
         XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Jordan")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Lee"
+        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Lee")
         XCTAssertEqual(byKey[ProfileFieldKey.dateOfBirth], "06/05/1995")
     }
 
@@ -38,7 +38,7 @@ final class InsuranceCardParserTests: XCTestCase {
 
     func testParsesNoisyUHCMemberIdByFrequency() {
         let noisy = """
-        Alex Lee's ID Cards as of 06/07/2026
+        Alex Rivera's ID Cards as of 06/07/2026
         DOB: 06/02/1990
         Medical
         Front Back
@@ -51,6 +51,6 @@ final class InsuranceCardParserTests: XCTestCase {
         let suggestions = InsuranceCardParser.suggestions(from: noisy)
         let byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0.value) })
         XCTAssertEqual(byKey[ProfileFieldKey.insuranceMemberId], "0000210008")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Lee")
+        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Rivera")
     }
 }

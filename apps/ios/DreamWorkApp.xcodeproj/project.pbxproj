@@ -56,7 +56,6 @@
 		397263BB58DF90526DCB8810 /* MiniLMOnnxFieldEmbedder.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA15DBC19BB6708156E68E02 /* MiniLMOnnxFieldEmbedder.swift */; };
 		399CCB433BF6363CC8AE6976 /* CanonicalIdentitySchema.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8BC22C83A686C0FC4827344 /* CanonicalIdentitySchema.swift */; };
 		3B09C40498C10ECAE97C1E40 /* InsuranceCardParserTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81EF7EF7370E82B0D48BC759 /* InsuranceCardParserTests.swift */; };
-		3B971324AD228B03FB354E20 /* texas-driver-license-reference.png in Resources */ = {isa = PBXBuildFile; fileRef = FBC455DD6C45E2E8FFF5C0EA /* texas-driver-license-reference.png */; };
 		3B9A56DC0A4C093C6524ED62 /* PeopleStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1517A683073C7D0CF48458 /* PeopleStore.swift */; };
 		3FBF1CCD9FA32F1995D36C39 /* NLDocumentClassifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 61F4E2645F938206F2FF497D /* NLDocumentClassifier.swift */; };
 		417C948EC8E172B504562BB6 /* SchemaMappingEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80985930CB6E64CA1B13BD5D /* SchemaMappingEngine.swift */; };
@@ -66,7 +65,6 @@
 		4833968159B79DA4B487E251 /* DocumentExtractionRouter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 129E24AE04CE7AA0AD183ECF /* DocumentExtractionRouter.swift */; };
 		483A52162371E34A22DEB615 /* IncrementalLearningStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2637F6070FDEBF94A19224F0 /* IncrementalLearningStore.swift */; };
 		4856EE74E3A1AB75AD2FC534 /* DocumentCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7772619BDF7C58B7AB9C5BC0 /* DocumentCameraView.swift */; };
-		48D455AF3BC0DEF21E81481B /* ssn-card-reference.png in Resources */ = {isa = PBXBuildFile; fileRef = 4B86DDFA3BF406BFBEF8EC7F /* ssn-card-reference.png */; };
 		49058A6C49E103A7C2318B88 /* AppleStoragePlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F6C22478F1A476522D923D8 /* AppleStoragePlanner.swift */; };
 		4A33F6063D6D74A7641F78C6 /* OcrGroundingValidator.swift in Sources */ = {isa = PBXBuildFile; fileRef = FB868A88365AD5D0723BF81D /* OcrGroundingValidator.swift */; };
 		4A9D6973F121A92C2A6A5A35 /* ConfidenceOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57A2B2FCA6A6D534FFD082B8 /* ConfidenceOrchestrator.swift */; };
@@ -246,7 +244,6 @@
 		46D38642416F6087BF7EB10E /* DocumentImportHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentImportHelper.swift; sourceTree = "<group>"; };
 		48D47E86763D4321E8C48D0B /* OnDeviceMemoryGuard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceMemoryGuard.swift; sourceTree = "<group>"; };
 		4ADD90D86BC1BDB410EB1E10 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		4B86DDFA3BF406BFBEF8EC7F /* ssn-card-reference.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ssn-card-reference.png"; sourceTree = "<group>"; };
 		4B9409040FC94A888663B859 /* SSNCardPipelineE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSNCardPipelineE2ETests.swift; sourceTree = "<group>"; };
 		4C3D71CAEE40FBA51BAE8A0F /* DreamWorkAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppApp.swift; sourceTree = "<group>"; };
 		4D18688358A83B5E07FCE969 /* OnDeviceMLPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceMLPolicy.swift; sourceTree = "<group>"; };
@@ -381,7 +378,6 @@
 		F9E2148D52CC1ACA4916D3C3 /* PassportSamplePipelineE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassportSamplePipelineE2ETests.swift; sourceTree = "<group>"; };
 		FA15DBC19BB6708156E68E02 /* MiniLMOnnxFieldEmbedder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MiniLMOnnxFieldEmbedder.swift; sourceTree = "<group>"; };
 		FB868A88365AD5D0723BF81D /* OcrGroundingValidator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OcrGroundingValidator.swift; sourceTree = "<group>"; };
-		FBC455DD6C45E2E8FFF5C0EA /* texas-driver-license-reference.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "texas-driver-license-reference.png"; sourceTree = "<group>"; };
 		FD961D72B2C59385FBFBE6F5 /* PassportParserTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PassportParserTests.swift; sourceTree = "<group>"; };
 		FDA54FC72DD6911BC2A29C5B /* DreamWorkAppUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DreamWorkAppUITests.swift; sourceTree = "<group>"; };
 		FEB29766C0A856103EA1FA5C /* sample-document.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "sample-document.png"; sourceTree = "<group>"; };
@@ -641,8 +637,6 @@
 			children = (
 				CBFC7CBFBCD7F7C4BA7A34FE /* manifest.json */,
 				FEB29766C0A856103EA1FA5C /* sample-document.png */,
-				4B86DDFA3BF406BFBEF8EC7F /* ssn-card-reference.png */,
-				FBC455DD6C45E2E8FFF5C0EA /* texas-driver-license-reference.png */,
 			);
 			path = Fixtures;
 			sourceTree = "<group>";
@@ -973,8 +967,6 @@
 			files = (
 				1A591798A764D4A0DA0B7AFA /* manifest.json in Resources */,
 				7F4C5F7664BBCC0524B629A5 /* sample-document.png in Resources */,
-				48D455AF3BC0DEF21E81481B /* ssn-card-reference.png in Resources */,
-				3B971324AD228B03FB354E20 /* texas-driver-license-reference.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

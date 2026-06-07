@@ -1,0 +1,327 @@
+{
+  "version": "1.1.0",
+  "privacy": "synthetic_only_in_repo",
+  "description": "Golden corpus for parser tests and standalone on-device model training. Real scans stay local; never commit PII.",
+  "mustHaveFeatureList": [
+    {
+      "category": "Passport / ID",
+      "documentTypes": ["passport", "stateId"],
+      "manualOnly": false
+    },
+    {
+      "category": "Driver License",
+      "documentTypes": ["driversLicense"],
+      "manualOnly": false
+    },
+    {
+      "category": "SSN Card",
+      "documentTypes": ["ssnCard"],
+      "manualOnly": false
+    },
+    {
+      "category": "Address Proof",
+      "documentTypes": ["utilityBill"],
+      "manualOnly": false
+    },
+    {
+      "category": "Insurance Card",
+      "documentTypes": ["insuranceCard"],
+      "manualOnly": false
+    },
+    {
+      "category": "W-2 / 1099 / Pay stub",
+      "documentTypes": ["w2", "form1099", "payStub"],
+      "manualOnly": false
+    },
+    {
+      "category": "Bank Statement",
+      "documentTypes": ["bankStatement"],
+      "manualOnly": false
+    },
+    {
+      "category": "Emergency Contact",
+      "documentTypes": [],
+      "manualOnly": true
+    },
+    {
+      "category": "Employment Information",
+      "documentTypes": [],
+      "manualOnly": true
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "texas_dl_clean",
+      "documentType": "driversLicense",
+      "mustHaveCategory": "Driver License",
+      "issuer": "US-TX",
+      "source": "synthetic",
+      "testBinding": "DriverLicenseParserTests.testTexasSampleLicenseMapsAllFields",
+      "expectedFields": {
+        "legal_first_name": "Jane",
+        "legal_last_name": "Smith",
+        "date_of_birth": "04/25/1990",
+        "drivers_license_number": "D12345678",
+        "address_line1": "2457 Meadowbrook Ave",
+        "city": "Austin",
+        "state": "TX",
+        "postal_code": "78701"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    },
+    {
+      "id": "us_passport_clean_mrz",
+      "documentType": "passport",
+      "mustHaveCategory": "Passport / ID",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "PassportParserTests.testParsesUSPassportFields",
+      "expectedFields": {
+        "legal_first_name": "Jane",
+        "legal_middle_name": "Michael",
+        "legal_last_name": "Smith",
+        "date_of_birth": "03/15/1985",
+        "passport_number": "P12345678",
+        "passport_expiry": "01/01/2030",
+        "passport_country": "United States of America",
+        "country": "US"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    },
+    {
+      "id": "state_id_clean",
+      "documentType": "stateId",
+      "mustHaveCategory": "Passport / ID",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.stateIdOCR",
+      "expectedFields": {
+        "legal_first_name": "Alex",
+        "legal_last_name": "Rivera",
+        "state_id_number": "S98765432",
+        "date_of_birth": "06/12/1992"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    },
+    {
+      "id": "us_passport_biodata_label_noise",
+      "documentType": "passport",
+      "mustHaveCategory": "Passport / ID",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "PassportParserTests.testRejectsUSPassportBiodataOnlyLabelNoise",
+      "expectedFields": {
+        "passport_number": "A18191851",
+        "passport_expiry": "07/20/2028",
+        "passport_country": "United States of America",
+        "country": "US"
+      },
+      "rejectedFields": {
+        "legal_first_name": ["Given"],
+        "legal_middle_name": ["Names"],
+        "city": ["Place Of Birth", "Piace Of Birth"],
+        "date_of_birth": ["03/24/2023"]
+      },
+      "failureModes": ["label_as_value", "missing_mrz", "issue_date_as_dob"],
+      "photoFixture": null
+    },
+    {
+      "id": "indian_passport_noisy_multipage",
+      "documentType": "passport",
+      "mustHaveCategory": "Passport / ID",
+      "issuer": "IN",
+      "source": "synthetic",
+      "testBinding": "IndianPassportParserTests.testParsesMultiPageNoisyIndianPassportFromUpload",
+      "expectedFields": {
+        "legal_first_name": "Amitkumar",
+        "legal_last_name": "Patel",
+        "passport_number": "N4940123",
+        "date_of_birth": "02/06/1990",
+        "postal_code": "411028"
+      },
+      "failureModes": ["multi_page_noise", "address_blob", "mrz_garbled"],
+      "photoFixture": null
+    },
+    {
+      "id": "indian_passport_noisy_back",
+      "documentType": "passport",
+      "mustHaveCategory": "Passport / ID",
+      "issuer": "IN",
+      "source": "synthetic",
+      "testBinding": "IndianPassportParserTests.testRejectsNoisyIndianPassportAddressBlobAndFixesDOBYear",
+      "expectedFields": {
+        "legal_first_name": "Priya",
+        "legal_last_name": "Desai",
+        "date_of_birth": "19/07/1981",
+        "postal_code": "560001",
+        "state": "Karnataka",
+        "city": "Sampleton"
+      },
+      "rejectedFields": {
+        "address_line1": ["~", "{"]
+      },
+      "failureModes": ["multi_page_noise", "ocr_noise_address", "dob_year_0181"],
+      "photoFixture": null
+    },
+    {
+      "id": "ssn_card_instruction_boilerplate",
+      "documentType": "ssnCard",
+      "mustHaveCategory": "SSN Card",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "UniversalDocumentParserTests.testRejectsSSACardInstructionBoilerplateAsNames",
+      "expectedFields": {
+        "legal_first_name": "Jane",
+        "legal_last_name": "Doe",
+        "ssn": "456-78-9012"
+      },
+      "rejectedFields": {
+        "legal_first_name": ["Children:"],
+        "display_name": ["Children:"]
+      },
+      "failureModes": ["classify_unknown", "boilerplate_as_name"],
+      "photoFixture": null
+    },
+    {
+      "id": "utility_bill_clean",
+      "documentType": "utilityBill",
+      "mustHaveCategory": "Address Proof",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.utilityBillOCR",
+      "expectedFields": {
+        "address_line1": "742 Oak Street",
+        "city": "Austin",
+        "state": "TX",
+        "postal_code": "78701",
+        "utility_provider": "Austin Electric Utility"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    },
+    {
+      "id": "insurance_card_clean",
+      "documentType": "insuranceCard",
+      "mustHaveCategory": "Insurance Card",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "InsuranceCardParserTests.testParsesStandardInsuranceCard",
+      "expectedFields": {
+        "insurance_carrier": "Blue Cross Blue Shield",
+        "insurance_member_id": "ABC123456789",
+        "legal_first_name": "Alex",
+        "legal_last_name": "Rivera"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    },
+    {
+      "id": "w2_clean",
+      "documentType": "w2",
+      "mustHaveCategory": "W-2 / 1099 / Pay stub",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.w2OCR",
+      "expectedFields": {
+        "employer_name": "ACME CORP",
+        "tax_year": "2024"
+      },
+      "failureModes": ["stash_only_no_extract_v1"],
+      "photoFixture": null
+    },
+    {
+      "id": "form1099_clean",
+      "documentType": "form1099",
+      "mustHaveCategory": "W-2 / 1099 / Pay stub",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.form1099OCR",
+      "expectedFields": {
+        "tax_year": "2024"
+      },
+      "failureModes": ["stash_only_no_extract_v1"],
+      "photoFixture": null
+    },
+    {
+      "id": "pay_stub_clean",
+      "documentType": "payStub",
+      "mustHaveCategory": "W-2 / 1099 / Pay stub",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.payStubOCR",
+      "expectedFields": {
+        "employer_name": "ACME CORP"
+      },
+      "failureModes": ["stash_only_no_extract_v1"],
+      "photoFixture": null
+    },
+    {
+      "id": "bank_statement_clean",
+      "documentType": "bankStatement",
+      "mustHaveCategory": "Bank Statement",
+      "issuer": "US",
+      "source": "synthetic",
+      "testBinding": "MustHaveDocumentMockFixtures.bankStatementOCR",
+      "expectedFields": {
+        "bank_name": "First National Bank"
+      },
+      "failureModes": [],
+      "photoFixture": null
+    }
+  ],
+  "standaloneModels": [
+    {
+      "modelId": "trustnest.doc-type.v1",
+      "artifact": "DocumentTypeClassifier.mlmodelc",
+      "runtime": "coreml",
+      "standalone": true,
+      "dependsOn": [],
+      "trainFromFixtures": "all_must_have_scannable",
+      "replaces": "DocumentTypeClassifier.classifyHeuristic (fallback when confidence < 0.85)",
+      "input": {
+        "ocr_text_snippet": "string, max 2kb"
+      },
+      "output": {
+        "document_type": "driversLicense | passport | stateId | ssnCard | insuranceCard | utilityBill | bankStatement | w2 | form1099 | payStub",
+        "confidence": "0..1"
+      }
+    },
+    {
+      "modelId": "trustnest.passport-page.v1",
+      "artifact": "PassportPageRanker.mlmodelc",
+      "runtime": "coreml",
+      "standalone": true,
+      "dependsOn": [],
+      "trainFromFixtures": ["indian_passport_noisy_multipage", "indian_passport_noisy_back"],
+      "replaces": "none — selects page before parser",
+      "input": {
+        "pages": "array of { line_count, mrz_line_count, noise_ratio, has_surname_label, has_pin }"
+      },
+      "output": {
+        "biodata_page_index": "int",
+        "confidence": "0..1"
+      }
+    },
+    {
+      "modelId": "trustnest.field-label.v1",
+      "artifact": "FieldLabelMapper.mlmodelc",
+      "runtime": "coreml",
+      "standalone": true,
+      "dependsOn": [],
+      "trainFromFixtures": ["us_passport_biodata_label_noise", "us_passport_clean_mrz"],
+      "replaces": "none — hint only, merged like PDF417",
+      "input": {
+        "document_type": "string",
+        "label": "string",
+        "value": "string"
+      },
+      "output": {
+        "profile_key": "string | null",
+        "confidence": "0..1"
+      }
+    }
+  ]
+}

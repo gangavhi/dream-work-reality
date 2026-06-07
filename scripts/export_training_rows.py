@@ -174,7 +174,7 @@ P<INDDESAI<<PRIYA<<<<<<<<<<<<<<<<<<<<<<<<<<<
 P1234567<6IND8107199F2807205<<<<<<<<<<<<<<04
 ---PAGE---
 R X0101 ~ A ~~~~~ ~fi~~,r3} Andhra, Pradesh, Chennai Name Of Spouse Kavali 2016327705007
-PIN:560001, ANDHRA PRADESH, INDIA
+PIN:560001, KARNATAKA, INDIA
 """.strip(),
 }
 

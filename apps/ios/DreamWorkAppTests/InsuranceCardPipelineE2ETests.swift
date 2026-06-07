@@ -4,10 +4,17 @@ import XCTest
 
 @MainActor
 final class InsuranceCardPipelineE2ETests: XCTestCase {
-    func testUHCInsuranceCardsPDFVisionOCRAndPipeline() async throws {
-        let url = URL(fileURLWithPath: "Fixtures/insurance-cards-reference.pdf")
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("Missing reference PDF at \(url.path)")
+    private func localFixtureURL(resource: String, ext: String) -> URL? {
+        let diskPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/\(resource).\(ext)")
+        return FileManager.default.fileExists(atPath: diskPath.path) ? diskPath : nil
+    }
+
+    /// Optional local PDF for manual QA — never commit real cards; place at Fixtures/insurance-cards-reference.pdf (gitignored).
+    func testInsuranceCardsPDFVisionOCRAndPipeline() async throws {
+        guard let url = localFixtureURL(resource: "insurance-cards-reference", ext: "pdf") else {
+            throw XCTSkip("Missing local-only DreamWorkAppTests/Fixtures/insurance-cards-reference.pdf")
         }
 
         let previous = GenAISettings.provider
@@ -28,29 +35,20 @@ final class InsuranceCardPipelineE2ETests: XCTestCase {
             return
         }
 
-        let layoutText = OcrLayoutSerializer.serialize(document: document)
         let result = await DocumentIntelligencePipeline.extract(document: document, fileURL: url)
 
-        print("=== UHC insurance cards E2E ===")
+        print("=== Insurance cards E2E (local fixture) ===")
         print("pages=\(summary.pageCount) blocks=\(summary.blockCount)")
-        print(result.pipelineTrace.joined(separator: " → "))
-        print("displayType=\(result.displayType.rawValue)")
-        try? layoutText.write(toFile: "/tmp/uhc_insurance_ocr.txt", atomically: true, encoding: .utf8)
-        print("--- OCR reading order (first 80 lines) ---")
-        print(layoutText.components(separatedBy: .newlines).prefix(80).joined(separator: "\n"))
-        print("--- mapped fields ---")
-        for s in result.suggestions {
-            print("  \(s.profileKey)=\(s.value) conf=\(s.confidence)")
-        }
+        print("displayType=\(result.displayType.rawValue) suggestions=\(result.suggestions.count)")
 
         XCTAssertEqual(result.displayType, .insuranceCard)
         let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
-        XCTAssertFalse(result.suggestions.isEmpty, "UHC PDF should yield insurance fields")
+        XCTAssertFalse(result.suggestions.isEmpty, "Insurance PDF should yield fields")
         XCTAssertTrue(
             byKey[ProfileFieldKey.insuranceMemberId] != nil
                 || byKey[ProfileFieldKey.insuranceCarrier] != nil
                 || byKey[ProfileFieldKey.legalFirstName] != nil,
-            "Expected member id, carrier, or holder name from portal header"
+            "Expected member id, carrier, or holder name"
         )
     }
 }

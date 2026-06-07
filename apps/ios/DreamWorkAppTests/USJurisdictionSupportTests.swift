@@ -4,7 +4,7 @@ import XCTest
 final class USJurisdictionSupportTests: XCTestCase {
     func testInfersStateFromCityStateZipLine() {
         XCTAssertEqual(
-            USJurisdictionSupport.inferStateCode(from: ["RIDGEWOOD TX 78701-1234"]),
+            USJurisdictionSupport.inferStateCode(from: ["AUSTIN TX 78701-1234"]),
             "TX"
         )
     }

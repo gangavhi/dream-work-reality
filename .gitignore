@@ -14,12 +14,18 @@ demo/sample-documents/*.jpg
 demo/sample-documents/*.jpeg
 demo/sample-documents/*.heic
 demo/sample-documents/*.HEIC
-apps/ios/DreamWorkAppTests/Fixtures/
+apps/ios/DreamWorkAppTests/Fixtures/*
+!apps/ios/DreamWorkAppTests/Fixtures/manifest.json
+!apps/ios/DreamWorkAppTests/Fixtures/sample-document.png
+!apps/ios/DreamWorkAppTests/Fixtures/README.md
 **/*passport*test*.pdf
 **/*Passport-NonBlakpages*
 **/*SSN*.png
 **/*SSN*.jpg
 **/*ssn*card*
+**/*driver*license*reference*
+**/*insurance*cards*reference*
+**/*indian-passport-reference*
 apps/ios/DerivedData/
 # Local ONNX/vendor binaries — download via scripts; do not commit (~250MB)
 apps/ios/Vendor/

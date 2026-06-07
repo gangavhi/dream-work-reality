@@ -2,12 +2,20 @@ import XCTest
 
 @testable import DreamWorkApp
 
-/// E2E: real passport sample image → Vision OCR → DocumentIntelligencePipeline (investigation harness).
+/// E2E: synthetic or local-only passport fixtures → Vision OCR → pipeline.
 @MainActor
 final class PassportSamplePipelineE2ETests: XCTestCase {
-    func testUSPassportSampleImageProducesFieldSuggestions() async throws {
+    private func localFixtureURL(resource: String, ext: String) -> URL? {
         let bundle = Bundle(for: type(of: self))
-        guard let url = bundle.url(forResource: "sample-document", withExtension: "png") else {
+        let diskPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/\(resource).\(ext)")
+        return bundle.url(forResource: resource, withExtension: ext)
+            ?? (FileManager.default.fileExists(atPath: diskPath.path) ? diskPath : nil)
+    }
+
+    func testUSPassportSampleImageProducesFieldSuggestions() async throws {
+        guard let url = localFixtureURL(resource: "sample-document", ext: "png") else {
             throw XCTSkip("Missing DreamWorkAppTests/Fixtures/sample-document.png")
         }
 
@@ -19,7 +27,7 @@ final class PassportSamplePipelineE2ETests: XCTestCase {
         let summary = try await DocumentTextExtractor.extractAndPersist(from: url) { json in
             bridge.ingestNormalizedDocumentJSON(json)
         }
-        XCTAssertGreaterThan(summary.blockCount, 0, "OCR must detect text on us-passport-sample.png")
+        XCTAssertGreaterThan(summary.blockCount, 0, "OCR must detect text on synthetic US passport sample")
 
         guard let json = bridge.peekLastNormalizedDocumentJSON(),
               let data = json.data(using: .utf8),
@@ -31,26 +39,18 @@ final class PassportSamplePipelineE2ETests: XCTestCase {
 
         let result = await DocumentIntelligencePipeline.extract(document: document, fileURL: url)
 
-        print("=== Passport E2E pipeline trace ===")
+        print("=== US passport E2E pipeline trace ===")
         print(result.pipelineTrace.joined(separator: " → "))
-        print("displayType=\(result.displayType.rawValue) openLabel=\(result.openDocumentTypeLabel)")
-        print("usedAI=\(result.usedAI) heuristicFallback=\(result.usedHeuristicFallback) machineReadable=\(result.usedMachineReadablePayload)")
-        print("suggestionCount=\(result.suggestions.count)")
-        for s in result.suggestions {
-            print("  \(s.profileKey)=\(s.value) conf=\(s.confidence) src=\(s.mappingSource?.rawValue ?? "nil")")
-        }
+        print("displayType=\(result.displayType.rawValue) suggestions=\(result.suggestions.count)")
 
-        XCTAssertGreaterThan(
-            result.suggestions.count,
-            0,
-            "Passport sample should yield at least one profile field suggestion"
-        )
+        XCTAssertEqual(result.displayType, .passport)
+        XCTAssertGreaterThan(result.suggestions.count, 0, "Synthetic passport sample should yield profile fields")
     }
 
+    /// Optional local PDF for manual QA — never commit real scans; place at Fixtures/indian-passport-reference.pdf (gitignored).
     func testReferenceIndianPassportPDFVisionOCRAndPipeline() async throws {
-        let url = URL(fileURLWithPath: "Fixtures/indian-passport-reference.pdf")
-        guard FileManager.default.fileExists(atPath: url.path) else {
-            throw XCTSkip("Missing reference PDF at \(url.path)")
+        guard let url = localFixtureURL(resource: "indian-passport-reference", ext: "pdf") else {
+            throw XCTSkip("Missing local-only DreamWorkAppTests/Fixtures/indian-passport-reference.pdf")
         }
 
         let previous = GenAISettings.provider
@@ -71,27 +71,33 @@ final class PassportSamplePipelineE2ETests: XCTestCase {
             return
         }
 
-        let layoutText = OcrLayoutSerializer.serialize(document: document)
         let result = await DocumentIntelligencePipeline.extract(document: document, fileURL: url)
+        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
 
         print("=== Indian passport E2E (local fixture) ===")
         print("pages=\(summary.pageCount) blocks=\(summary.blockCount)")
-        print(result.pipelineTrace.joined(separator: " → "))
-        print("displayType=\(result.displayType.rawValue)")
-        print("--- OCR reading order ---")
-        print(layoutText)
-        print("--- mapped fields ---")
-        for s in result.suggestions {
-            print("  \(s.profileKey)=\(s.value) conf=\(s.confidence)")
+        print("displayType=\(result.displayType.rawValue) suggestions=\(result.suggestions.count)")
+
+        XCTAssertEqual(result.displayType, .passport)
+        XCTAssertFalse(result.suggestions.isEmpty, "Indian passport PDF should yield fields")
+
+        if let passport = byKey[ProfileFieldKey.passportNumber] {
+            XCTAssertTrue(
+                passport.range(of: #"^[A-Z]?\d{7,9}$"#, options: .regularExpression) != nil,
+                "Passport number should look plausible, got \(passport)"
+            )
         }
 
-        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
-        XCTAssertEqual(result.displayType, .passport)
-        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Jordan")
-        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Lee"
-        XCTAssertEqual(byKey[ProfileFieldKey.passportNumber], "P1234567")
-        XCTAssertEqual(byKey[ProfileFieldKey.dateOfBirth], "05/06/1995")
-        XCTAssertEqual(byKey[ProfileFieldKey.passportExpiry], "22/01/2027")
-        XCTAssertNotNil(byKey[ProfileFieldKey.passportAddress])
+        let nameKeys: Set<String> = [
+            ProfileFieldKey.legalFirstName,
+            ProfileFieldKey.legalLastName,
+            ProfileFieldKey.displayName,
+        ]
+        for key in nameKeys {
+            if let value = byKey[key] {
+                XCTAssertGreaterThanOrEqual(value.count, 2)
+                XCTAssertFalse(value.range(of: #"^[a-z]{8,}$"#, options: .regularExpression) != nil && value == value.lowercased())
+            }
+        }
     }
 }

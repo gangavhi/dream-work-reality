@@ -746,7 +746,7 @@ enum IndianPassportParser {
         let noise = [
             "ANDRA", "PRADESH", "INDIA", "INDIAN", "NELLORE", "HYDERABAD", "MUMBAI", "CHENNAI",
             "PASSPORT", "REPUBLIC", "GUARDIAN", "MOTHER", "FATHER", "SPOUSE", "ADDRESS", "BIRTH",
-            "FILE", "LEGAL", "NAME", "PIN", "POTTI", "SRIRAMULU", "BOGOLE", "SAMPLETON",
+            "FILE", "LEGAL", "NAME", "PIN", "POTTI", "FICTOLU", "BOGOLE", "SAMPLETON",
         ]
         return noise.contains(upper) || upper.hasSuffix("ANDRA")
     }
@@ -794,7 +794,7 @@ enum IndianPassportParser {
         let addressSignals = [
             ",", "ROAD", "NAGAR", "STREET", "LANE", "AVENUE", "COLONY", "DISTRICT", "CITY",
             "VEEDHI", "VILLAGE", "MANDAL", "PRADESH", "INDIA", "SAMPLETON", "NELLORE",
-            "KAVALI", "CHENNAI", "HYDERABAD", "BANGALORE",
+            "CHENNAI", "HYDERABAD", "BANGALORE",
         ]
         guard addressSignals.contains(where: { upper.contains($0) }) else { return nil }
 
