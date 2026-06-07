@@ -103,11 +103,10 @@ enum PersonNameResolver {
         guard !lines.isEmpty else { return nil }
 
         let joined = lines.joined(separator: "\n")
-        let isTexas = isTexasDriverLicenseContext(lines: lines, joined: joined)
-        let isDL = isTexas
-            || documentType == .driversLicense
+        let isTexasDL = isTexasDriverLicenseContext(lines: lines, joined: joined)
+        let isDL = documentType == .driversLicense
             || documentType == .stateId
-            || joined.uppercased().contains("DRIVER LICENSE")
+            || isTexasDL
 
         if isDL {
             if let texas = resolveTexasNames(from: lines) { return texas }
@@ -234,13 +233,17 @@ enum PersonNameResolver {
     }
 
     private static func resolveTexasConsecutiveLines(from lines: [String]) -> ResolvedName? {
+        guard lines.count >= 2 else { return nil }
+
         let start = lines.firstIndex(where: { line in
             let upper = line.uppercased()
             return upper.contains("DRIVER") || upper.contains("LICENSE") || upper.contains("TEXAS")
         }) ?? 0
         let end = searchEndForNames(in: lines, from: start)
+        let upperBound = min(end, lines.count - 1)
+        guard start < upperBound else { return nil }
 
-        for idx in start ..< min(end, lines.count - 1) {
+        for idx in start ..< upperBound {
             if isTexasDOBLine(lines[idx]) || isTexasDOBLine(lines[idx + 1]) { continue }
             if lineLooksLikeAddress(lines[idx]) || lineLooksLikeAddress(lines[idx + 1]) { continue }
 
@@ -449,9 +452,15 @@ enum PersonNameResolver {
 
     private static func isTexasDriverLicenseContext(lines: [String], joined: String) -> Bool {
         let upper = joined.uppercased()
-        if upper.contains("TEXAS") || upper.contains("TEXASS") { return true }
-        if upper.contains("DRIVER LICENSE") && upper.contains("4D") { return true }
-        return lines.contains { $0.range(of: #"(?i)4d\.?\s*DL"#, options: .regularExpression) != nil }
+        let hasTexas = upper.contains("TEXAS") || upper.contains("TEXASS")
+        let hasDriverLicense = upper.contains("DRIVER") && upper.contains("LICENSE")
+        let hasDLField = lines.contains { $0.range(of: #"(?i)4d\.?\s*DL"#, options: .regularExpression) != nil }
+        let hasNumberedNameFields = lines.contains { $0.range(of: #"(?i)^[12]\.\s"#, options: .regularExpression) != nil }
+
+        if hasDriverLicense && (hasTexas || hasDLField || hasNumberedNameFields) { return true }
+        if hasDLField && hasTexas { return true }
+        if hasNumberedNameFields && hasTexas { return true }
+        return false
     }
 
     private static func captureTexasNumberedField(_ line: String, number: String) -> String? {
