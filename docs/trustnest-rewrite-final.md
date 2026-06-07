@@ -26,7 +26,8 @@ TrustNest helps households **submit forms** (school, medical, government, in-app
 | **Dual path** | **Fields** → Layer C extract → Layer B vault · **Uploads** → submission stash auto-save on scan |
 | **Data model** | **Data-centric** for typed fields; **scoped file stash** for vendor uploads — not a general document library |
 | **3 layers** | **A** classify → stash? + form-relevant? → **C** mapping (**MOST IMPORTANT**) → **B** canonical fields |
-| **Form-relevance** | Extract only unique form-fill fields; W-2/1099/pay stub → **no extract**; birth cert → **stash only** |
+| **Must-have docs** | 9 categories: Passport/ID, DL, SSN, address proof, insurance, W-2/1099/paystub, bank stmt, emergency contact, employment |
+| **Form-relevance** | Extract only unique form-fill fields; W-2/1099/pay stub → **stash only** (no extract v1); birth cert → **stash only** |
 | **Auto-save** | Stash-listed types save on scan: `{Type} — {Person} — {date}` |
 | **Storage** | SQLite: metadata + fields + OCR JSON · **Filesystem:** encrypted files for stash types (never BLOBs in DB) |
 | **Pipeline** | CAPTURE → OCR → CLASSIFY → **STASH?** → **EXTRACT?** → REVIEW → submit (fill + attach) |
@@ -56,7 +57,7 @@ Layer B — Canonical schema (SOURCE OF TRUTH for typed fields)
                               ▲
                               │ user-confirmed mapping
 Layer C — Document → Field Mapping (MOST IMPORTANT)
-          passport → passport_number, passport_expiry, …
+          passport → full_name (holder only), first_name, last_name, date_of_birth, gender, nationality, passport_number, …
           insuranceCard → insurance_provider, policy_number, …
           + extraction_run OCR JSON + lineage
                               ▲
@@ -65,7 +66,7 @@ Layer A — Document types (CLASSIFICATION ONLY)
           passport, utility_bill, birthCertificate, …
 ```
 
-**Rule:** Profile navigation uses **canonical fields** (Layer B), not document-type folders.
+**Rule:** Profile navigation uses **canonical fields** (Layer B), not document-type folders. UI/API profile shape: [Profile JSON schema](trustnest-rewrite-implementation.md#profile-json-schema-ui--api-view).
 
 ---
 
@@ -75,7 +76,7 @@ Extract **only** when a document supplies canonical fields that form matchers us
 
 | `document_type` | Key fields extracted |
 |-----------------|---------------------|
-| `passport` | name, DOB, `passport_number`, `passport_expiry`, nationality |
+| `passport` | `full_name` (holder only), `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry`, `passport_issue_date`, `passport_issued_place`, `passport_address` |
 | `driversLicense` | name, DOB, DL#, state, expiry, `current_address` |
 | `stateId` | name, DOB, state ID#, expiry |
 | `ssnCard` | name, `ssn` |
@@ -84,11 +85,29 @@ Extract **only** when a document supplies canonical fields that form matchers us
 | `bankStatement` | address, routing/account (direct deposit) |
 | `immunizationRecord` | `vaccination_status[]` |
 
-**Classify-only (no field extract):** `birthCertificate`, `marriageCertificate`, `taxReturn`, `w2`, `form1099`, `payStub`, `transcript`, `degree`, `studentId`, medical records, `unknown`, receipts.
+**Classify-only (no field extract):** `birthCertificate`, `marriageCertificate`, `taxReturn`, `w2`, `form1099`, `payStub` (**stash raw file** — must-have), `transcript`, `degree`, `studentId`, medical records, `unknown`, receipts.
 
 **Birth certificate:** stash file for school upload; identity fields come from passport/state ID/DL.
 
 Full mapping tables: [Layer C § Document → Field Mapping](fresh-start-lessons-and-principles.md#layer-c--document--field-mapping-most-important).
+
+---
+
+## Must-have documents (household baseline)
+
+| ✓ | Category | Scan + stash | Field extract |
+|---|----------|:------------:|:-------------:|
+| ✓ | Passport / ID (`passport`, `stateId`) | ✅ | ✅ |
+| ✓ | Driver License | ✅ | ✅ |
+| ✓ | SSN Card | ✅ | ✅ |
+| ✓ | Address Proof (`utility_bill`, `lease`) | ✅ | ✅ |
+| ✓ | Insurance Card | ✅ | ✅ |
+| ✓ | W-2 / 1099 / Pay stub | ✅ | ❌ v1 |
+| ✓ | Bank Statement | ✅ | partial |
+| ✓ | Emergency Contact | manual | manual |
+| ✓ | Employment Information | manual | manual |
+
+Full spec: [§5.4 Must-have documents](trustnest-rewrite-implementation.md#54-must-have-documents-household-baseline).
 
 ---
 
@@ -103,8 +122,10 @@ When user scans a **stash-listed** type, the app **automatically** saves the enc
 | `utility_bill`, `lease` | ✅ | ✅ | Proof of residence |
 | `insuranceCard` | ✅ | ✅ | Medical/school card photo |
 | `driversLicense`, `stateId`, `passport` | ✅ | ✅ | ID verification upload |
+| `ssnCard` | ✅ | ✅ | SSN verification upload (when requested) |
+| `w2`, `form1099`, `payStub` | ✅ | ❌ | Loan / benefits / tax upload |
 | `bankStatement` | ✅ | partial | Benefits / loan proof |
-| W-2, 1099, pay stub, receipts, unknown | ❌ | ❌ | — |
+| receipts, unknown | ❌ | ❌ | — |
 
 **Display name:** `Immunization Record — Emma Chen — 2026-06-01`  
 **Rescan:** new file supersedes current for same person + type; history retained.  
@@ -120,7 +141,7 @@ Full spec: [Submission document stash](fresh-start-lessons-and-principles.md#sub
 
 | Document | Extract fields | Stash file | Key Layer B fields |
 |----------|:--------------:|:----------:|-------------------|
-| Passport | ✅ | ✅ | name, DOB, `passport_number`, `passport_expiry`, nationality |
+| Passport | ✅ | ✅ | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry`, `passport_issue_date`, `passport_issued_place`, `passport_address` |
 | Driver’s license | ✅ | ✅ | name, DOB, DL#, state, expiry, `current_address` |
 | State ID | ✅ | ✅ | name, DOB, state ID#, expiry |
 | SSN card | ✅ | ❌ | name, `ssn` |
@@ -151,14 +172,16 @@ stored_submission_document  ────────► submission_docs/{person}
 | In SQLite | On disk |
 |-----------|---------|
 | `id`, `person_id`, `document_type`, `display_name` | JPEG / PNG / HEIC / PDF bytes |
-| `file_path`, `mime_type`, `file_size_bytes`, `sha256` | |
+| `file_path`, `mime_type`, `file_extension`, `file_size_bytes`, `sha256` | PNG / JPEG / HEIC / PDF bytes (original format) |
 | `scanned_at`, `extraction_run_id`, `is_current` | |
 
 **Owners:** Rust = metadata CRUD + lookup · Swift = encrypt/write/read files · Extension = decrypt stream into form upload.
 
-**Never:** SQLite BLOBs for scans · Photo Library · cloud sync.
+**Never:** SQLite BLOBs for scans · Photo Library · cloud sync · forced format conversion (PDF stays PDF, PNG stays PNG).
 
-Full spec: [Document file storage](fresh-start-lessons-and-principles.md#document-file-storage-sqlite-metadata--encrypted-files).
+**Example imports:** `passport.pdf`, `license.jpg`, `insurance_card.png` → stash + extract; `w2.pdf` → stash only (no field extract v1).
+
+Full spec: [Document file storage](fresh-start-lessons-and-principles.md#document-file-storage-sqlite-metadata--encrypted-files) · [Raw format rules](trustnest-rewrite-implementation.md#53-raw-document-storage-preserve-original-format).
 
 ---
 
@@ -182,9 +205,15 @@ Full spec: [Document file storage](fresh-start-lessons-and-principles.md#documen
   "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
+    "first_name": "John",
+    "last_name": "Doe",
     "date_of_birth": "1990-01-01",
-    "passport_number": "X1234567",
+    "gender": "M",
     "nationality": "USA",
+    "passport_number": "X1234567",
+    "issue_date": "2022-05-01",
+    "issued_place": "United States Department of State",
+    "address": "123 Main St, Austin, TX 78701",
     "expiry_date": "2032-05-01"
   }
 }
@@ -237,14 +266,21 @@ Form submit → auto-fill fields + propose stash attachments → user confirms
 | Evidence document | Canonical fields must populate |
 |-------------------|-------------------------------|
 | Texas DL | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_expiry` |
-| US Passport | name, DOB, `passport_number`, `passport_expiry` |
+| US Passport | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry`, `passport_issue_date`, `passport_issued_place`, `passport_address` |
 | SSN card | name, `ssn` |
 | Insurance card | name, DOB, `insurance_provider`, `policy_number`, `insurance_group_id` |
+
+### Must-have documents
+
+- [ ] All 9 categories supported per [baseline table](#must-have-documents-household-baseline)  
+- [ ] Scannable types stash raw file in original format (PNG, PDF, JPEG, HEIC)  
 
 ### Submission stash + attach
 
 - [ ] Immunization scan auto-saves with display name  
 - [ ] Birth certificate scan auto-saves; no field extract  
+- [ ] W-2/1099/paystub scan auto-saves; no field extract  
+- [ ] SSN card scan auto-saves + field extract  
 - [ ] School form upload slot proposes matching stash file  
 - [ ] Rescan supersedes prior file for same person + type  
 - [ ] Document bytes on encrypted filesystem only — **no** SQLite BLOBs  
@@ -288,7 +324,12 @@ Doc branches: `docs/fresh-start-principles`, `ganga-2026-05-16-2`.
 | 2.7 | Document file storage: SQLite metadata + encrypted filesystem |
 | 2.8 | Auto form fill extraction matrix by mandated document |
 | **2.8 IMPL** | **[trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md)** — implementation document for engineering |
+| 2.9 | Passport extract: `full_name` first (holder only), then `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, issue/place/address/expiry |
+| 2.10 | Profile JSON schema + Layer B → profile mapping ([implementation doc](trustnest-rewrite-implementation.md#profile-json-schema-ui--api-view)) |
+| 2.11 | Raw document storage: preserve original format (PNG, PDF, JPEG, HEIC); example imports `passport.pdf`, `license.jpg`, `insurance_card.png`, `w2.pdf` |
+| 2.12 | Must-have documents: 9 household categories (Passport/ID, DL, SSN, address proof, insurance, W-2/1099/paystub, bank stmt, emergency contact, employment) |
+| 2.13 | Profile JSON schema v2: `identity`, nested `documents.*`, `formFillMetadata` |
 
 ---
 
-*TrustNest Rewrite Final Blueprint v2.8 — June 2026. Engineers: use [trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md).*
+*TrustNest Rewrite Final Blueprint v2.9 — June 2026. Engineers: use [trustnest-rewrite-implementation.md](trustnest-rewrite-implementation.md).*

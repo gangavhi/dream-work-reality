@@ -26,6 +26,7 @@ final class AppState: ObservableObject {
     private var pendingScanDocument: VisionOcrAdapter.NormalizedDocument?
     private var pendingScanPageCount: Int = 0
     private var pendingScanBlockCount: Int = 0
+    private var pendingScanFileURL: URL?
 
     private let coreService: CoreBridgeService
 
@@ -137,6 +138,11 @@ final class AppState: ObservableObject {
         pendingScanDocument = document
         pendingScanPageCount = pageCount
         pendingScanBlockCount = blockCount
+        if let fileURL {
+            pendingScanFileURL = try? SubmissionDocumentStore.stageForReview(from: fileURL)
+        } else {
+            pendingScanFileURL = nil
+        }
 
         isRunningOnDeviceExtraction = true
         defer { isRunningOnDeviceExtraction = false }
@@ -144,7 +150,8 @@ final class AppState: ObservableObject {
         let enrichment = await coreService.enrichScanReview(
             document: document,
             fileURL: fileURL,
-            runOnDeviceLLM: OnDeviceMLPolicy.allowsAutomaticInferenceOnScan
+            runOnDeviceLLM: OnDeviceMLPolicy.allowsAutomaticInferenceOnScan,
+            sourceFileURL: pendingScanFileURL
         )
         applyScanReviewEnrichment(
             enrichment,
@@ -163,7 +170,9 @@ final class AppState: ObservableObject {
 
         let enrichment = await coreService.enrichScanReview(
             document: document,
-            runOnDeviceLLM: true
+            fileURL: pendingScanFileURL,
+            runOnDeviceLLM: true,
+            sourceFileURL: pendingScanFileURL
         )
         guard scanReviewPayload != nil else { return }
 
@@ -182,9 +191,13 @@ final class AppState: ObservableObject {
     }
 
     func clearPendingScanSession() {
+        if let staged = pendingScanFileURL {
+            try? FileManager.default.removeItem(at: staged)
+        }
         pendingScanDocument = nil
         pendingScanPageCount = 0
         pendingScanBlockCount = 0
+        pendingScanFileURL = nil
     }
 
     private func applyScanReviewEnrichment(
@@ -228,7 +241,9 @@ final class AppState: ObservableObject {
             showManualExtractionRetry: OnDeviceMLPolicy.shouldShowManualExtractionRetry(
                 heavyLLMDeferred: enrichment.heavyLLMDeferred,
                 suggestionsEmpty: enrichment.suggestions.isEmpty
-            )
+            ),
+            canonicalDocumentType: enrichment.canonicalDocumentType,
+            sourceFileURL: enrichment.sourceFileURL
         )
     }
 

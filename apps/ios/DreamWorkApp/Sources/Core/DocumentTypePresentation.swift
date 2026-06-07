@@ -11,25 +11,25 @@ enum DocumentTypePresentation {
         let normalized = raw.lowercased().replacingOccurrences(of: "-", with: "_")
         let enumType: ScannedDocumentType = {
             switch normalized {
-            case "drivers_license", "driver_license", "drivers license", "driving_licence":
+            case "drivers_license", "driver_license", "drivers license", "driving_licence", "driverslicense":
                 return .driversLicense
             case "passport":
                 return .passport
             case "visa":
                 return .other
-            case "state_id", "state_identification", "identification_card":
+            case "state_id", "state_identification", "identification_card", "stateid":
                 return .stateId
-            case "insurance_card", "health_insurance_card":
+            case "insurance_card", "health_insurance_card", "insurancecard":
                 return .insuranceCard
-            case "utility_bill":
+            case "utility_bill", "utilitybill":
                 return .utilityBill
-            case "bank_statement":
+            case "bank_statement", "bankstatement":
                 return .bankStatement
-            case "tax_form", "tax_document", "w2", "w_2", "1099", "form_1040":
+            case "tax_form", "tax_document", "taxdocument", "w2", "w_2", "1099", "form_1040", "form1099":
                 return .taxDocument
-            case "employment_document", "pay_stub", "paystub":
+            case "employment_document", "pay_stub", "paystub", "employmentdocument":
                 return .employmentDocument
-            case "ssn_card", "social_security_card", "social_security":
+            case "ssn_card", "social_security_card", "social_security", "ssncard":
                 return .ssnCard
             case "aadhaar_card", "aadhaar":
                 return .other

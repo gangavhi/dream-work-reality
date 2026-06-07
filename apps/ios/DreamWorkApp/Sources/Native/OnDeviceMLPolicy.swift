@@ -1,6 +1,6 @@
 import Foundation
 
-/// Scan-review UX policy for Apple-native extraction (no GGUF auto-load).
+/// Scan-review UX policy for rewrite v2 (on-device only, no remote AI).
 enum OnDeviceMLPolicy {
     #if DEBUG
     static var testSimulatePhysicalIPhone = false
@@ -22,6 +22,11 @@ enum OnDeviceMLPolicy {
     }
 
     static func shouldShowManualExtractionRetry(heavyLLMDeferred: Bool, suggestionsEmpty: Bool) -> Bool {
-        heavyLLMDeferred || suggestionsEmpty
+        _ = heavyLLMDeferred
+        #if DEBUG
+        return suggestionsEmpty
+        #else
+        return false
+        #endif
     }
 }

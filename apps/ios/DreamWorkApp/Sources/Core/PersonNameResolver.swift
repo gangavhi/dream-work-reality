@@ -21,17 +21,33 @@ enum PersonNameResolver {
         ocrText: String,
         documentType: ScannedDocumentType = .other
     ) -> [OcrFieldSuggestion] {
+        if UniversalDocumentParser.looksLikeSSNDocument(ocrText) {
+            let ssnSuggestions = UniversalDocumentParser.parse(from: ocrText)
+            if !ssnSuggestions.isEmpty {
+                return mergePassportSuggestions(ssnSuggestions, into: suggestions)
+            }
+            return NameFieldReconciler.reconcile(suggestions)
+        }
+
         if IndianPassportParser.isIndianPassport(ocrText) {
             let indian = IndianPassportParser.suggestions(from: ocrText)
             if !indian.isEmpty {
                 return mergePassportSuggestions(indian, into: suggestions)
             }
+            return reconcileWithoutInventedNames(suggestions)
         }
         if PassportParser.isPassport(ocrText) {
             let passport = PassportParser.suggestions(from: ocrText)
             if !passport.isEmpty {
                 return mergePassportSuggestions(passport, into: suggestions)
             }
+            if documentType == .passport {
+                return reconcileWithoutInventedNames(suggestions)
+            }
+        }
+
+        if documentType == .passport {
+            return reconcileWithoutInventedNames(suggestions)
         }
 
         let resolved = resolve(from: ocrText, documentType: documentType)
@@ -51,6 +67,14 @@ enum PersonNameResolver {
         func upsert(_ key: String, _ fallbackLabel: String, _ value: String) {
             let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !trimmed.isEmpty else { return }
+            switch key {
+            case ProfileFieldKey.legalFirstName, ProfileFieldKey.legalMiddleName, ProfileFieldKey.legalLastName:
+                guard ScanFieldValidator.isPlausibleNameComponent(trimmed) else { return }
+            case ProfileFieldKey.displayName:
+                guard ScanFieldValidator.isPlausiblePersonName(trimmed) else { return }
+            default:
+                break
+            }
             byKey[key] = OcrFieldSuggestion(
                 profileKey: key,
                 label: byKey[key]?.label ?? fallbackLabel,
@@ -110,6 +134,13 @@ enum PersonNameResolver {
             }
             if let value = captureTexasNumberedField(line, number: "2") {
                 first = DriverLicenseFormatting.personName(value)
+            }
+        }
+
+        if first == nil || last == nil {
+            if let pair = resolveTexasMisorderedStandaloneNames(from: lines) {
+                if last == nil { last = pair.last }
+                if first == nil { first = pair.first }
             }
         }
 
@@ -176,6 +207,30 @@ enum PersonNameResolver {
             line.range(of: #"(?i)^8\.?\s"#, options: .regularExpression) != nil
                 || DriverLicenseParserSupport.parseCityStateZip(line) != nil
         }) ?? lines.count
+    }
+
+    private static func resolveTexasMisorderedStandaloneNames(from lines: [String]) -> ResolvedName? {
+        let tokens: [String] = lines.compactMap { line in
+            let token = stripNameNoise(line)
+            guard token == token.uppercased(),
+                  token.range(of: #"^[A-Z][A-Z\-']+$"#, options: .regularExpression) != nil,
+                  isNameToken(token)
+            else { return nil }
+            return token
+        }
+
+        for idx in 0 ..< tokens.count - 1 {
+            let lastToken = tokens[idx]
+            let firstToken = tokens[idx + 1]
+            guard lastToken.count >= 3, lastToken.count <= 12, firstToken.count >= 6 else { continue }
+            guard lastToken != firstToken else { continue }
+            return ResolvedName(
+                first: DriverLicenseFormatting.personName(firstToken),
+                middle: nil,
+                last: DriverLicenseFormatting.personName(lastToken)
+            )
+        }
+        return nil
     }
 
     private static func resolveTexasConsecutiveLines(from lines: [String]) -> ResolvedName? {
@@ -336,11 +391,39 @@ enum PersonNameResolver {
     private static func resolveCommaFormat(from lines: [String]) -> ResolvedName? {
         for line in lines {
             guard line.contains(",") else { continue }
+            if UniversalDocumentParser.isSSABoilerplateText(line) { continue }
+            if ScanFieldValidator.isOCRNoiseText(line) { continue }
             let split = NameFieldReconciler.splitDisplayName(line)
             guard !split.first.isEmpty, !split.last.isEmpty else { continue }
+            guard ScanFieldValidator.isPlausibleNameComponent(split.first),
+                  ScanFieldValidator.isPlausibleNameComponent(split.last)
+            else { continue }
+            if let middle = split.middle, !ScanFieldValidator.isPlausibleNameComponent(middle) {
+                continue
+            }
             return ResolvedName(first: split.first, middle: split.middle, last: split.last)
         }
         return nil
+    }
+
+    /// Keep existing plausible fields; never invent passport names from generic OCR heuristics.
+    private static func reconcileWithoutInventedNames(_ suggestions: [OcrFieldSuggestion]) -> [OcrFieldSuggestion] {
+        let nameKeys: Set<String> = [
+            ProfileFieldKey.displayName,
+            ProfileFieldKey.legalFirstName,
+            ProfileFieldKey.legalMiddleName,
+            ProfileFieldKey.legalLastName,
+        ]
+        let plausible = suggestions.filter { suggestion in
+            guard nameKeys.contains(suggestion.profileKey) else { return true }
+            switch suggestion.profileKey {
+            case ProfileFieldKey.displayName:
+                return ScanFieldValidator.isPlausiblePersonName(suggestion.value)
+            default:
+                return ScanFieldValidator.isPlausibleNameComponent(suggestion.value)
+            }
+        }
+        return NameFieldReconciler.reconcile(plausible)
     }
 
     private static func resolveFromSuggestions(_ suggestions: [OcrFieldSuggestion]) -> ResolvedName? {
@@ -472,6 +555,7 @@ enum PersonNameResolver {
         _ passport: [OcrFieldSuggestion],
         into suggestions: [OcrFieldSuggestion]
     ) -> [OcrFieldSuggestion] {
+        let passport = ScanFieldValidator.filter(passport, documentType: .passport)
         var byKey = Dictionary(uniqueKeysWithValues: suggestions.map { ($0.profileKey, $0) })
         for item in passport {
             byKey[item.profileKey] = item

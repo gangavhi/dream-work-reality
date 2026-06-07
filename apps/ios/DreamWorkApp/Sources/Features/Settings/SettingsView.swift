@@ -1,69 +1,25 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @State private var devAPIKey: String = DevAPIKeyStore.openAIAPIKey ?? ""
-    @State private var llmProvider: GenAISettings.Provider = GenAISettings.provider
-    @State private var llmBaseURL: String = GenAISettings.baseURL
-    @State private var llmModel: String = GenAISettings.model
     @State private var auditEntries: [IngestAuditEntry] = IngestAuditLog.load()
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("TrustNest uses Apple Vision and NaturalLanguage on-device by default. Optionally enable Ollama or a cloud API for extra field extraction (data may leave the device).")
+                    Label("On-device only", systemImage: "lock.shield.fill")
+                        .font(.subheadline.weight(.semibold))
+                    Text("TrustNest rewrite v2 runs entirely on this iPhone or iPad. Vision OCR, barcode/MRZ parsing, and field mapping never call remote AI. Scanned documents are encrypted with AES-GCM and stored in Application Support — nothing leaves your device.")
                         .appHelperText()
+                } header: {
+                    Text("Privacy & security")
                 }
 
-                Section("Document AI provider") {
-                    Picker("Provider", selection: $llmProvider) {
-                        ForEach(GenAISettings.Provider.allCases) { provider in
-                            Text(provider.rawValue).tag(provider)
-                        }
-                    }
-
-                    if llmProvider == .ollama || llmProvider == .openAI {
-                        TextField("API base URL", text: $llmBaseURL)
-                            .fieldInputStyle()
-                            .textContentType(.URL)
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            #endif
-
-                        TextField("Model name", text: $llmModel)
-                            .fieldInputStyle()
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            #endif
-                    }
-
-                    if llmProvider == .openAI {
-                        SecureField("OpenAI API key", text: $devAPIKey)
-                            .fieldInputStyle()
-                            .textContentType(.password)
-                            .autocorrectionDisabled()
-                            #if os(iOS)
-                            .textInputAutocapitalization(.never)
-                            #endif
-                    }
-
-                    Button("Save AI settings") {
-                        GenAISettings.provider = llmProvider
-                        GenAISettings.baseURL = llmBaseURL
-                        GenAISettings.model = llmModel
-                        DevAPIKeyStore.saveOpenAIAPIKey(devAPIKey)
-                    }
-                    .fontWeight(.semibold)
-
-                    if llmProvider == .ollama {
-                        Text("Run Ollama on your Mac (e.g. llama3.2, phi3, mistral). On a physical iPhone, use your Mac's LAN IP instead of 127.0.0.1.")
-                            .appHelperText()
-                    } else {
-                        Text("Scans use Apple Vision OCR, NaturalLanguage, barcode/MRZ parsing, and on-device profile building. SQLite persistence uses the embedded Rust core.")
-                            .appHelperText()
-                    }
+                Section {
+                    Text("Extraction uses Apple Vision, on-device parsers, and your household profile. SQLite persistence uses the embedded Rust core.")
+                        .appHelperText()
+                } header: {
+                    Text("How extraction works")
                 }
 
                 Section("Ingest audit log") {

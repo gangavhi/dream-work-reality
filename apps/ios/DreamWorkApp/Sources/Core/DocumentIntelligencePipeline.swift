@@ -1,6 +1,6 @@
 import Foundation
 
-/// Single ingest path for scans/uploads — Vision OCR + Intelligence orchestrator (Apple NL, no GGUF/ONNX).
+/// Single ingest path for scans/uploads — TrustNest rewrite v2 (on-device only, no orchestrator).
 enum DocumentIntelligencePipeline {
     struct Result: Hashable {
         let layoutText: String
@@ -28,30 +28,27 @@ enum DocumentIntelligencePipeline {
         fileURL: URL? = nil,
         allowHeavyLLM: Bool = true
     ) async -> Result {
-        let orchestrated = await DocumentIntelligenceOrchestrator.process(
-            document: document,
-            fileURL: fileURL,
-            allowHeavyLLM: allowHeavyLLM
-        )
+        _ = allowHeavyLLM
+        let (extracted, _) = await RewritePipeline.extract(document: document, fileURL: fileURL)
         return Result(
-            layoutText: orchestrated.layoutText,
-            plainText: orchestrated.plainText,
-            displayType: orchestrated.displayType,
-            openDocumentTypeLabel: orchestrated.openDocumentTypeLabel,
-            suggestions: orchestrated.suggestions,
-            understanding: orchestrated.understanding,
-            usedAI: orchestrated.usedAI,
-            mappingNotice: orchestrated.mappingNotice,
-            usedMachineReadablePayload: orchestrated.usedMachineReadablePayload,
-            usedHeuristicFallback: orchestrated.usedHeuristicFallback,
-            knowledgeEntities: orchestrated.knowledgeEntities,
-            identityGraph: orchestrated.identityGraph,
-            autofillPayload: orchestrated.autofillPayload,
-            fraudFindings: orchestrated.fraudFindings,
-            pipelineTrace: orchestrated.pipelineTrace,
-            ocrModelInput: orchestrated.ocrModelInput,
-            ocrLabelValuePairs: orchestrated.ocrLabelValuePairs,
-            standardizedOutput: orchestrated.standardizedOutput
+            layoutText: extracted.layoutText,
+            plainText: extracted.plainText,
+            displayType: extracted.displayType,
+            openDocumentTypeLabel: extracted.openDocumentTypeLabel,
+            suggestions: extracted.suggestions,
+            understanding: extracted.understanding,
+            usedAI: extracted.usedAI,
+            mappingNotice: extracted.mappingNotice,
+            usedMachineReadablePayload: extracted.usedMachineReadablePayload,
+            usedHeuristicFallback: extracted.usedHeuristicFallback,
+            knowledgeEntities: extracted.knowledgeEntities,
+            identityGraph: extracted.identityGraph,
+            autofillPayload: extracted.autofillPayload,
+            fraudFindings: extracted.fraudFindings,
+            pipelineTrace: extracted.pipelineTrace,
+            ocrModelInput: extracted.ocrModelInput,
+            ocrLabelValuePairs: extracted.ocrLabelValuePairs,
+            standardizedOutput: extracted.standardizedOutput
         )
     }
 }

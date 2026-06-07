@@ -193,28 +193,22 @@ enum OcrFieldSuggester {
         return out.filter { seen.insert($0.profileKey).inserted }
     }
 
+    static func suggestInsuranceCardPublic(from text: String) -> [OcrFieldSuggestion] {
+        suggestInsuranceCard(from: text)
+    }
+
+    static func suggestUtilityBillPublic(from text: String) -> [OcrFieldSuggestion] {
+        suggestUtilityBill(from: text)
+    }
+
+    static func suggestBankStatementPublic(from text: String) -> [OcrFieldSuggestion] {
+        suggestBankStatement(from: text)
+    }
+
     private static func suggestInsuranceCard(from text: String) -> [OcrFieldSuggestion] {
-        var out = suggestGeneric(from: text, documentType: .insuranceCard)
-        let lines = text
-            .components(separatedBy: .newlines)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        if let carrierLine = lines.first(where: { line in
-            let upper = line.uppercased()
-            return upper.contains("CROSS") || upper.contains("SHIELD") || upper.contains("INSURANCE")
-                || upper.contains("AETNA") || upper.contains("ANTHEM") || upper.contains("HUMANA")
-        }) {
-            out.append(
-                OcrFieldSuggestion(
-                    profileKey: ProfileFieldKey.insuranceCarrier,
-                    label: "Insurance carrier",
-                    value: carrierLine,
-                    confidence: "Medium",
-                    confidenceScore: 0.72
-                )
-            )
-        }
-        return mergeSuggestions(out)
+        let parsed = InsuranceCardParser.suggestions(from: text)
+        if !parsed.isEmpty { return parsed }
+        return mergeSuggestions(suggestGeneric(from: text, documentType: .insuranceCard))
     }
 
     private static func suggestUtilityBill(from text: String) -> [OcrFieldSuggestion] {

@@ -1,0 +1,12 @@
+# Copy to labels.jsonl and append one line per test session. Never commit labels.jsonl.
+# Run: ./scripts/train_doc_type_classifier.sh
+# Labels must match must-have feature list: driversLicense, passport, stateId, ssnCard,
+# insuranceCard, utilityBill, bankStatement, w2, form1099, payStub
+{"record_type":"doc_type","text":"YOUR SOCIAL SECURITY CARD\nChildren: Do Not Sign Until Age 18\nDo not laminate.","label":"ssnCard","fixture_id":"local_ssn_boilerplate_01","notes":"synthetic example"}
+{"record_type":"doc_type","text":"TEXAS\nDRIVER LICENSE\n4d. DL: D12345678\n3. DOB: 04/25/1990","label":"driversLicense","fixture_id":"local_tx_dl_01"}
+{"record_type":"doc_type","text":"AUSTIN ELECTRIC UTILITY\nBILLING STATEMENT\n742 OAK STREET","label":"utilityBill","fixture_id":"local_utility_01"}
+{"record_type":"doc_type","text":"IRS W-2 WAGE AND TAX STATEMENT\nTAX YEAR 2024","label":"w2","fixture_id":"local_w2_01"}
+{"record_type":"passport_page","fixture_id":"local_indian_passport_multipage","biodata_page_index":0,"pages":[{"line_count":38,"mrz_line_count":2,"noise_ratio":0.08,"has_surname_label":true,"has_pin":false},{"line_count":95,"mrz_line_count":0,"noise_ratio":0.42,"has_surname_label":false,"has_pin":true}]}
+{"record_type":"field_label","document_type":"passport","label":"Given Name(s)","value":"Jane","profile_key":"legal_first_name"}
+{"record_type":"field_label","document_type":"passport","label":"Given Names","value":"Given","profile_key":null}
+{"record_type":"field_label","document_type":"passport","label":"Place of Birth","value":"Place Of Birth","profile_key":null}

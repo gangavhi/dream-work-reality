@@ -133,8 +133,8 @@ struct ScanReviewView: View {
                 Text("High-confidence fields from barcode or machine-readable zone on the document.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else if payload.usedAI, !payload.usedHeuristicFallback {
-                Text("Extracted on this device (no data sent to the internet).")
+            } else if !payload.usedHeuristicFallback {
+                Text("Extracted on this device with rewrite v2 — no remote AI, no cloud upload.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else if payload.usedHeuristicFallback {
@@ -531,16 +531,20 @@ struct ScanReviewView: View {
 
         person = person.merged(with: updates)
         if appState.savePerson(person) {
+            let stashNote = stashDocumentIfNeeded(person: person)
             recordLearningCorrections(updates: updates)
             let isReimport = DocumentFingerprintStore.findPreviousImport(for: payload.fullText) != nil
+            var notes = isReimport ? "Updated profile from rescan" : ""
+            if let stashNote { notes = notes.isEmpty ? stashNote : "\(notes). \(stashNote)" }
             recordIngestAudit(
                 person: person,
                 fieldCount: updates.count,
-                notes: isReimport ? "Updated profile from rescan" : ""
+                notes: notes
             )
             saveMessage = isReimport
                 ? "Updated \(updates.count) field(s) on \(person.displayTitle)."
                 : "Added \(updates.count) field(s) to existing profile \(person.displayTitle)."
+            if let stashNote { saveMessage? += " \(stashNote)" }
         } else {
             saveMessage = "Could not save profile."
         }
@@ -559,15 +563,35 @@ struct ScanReviewView: View {
             return
         }
         if appState.savePerson(person) {
+            let stashNote = stashDocumentIfNeeded(person: person)
             recordLearningCorrections(updates: updates)
+            var notes = "Created from scan"
+            if let stashNote { notes += ". \(stashNote)" }
             recordIngestAudit(
                 person: person,
                 fieldCount: updates.count,
-                notes: "Created from scan"
+                notes: notes
             )
             saveMessage = "Created \(person.displayTitle) under People."
+            if let stashNote { saveMessage? += " \(stashNote)" }
         } else {
             saveMessage = "Could not create profile."
+        }
+    }
+
+    private func stashDocumentIfNeeded(person: PersonRecord) -> String? {
+        guard let sourceURL = payload.sourceFileURL else { return nil }
+        guard RewriteStashPolicy.shouldStash(documentType: payload.canonicalDocumentType) else { return nil }
+        do {
+            _ = try SubmissionDocumentStore.shared.save(
+                personId: person.id,
+                documentType: payload.canonicalDocumentType,
+                sourceURL: sourceURL,
+                personDisplayName: person.displayTitle
+            )
+            return "Encrypted copy saved on device."
+        } catch {
+            return "Could not save encrypted document copy."
         }
     }
 

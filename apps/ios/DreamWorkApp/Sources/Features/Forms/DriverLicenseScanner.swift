@@ -383,13 +383,7 @@ private struct ScannerFallbackView: View {
                     .foregroundStyle(.secondary)
 
                 Button {
-#if targetEnvironment(simulator)
-                    // Simulator: show Mac Downloads listing (served by scripts/serve_downloads.sh).
-                    isPresentingDownloadsPicker = true
-                    Task { await loadSimulatorDownloadsListing() }
-#else
                     isPresentingFilePicker = true
-#endif
                 } label: {
                     HStack {
                         Text("Browse Files")
@@ -399,21 +393,28 @@ private struct ScannerFallbackView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(isWorking)
-#if !targetEnvironment(simulator)
                 .fileImporter(
                     isPresented: $isPresentingFilePicker,
-                    allowedContentTypes: [
-                        UTType.image,
-                        UTType.heic,
-                        UTType.pdf,
-                        UTType.data,
-                    ],
+                    allowedContentTypes: DocumentImportHelper.allowedContentTypes,
                     allowsMultipleSelection: false
                 ) { result in
                     Task {
                         await handleFileImportResult(result)
                     }
                 }
+#if targetEnvironment(simulator)
+                Button {
+                    isPresentingDownloadsPicker = true
+                    Task { await loadSimulatorDownloadsListing() }
+                } label: {
+                    HStack {
+                        Text("Browse Mac Downloads (HTTP)")
+                        Spacer()
+                        Image(systemName: "macbook.and.iphone")
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isWorking)
 #endif
 
                 if let dropHint {
@@ -437,12 +438,7 @@ private struct ScannerFallbackView: View {
                 // "Choose document" step before selecting a file.
                 if didAutoPresentPicker { return }
                 didAutoPresentPicker = true
-#if targetEnvironment(simulator)
-                isPresentingDownloadsPicker = true
-                await loadSimulatorDownloadsListing()
-#else
                 isPresentingFilePicker = true
-#endif
             }
 #if targetEnvironment(simulator)
             .sheet(isPresented: $isPresentingDownloadsPicker) {
@@ -570,7 +566,7 @@ private struct ScannerFallbackView: View {
             downloadsItems = []
             downloadsError = """
             Couldn’t load Mac Downloads.
-            Make sure the server is running: `./scripts/run_demo.sh` (or `./scripts/serve_downloads.sh 8009`)
+            Run on your Mac: `./scripts/prepare_simulator_testing.sh --servers-only`
             Error: \(error.localizedDescription)
             """
         }
@@ -728,7 +724,12 @@ enum DriverLicenseParser {
         // DOB: prefer explicit DOB/Birth labels; never use issue/expiry dates as DOB.
         result.dateOfBirth = extractDateOfBirth(from: normalized, joined: joined, excluding: [result.issueDate, result.expiryDate])
 
-        if includeGenericNames {
+        let upperJoined = joined.uppercased()
+        let texasContext = upperJoined.contains("TEXAS")
+            || upperJoined.contains("TEXASS")
+            || normalized.contains { $0.range(of: #"(?i)4d\.?\s*DL"#, options: .regularExpression) != nil }
+
+        if includeGenericNames, !texasContext {
             applyGenericNameHeuristics(from: normalized, into: &result)
         }
 
@@ -746,7 +747,7 @@ enum DriverLicenseParser {
         result.postalCode = address.postalCode
 
         if result.state == nil {
-            result.state = extractStateCode(from: normalized)
+            result.state = USJurisdictionSupport.inferStateCode(from: normalized, joined: joined)
         }
 
         // Texas DL numbered fields (1=last, 2=first, 3=DOB, 4a/4b/4d, 8=address) override generic OCR guesses.
@@ -1018,21 +1019,6 @@ enum DriverLicenseParser {
                ScanFieldValidator.isPlausibleDriversLicenseNumber(trimmed)
             {
                 return trimmed
-            }
-        }
-        return nil
-    }
-
-    private static func extractStateCode(from lines: [String]) -> String? {
-        for line in lines {
-            if let csz = parseCityStateZip(line), ScanFieldValidator.isPlausibleUSState(csz.state) {
-                return csz.state
-            }
-        }
-        for line in lines {
-            let upper = line.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-            if upper.count == 2, ScanFieldValidator.isPlausibleUSState(upper) {
-                return upper
             }
         }
         return nil

@@ -12,6 +12,8 @@ enum OcrEngine {
         "DRIVER", "LICENSE", "LICENCE", "IDENTIFICATION", "PASSPORT", "TEXAS", "CALIFORNIA",
         "SOCIAL", "SECURITY", "ADMINISTRATION", "SSN", "DOB", "ISS", "EXP", "DL", "NONE",
         "LIMITED", "TERM", "FLORIDA", "NEW YORK", "GEORGIA", "VETERAN", "ORGAN", "DONOR",
+        "REPUBLIC", "INDIA", "INDIAN", "SURNAME", "GIVEN", "NATIONALITY", "HYDERABAD",
+        "MAHARASHTRA", "KARNATAKA", "PIN", "MRZ",
     ]
 
     private struct RecognizedLine: Hashable {
@@ -61,7 +63,8 @@ enum OcrEngine {
 
     private static func collectLines(on image: CGImage) throws -> [RecognizedLine] {
         let ctx = ciContext
-        let primary = preprocess(image, context: ctx) ?? image
+        let prepared = ImagePreprocessor.prepareForOCR(image).image
+        let primary = preprocess(prepared, context: ctx) ?? prepared
         var batches: [[RecognizedLine]] = []
 
         batches.append(try recognizeLines(on: primary, minimumTextHeight: 0.008, usesLanguageCorrection: true))
@@ -98,6 +101,42 @@ enum OcrEngine {
             }
         }
 
+        let mergedSoFar = mergedText(batches)
+        if containsPassportSignals(mergedSoFar) {
+            if !containsPassportNumber(mergedSoFar) || !containsNameLikeLine(mergedSoFar) {
+                for crop in cropCandidatesForPassportBiodata(primary) {
+                    let enhanced = preprocess(crop, context: ctx, scale: 2.4, contrast: 1.55, brightness: 0.03, sharpness: 0.8) ?? crop
+                    batches.append(try recognizeLines(
+                        on: enhanced,
+                        minimumTextHeight: 0.0035,
+                        usesLanguageCorrection: true,
+                        candidateLimit: 12
+                    ))
+                }
+            }
+            if !containsPassportNumber(mergedSoFar) || mergedSoFar.uppercased().contains("<<") == false {
+                for crop in cropCandidatesForPassportMRZ(primary) {
+                    let enhanced = preprocessBinarized(crop, context: ctx) ?? crop
+                    batches.append(try recognizeLines(
+                        on: enhanced,
+                        minimumTextHeight: 0.003,
+                        usesLanguageCorrection: false,
+                        candidateLimit: 12
+                    ))
+                }
+            }
+            if !containsIndianPin(mergedSoFar) {
+                for crop in cropCandidatesForPassportAddress(primary) {
+                    let enhanced = preprocessBinarized(crop, context: ctx) ?? crop
+                    batches.append(try recognizeLines(
+                        on: enhanced,
+                        minimumTextHeight: 0.0035,
+                        usesLanguageCorrection: false
+                    ))
+                }
+            }
+        }
+
         return mergeRecognizedLines(batches)
     }
 
@@ -113,7 +152,8 @@ enum OcrEngine {
     private static func recognizeLines(
         on cgImage: CGImage,
         minimumTextHeight: Float,
-        usesLanguageCorrection: Bool
+        usesLanguageCorrection: Bool,
+        candidateLimit: Int = 8
     ) throws -> [RecognizedLine] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
@@ -126,7 +166,7 @@ enum OcrEngine {
         try handler.perform([request])
 
         return (request.results ?? []).compactMap { observation -> RecognizedLine? in
-            guard let candidate = bestCandidate(from: observation) else { return nil }
+            guard let candidate = bestCandidate(from: observation, limit: candidateLimit) else { return nil }
             let cleaned = OcrTextPostProcessor.cleanLine(candidate.text)
             guard !cleaned.isEmpty else { return nil }
             return RecognizedLine(
@@ -142,8 +182,11 @@ enum OcrEngine {
         let confidence: Float
     }
 
-    private static func bestCandidate(from observation: VNRecognizedTextObservation) -> ScoredCandidate? {
-        let candidates = observation.topCandidates(8)
+    private static func bestCandidate(
+        from observation: VNRecognizedTextObservation,
+        limit: Int = 8
+    ) -> ScoredCandidate? {
+        let candidates = observation.topCandidates(limit)
         guard !candidates.isEmpty else { return nil }
 
         let best = candidates.max { lhs, rhs in
@@ -169,6 +212,12 @@ enum OcrEngine {
         if trimmed.range(of: #"(?i)\b(DL|DOB|ISS|EXP|DRIVER|LICENSE|TEXAS|SOCIAL|SECURITY|SSN)\b"#, options: .regularExpression) != nil {
             score += 18
         }
+        if trimmed.range(of: #"(?i)\b(PASSPORT|REPUBLIC|INDIA|INDIAN|SURNAME|GIVEN|HYDERABAD|NATIONALITY)\b"#, options: .regularExpression) != nil {
+            score += 16
+        }
+        if trimmed.range(of: #"\b[MN][0-9OQKIL]{6,8}\b"#, options: .regularExpression) != nil { score += 28 }
+        if trimmed.range(of: #"(?i)PIN[:\s]*\d{6}"#, options: .regularExpression) != nil { score += 22 }
+        if trimmed.contains("<<") || trimmed.contains("P<IND") { score += 30 }
         if trimmed.range(of: #"(?i)^texass?$"#, options: .regularExpression) != nil { score -= 60 }
         if trimmed.range(of: #"[А-Яа-яЁё]"#, options: .regularExpression) != nil { score -= 80 }
         if trimmed.filter({ !$0.isASCII }).count > trimmed.count / 3 { score -= 40 }
@@ -351,7 +400,57 @@ enum OcrEngine {
         if upper.range(of: #"\b\d{5}\b"#, options: .regularExpression) != nil { return true }
         if upper.range(of: #"\b[A-Z]{2}\s*\d{5}\b"#, options: .regularExpression) != nil { return true }
         if upper.range(of: #"\b[A-Z]{3,}\s+TX\s+\d{5}\b"#, options: .regularExpression) != nil { return true }
+        if containsIndianPin(upper) { return true }
         return false
+    }
+
+    private static func containsIndianPin(_ text: String) -> Bool {
+        text.uppercased().range(of: #"(?i)PIN[:\s;]*\d{6}"#, options: .regularExpression) != nil
+    }
+
+    private static func containsPassportSignals(_ text: String) -> Bool {
+        let upper = text.uppercased()
+        if upper.contains("REPUBLIC OF INDIA") || (upper.contains("PASSPORT") && upper.contains("INDIA")) { return true }
+        if upper.contains("P<IND") || upper.contains("<<IND") { return true }
+        if upper.contains("SURNAME") || upper.contains("GIVEN NAME") { return true }
+        return false
+    }
+
+    private static func containsPassportNumber(_ text: String) -> Bool {
+        text.uppercased().range(of: #"\b[MN][0-9OQKIL]{6,8}\b"#, options: .regularExpression) != nil
+    }
+
+    private static func cropCandidatesForPassportMRZ(_ image: CGImage) -> [CGImage] {
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        guard w > 2, h > 2 else { return [] }
+        let rects: [CGRect] = [
+            CGRect(x: 0, y: h * 0.80, width: w, height: h * 0.20),
+            CGRect(x: 0, y: h * 0.76, width: w, height: h * 0.24),
+        ]
+        return rects.compactMap { image.cropping(to: $0.integral) }
+    }
+
+    private static func cropCandidatesForPassportBiodata(_ image: CGImage) -> [CGImage] {
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        guard w > 2, h > 2 else { return [] }
+        let rects: [CGRect] = [
+            CGRect(x: 0, y: h * 0.06, width: w * 0.74, height: h * 0.58),
+            CGRect(x: 0, y: h * 0.12, width: w * 0.70, height: h * 0.50),
+        ]
+        return rects.compactMap { image.cropping(to: $0.integral) }
+    }
+
+    private static func cropCandidatesForPassportAddress(_ image: CGImage) -> [CGImage] {
+        let w = CGFloat(image.width)
+        let h = CGFloat(image.height)
+        guard w > 2, h > 2 else { return [] }
+        let rects: [CGRect] = [
+            CGRect(x: 0, y: h * 0.35, width: w * 0.82, height: h * 0.45),
+            CGRect(x: 0, y: h * 0.48, width: w * 0.78, height: h * 0.38),
+        ]
+        return rects.compactMap { image.cropping(to: $0.integral) }
     }
 
     private static func containsNameLikeLine(_ text: String) -> Bool {
@@ -372,7 +471,9 @@ enum OcrTextPostProcessor {
 
         line = line.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
         line = fixStateTypos(line)
+        line = fixPassportTokens(in: line)
         line = fixDateTokens(in: line)
+        line = collapseSpacedCapsIfNeeded(line)
         return line.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
@@ -392,8 +493,48 @@ enum OcrTextPostProcessor {
         )
     }
 
+    private static func fixPassportTokens(in line: String) -> String {
+        var output = line
+        output = output.replacingOccurrences(of: #"\./\."#, with: "/", options: .regularExpression)
+        output = output.replacingOccurrences(of: #"(\d{2})ID(\d)"#, with: "$1/0$2", options: .regularExpression)
+        output = output.replacingOccurrences(of: #"(\d{2})'/(\d{2})"#, with: "$1/$2", options: .regularExpression)
+        if let regex = try? NSRegularExpression(pattern: #"\b[MN][0-9OQKIL]{6,8}\b"#, options: .caseInsensitive) {
+            let range = NSRange(output.startIndex..., in: output)
+            let matches = regex.matches(in: output, range: range)
+            for match in matches.reversed() {
+                guard let r = Range(match.range, in: output) else { continue }
+                let raw = String(output[r])
+                let fixed = IndianPassportParser.normalizePassportNumberForOCR(raw)
+                if fixed != raw {
+                    output.replaceSubrange(r, with: fixed)
+                }
+            }
+        }
+        if output.range(of: #"(?i)^[A-Z][A-Z\s'.-]{2,}\.\d$"#, options: .regularExpression) != nil {
+            output = output.replacingOccurrences(of: #"\.\d$"#, with: "", options: .regularExpression)
+        }
+        if output.range(of: #"^\d"#, options: .regularExpression) != nil,
+           output.filter({ $0.isNumber || $0 == "/" || $0 == "." || $0 == "-" || $0 == "'" }).count >= output.count / 2
+        {
+            output = IndianPassportParser.normalizeIndianDateForOCR(output)
+        }
+        return output
+    }
+
+    private static func collapseSpacedCapsIfNeeded(_ line: String) -> String {
+        let letters = line.filter(\.isLetter)
+        let spaces = line.filter { $0 == " " }.count
+        guard letters.count >= 10, spaces >= letters.count / 2 else { return line }
+        let upperRatio = Double(letters.filter(\.isUppercase).count) / Double(max(letters.count, 1))
+        guard upperRatio > 0.75 else { return line }
+        return line
+            .replacingOccurrences(of: #"[_;]+"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"(?<=[A-Z]),(?=[A-Z])"#, with: ", ", options: .regularExpression)
+    }
+
     private static func fixDateTokens(in line: String) -> String {
-        guard let regex = try? NSRegularExpression(pattern: #"\d{1,2}[/-]\d{1,3}[/-]?\d{2,4}"#) else {
+        guard let regex = try? NSRegularExpression(pattern: #"\d{1,2}\D{1,3}\d{1,3}\D{0,2}\d{2,4}"#) else {
             return line
         }
         let range = NSRange(line.startIndex..., in: line)
@@ -404,7 +545,7 @@ enum OcrTextPostProcessor {
         for match in matches.reversed() {
             guard let r = Range(match.range, in: output) else { continue }
             let token = String(output[r])
-            let fixed = DriverLicenseParserSupport.normalizeOCRDateToken(token)
+            let fixed = IndianPassportParser.normalizeIndianDateForOCR(token)
             if fixed != token {
                 output.replaceSubrange(r, with: fixed)
             }

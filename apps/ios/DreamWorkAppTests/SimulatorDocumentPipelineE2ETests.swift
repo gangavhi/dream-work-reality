@@ -34,6 +34,53 @@ final class SimulatorDocumentPipelineE2ETests: XCTestCase {
         XCTAssertGreaterThan(ran, 0, "Add fixtures under DreamWorkAppTests/Fixtures/ to run simulator OCR E2E")
     }
 
+    func testTexasDriverLicenseReferenceFieldMapping() async throws {
+        let bundle = Bundle(for: type(of: self))
+        let diskPath = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/texas-driver-license-reference.png")
+        let url = bundle.url(forResource: "texas-driver-license-reference", withExtension: "png")
+            ?? (FileManager.default.fileExists(atPath: diskPath.path) ? diskPath : nil)
+        guard let url else {
+            throw XCTSkip("Missing DreamWorkAppTests/Fixtures/texas-driver-license-reference.png")
+        }
+
+        let result = try await runPipelineE2E(url: url, label: "Texas driver license reference photo")
+        let byKey = Dictionary(uniqueKeysWithValues: result.suggestions.map { ($0.profileKey, $0.value) })
+
+        XCTAssertEqual(result.displayType, .driversLicense)
+        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseState], "TX")
+        XCTAssertEqual(byKey[ProfileFieldKey.state], "TX")
+
+        let last = byKey[ProfileFieldKey.legalLastName] ?? ""
+        let first = byKey[ProfileFieldKey.legalFirstName] ?? ""
+        XCTAssertGreaterThanOrEqual(last.count, 3, "Expected a plausible last name, got \(last)")
+        XCTAssertGreaterThanOrEqual(first.count, 5, "Expected a plausible first name, got \(first)")
+        XCTAssertNotEqual(last.lowercased(), "director")
+        XCTAssertFalse(first.lowercased().contains("director"))
+
+        if let dob = byKey[ProfileFieldKey.dateOfBirth] {
+            XCTAssertTrue(dob.hasPrefix("06/"), "DOB month should be June from card, got \(dob)")
+            XCTAssertTrue(dob.hasSuffix("/1990"), "DOB year should be 1990, got \(dob)")
+        } else {
+            XCTFail("Missing date of birth")
+        }
+
+        if let dl = byKey[ProfileFieldKey.driversLicenseNumber] {
+            XCTAssertTrue(dl.contains("87654"), "DL number should match OCR prefix 87654, got \(dl)")
+            XCTAssertFalse(dl.contains("-"), "DL number must not be ZIP+4, got \(dl)")
+        } else {
+            XCTFail("Missing driver license number")
+        }
+
+        if let zip = byKey[ProfileFieldKey.postalCode] {
+            XCTAssertTrue(zip.hasPrefix("78701"), "ZIP should start with 78701, got \(zip)")
+        }
+
+        XCTAssertNotNil(byKey[ProfileFieldKey.driversLicenseExpiry], "Expected expiry date")
+        XCTAssertGreaterThan(result.suggestions.count, 5, "Photo scan should yield multiple DL fields")
+    }
+
     func testTexasDriverLicenseSampleFieldMapping() async throws {
         let bundle = Bundle(for: type(of: self))
         guard let url = bundle.url(forResource: "texas-driver-license-sample", withExtension: "png") else {

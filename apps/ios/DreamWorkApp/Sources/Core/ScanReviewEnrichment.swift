@@ -58,4 +58,8 @@ struct ScanReviewEnrichment: Hashable {
     let heavyLLMDeferred: Bool
     /// True when the scan ran the full on-device pipeline including GGUF when allowed.
     let ranFullOnDevicePipeline: Bool
+    /// Canonical document type for stash whitelist (rewrite v2).
+    let canonicalDocumentType: String
+    /// Staged file pending encrypted stash on profile save.
+    let sourceFileURL: URL?
 }

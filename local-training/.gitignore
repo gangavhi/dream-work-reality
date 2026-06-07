@@ -1,0 +1,4 @@
+# Local training data — may contain real OCR from device scans; never commit.
+labels.jsonl
+export/
+*.csv

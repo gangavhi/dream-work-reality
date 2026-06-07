@@ -48,6 +48,23 @@ final class DriverLicenseParserTests: XCTestCase {
         XCTAssertNil(result.dateOfBirth)
     }
 
+    func testCaliforniaNumberedLayoutInfersStateFromAddressNotHardcodedTexas() {
+        let text = """
+        CALIFORNIA
+        DRIVER LICENSE
+        4d. DL: D12345678
+        1. SMITH
+        2. JANE
+        8. Address
+        742 OAK STREET
+        SACRAMENTO, CA 95814
+        3. DOB: 03/15/1985
+        """
+        let result = DriverLicenseParser.parse(text)
+        XCTAssertEqual(result.state, "CA")
+        XCTAssertEqual(result.city, "Sacramento")
+    }
+
     func testLowercaseStateInAddress() {
         let text = """
         2457 Meadowbrook Ave
@@ -138,6 +155,44 @@ final class DriverLicenseParserTests: XCTestCase {
         XCTAssertEqual(result?.city, "AUSTIN")
         XCTAssertEqual(result?.state, "TX")
         XCTAssertEqual(result?.postalCode, "787010000")
+    }
+
+    /// Vision often emits field 8 (address) before standalone surname/given lines on Texas DL photos.
+    func testMisorderedTexasPhotoOCRLayout() {
+        let text = """
+        Director: StenC McCraw
+        Stvonc MeCour
+        DRIVER LICENSE
+        TEXAS
+        12. Rest A
+        8. 2528 B.
+        3.DOBZ
+        4d. DL:
+        SMITH
+        JANEMICHAEL
+        з. дov: 06/0241990
+        06/02/1990
+        06/02/1990
+        D1234567
+        87654321
+        RIDGEWOOD
+        78701-1234
+        4b. Exp: 22/02/2027
+        4a. Iss:
+        22/09/2024
+        """
+        let result = DriverLicenseParser.parse(text)
+        let byKey = Dictionary(uniqueKeysWithValues: DriverLicenseFieldMapper.suggestions(from: result).map { ($0.profileKey, $0.value) })
+
+        XCTAssertEqual(byKey[ProfileFieldKey.legalLastName], "Smith")
+        XCTAssertEqual(byKey[ProfileFieldKey.legalFirstName], "Janemichael")
+        XCTAssertEqual(formatDOB(result.dateOfBirth), "06/02/1990")
+        XCTAssertEqual(byKey[ProfileFieldKey.addressLine1], "2528 Ct")
+        XCTAssertEqual(byKey[ProfileFieldKey.postalCode], "78701")
+        XCTAssertEqual(byKey[ProfileFieldKey.city], "Ridgewood")
+        XCTAssertEqual(byKey[ProfileFieldKey.driversLicenseNumber], "87654321")
+        XCTAssertNotEqual(byKey[ProfileFieldKey.driversLicenseNumber], "78701-1234")
+        XCTAssertEqual(formatDOB(result.expiryDate), "02/22/2027")
     }
 
     func testOcrFieldSuggesterUsesPersonNameResolverForTexasLicense() {

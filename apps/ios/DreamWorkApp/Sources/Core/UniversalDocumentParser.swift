@@ -74,10 +74,18 @@ enum UniversalDocumentParser {
     static func looksLikeSSNDocument(_ text: String) -> Bool {
         let upper = text.uppercased()
         if upper.contains("DRIVER") && upper.contains("LICENSE") { return false }
-        guard text.range(of: #"\b\d{3}-\d{2}-\d{4}\b"#, options: .regularExpression) != nil else {
-            return false
-        }
-        return hasSSAHeaderSignals(upper)
+
+        let hasSSN = text.range(of: #"\b\d{3}-\d{2}-\d{4}\b"#, options: .regularExpression) != nil
+        let hasHeader = hasSSAHeaderSignals(upper)
+        let hasCardBoilerplate = hasSSACardBoilerplateSignals(upper)
+
+        if hasSSN && (hasHeader || hasCardBoilerplate) { return true }
+        if hasHeader && hasCardBoilerplate { return true }
+        return false
+    }
+
+    static func isSSABoilerplateText(_ text: String) -> Bool {
+        isSSABoilerplateLine(text)
     }
 
     // MARK: - SSA stub layout
@@ -148,6 +156,19 @@ enum UniversalDocumentParser {
         if upper.contains("LOCIAL") && upper.contains("SEC") {
             return true
         }
+        if upper.contains("DHS AUTHORIZATION") || upper.contains("VALID FOR WORK ONLY") {
+            return true
+        }
+        return false
+    }
+
+    private static func hasSSACardBoilerplateSignals(_ upper: String) -> Bool {
+        if upper.contains("YOUR SOCIAL SECURITY CARD") { return true }
+        if upper.contains("SIGN THIS CARD") || upper.contains("DO NOT LAMINATE") { return true }
+        if upper.contains("CHILDREN:") && (upper.contains("SIGN") || upper.contains("AGE 18")) { return true }
+        if upper.contains("ADULTS:") && upper.contains("SIGN") { return true }
+        if upper.contains("YOUR FIRST JOB") || upper.contains("FIRST JOB") { return true }
+        if upper.contains("DO NOT CARRY") || upper.contains("KEEP YOUR CARD") { return true }
         return false
     }
 
@@ -158,6 +179,16 @@ enum UniversalDocumentParser {
     }
 
     private static func extractSSACardholderName(from lines: [String]) -> SSAParsedName? {
+        if let ssnIdx = lines.firstIndex(where: { $0.range(of: #"\b\d{3}-\d{2}-\d{4}\b"#, options: .regularExpression) != nil }) {
+            for offset in [-1, 1, -2, 2] {
+                let idx = ssnIdx + offset
+                guard idx >= 0, idx < lines.count else { continue }
+                if let name = parseSSANameLine(lines[idx]) {
+                    return name
+                }
+            }
+        }
+
         if let streetIdx = lines.firstIndex(where: isSSAStreetLine) {
             for idx in stride(from: streetIdx - 1, through: max(0, streetIdx - 4), by: -1) {
                 if let name = parseSSANameLine(lines[idx]) {
@@ -236,6 +267,7 @@ enum UniversalDocumentParser {
             "social security", "administration", "established for", "this number",
             "your social", "sign this card", "do not carry", "do not laminate",
             "keep your card", "keep this stub", "please note", "adults:", "children:",
+            "do not sign", "until age", "your first job", "first job", "sign until",
             "locial", "seourta", "securi", "localsecuri",
         ]
         return banned.contains(where: { lower.contains($0) })

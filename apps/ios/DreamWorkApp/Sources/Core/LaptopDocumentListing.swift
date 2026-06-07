@@ -16,13 +16,19 @@ enum LaptopDocumentListing {
 
         var id: String { rawValue }
 
-        var baseURL: URL {
+        var port: Int {
             switch self {
-            case .sampleDocuments:
-                URL(string: "http://127.0.0.1:8010/")!
-            case .macDownloads:
-                URL(string: "http://127.0.0.1:8009/")!
+            case .sampleDocuments: 8010
+            case .macDownloads: 8009
             }
+        }
+
+        func baseURL(host: String) -> URL {
+            URL(string: "http://\(host):\(port)/")!
+        }
+
+        var baseURL: URL {
+            baseURL(host: macHost)
         }
 
         var setupHint: String {
@@ -40,40 +46,84 @@ enum LaptopDocumentListing {
         let errorMessage: String?
     }
 
-    static func load(from source: Source) async -> LoadResult {
-        do {
-            let (data, response) = try await urlSession.data(from: source.baseURL)
-            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
-            guard (200 ..< 300).contains(status) else {
-                throw NSError(domain: "LaptopDocumentListing", code: status, userInfo: [
-                    NSLocalizedDescriptionKey: "HTTP \(status)",
-                ])
-            }
-            let html = String(data: data, encoding: .utf8) ?? ""
-            let parsed = parseHTMLListing(html: html, baseURL: source.baseURL, sourceLabel: source.rawValue)
-            if parsed.isEmpty {
-                return LoadResult(
-                    documents: [],
-                    errorMessage: """
-                    Connected to \(source.baseURL.absoluteString) but no PDF or image files were listed.
-                    Add PNG, JPG, or PDF files to the folder, then tap Refresh.
-                    """
-                )
-            }
-            return LoadResult(documents: parsed, errorMessage: nil)
-        } catch {
-            let hint = connectionHint(for: source)
-            return LoadResult(
-                documents: [],
-                errorMessage: """
-                Could not reach your Mac at \(source.baseURL.absoluteString).
-
-                \(hint)
-
-                Error: \(error.localizedDescription)
-                """
-            )
+    static var macHost: String {
+        get {
+            let stored = UserDefaults.standard.string(forKey: macHostDefaultsKey)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return stored.isEmpty ? "127.0.0.1" : stored
         }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty {
+                UserDefaults.standard.removeObject(forKey: macHostDefaultsKey)
+            } else {
+                UserDefaults.standard.set(trimmed, forKey: macHostDefaultsKey)
+            }
+        }
+    }
+
+    private static let macHostDefaultsKey = "simulatorMacHost"
+
+    static func candidateHosts() -> [String] {
+        var hosts: [String] = []
+        func append(_ value: String) {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty, !hosts.contains(trimmed) else { return }
+            hosts.append(trimmed)
+        }
+        append(macHost)
+        append("127.0.0.1")
+        append("localhost")
+        return hosts
+    }
+
+    static func load(from source: Source) async -> LoadResult {
+        var lastError: Error?
+        for host in candidateHosts() {
+            let base = source.baseURL(host: host)
+            do {
+                let (data, response) = try await urlSession.data(from: base)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+                guard (200 ..< 300).contains(status) else {
+                    throw NSError(domain: "LaptopDocumentListing", code: status, userInfo: [
+                        NSLocalizedDescriptionKey: "HTTP \(status)",
+                    ])
+                }
+                let html = String(data: data, encoding: .utf8) ?? ""
+                let parsed = parseHTMLListing(html: html, baseURL: base, sourceLabel: source.rawValue)
+                if parsed.isEmpty {
+                    return LoadResult(
+                        documents: [],
+                        errorMessage: """
+                        Connected to \(base.absoluteString) but no PDF or image files were listed.
+                        Add PNG, JPG, or PDF files to the folder, then tap Refresh.
+                        """
+                    )
+                }
+                if host != macHost {
+                    macHost = host
+                }
+                return LoadResult(documents: parsed, errorMessage: nil)
+            } catch {
+                lastError = error
+            }
+        }
+
+        let hint = connectionHint(for: source)
+        let tried = candidateHosts().map { "http://\($0):\(source.port)/" }.joined(separator: "\n")
+        return LoadResult(
+            documents: [],
+            errorMessage: """
+            Could not reach your Mac document servers.
+
+            Tried:
+            \(tried)
+
+            \(hint)
+
+            Error: \(lastError?.localizedDescription ?? "unknown")
+            """
+        )
     }
 
     static func downloadToTemporaryFile(from remoteURL: URL) async throws -> URL {
@@ -131,7 +181,7 @@ enum LaptopDocumentListing {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 15
         config.timeoutIntervalForResource = 60
-        config.waitsForConnectivity = true
+        config.waitsForConnectivity = false
         return URLSession(configuration: config)
     }()
 

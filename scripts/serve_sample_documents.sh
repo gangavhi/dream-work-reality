@@ -22,4 +22,4 @@ echo "Press Ctrl+C to stop."
 echo
 
 cd "${DIR}"
-python3 -m http.server "${PORT}" --bind 127.0.0.1
+python3 -m http.server "${PORT}" --bind 0.0.0.0

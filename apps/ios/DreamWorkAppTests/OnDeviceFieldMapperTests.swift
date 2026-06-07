@@ -10,7 +10,7 @@ final class OnDeviceFieldMapperTests: XCTestCase {
         Last name | Smith
         """
         let previous = GenAISettings.provider
-        GenAISettings.provider = .onDevice
+        GenAISettings.provider = .appleNative
         defer { GenAISettings.provider = previous }
 
         let result = OnDeviceFieldMapper.mapFields(

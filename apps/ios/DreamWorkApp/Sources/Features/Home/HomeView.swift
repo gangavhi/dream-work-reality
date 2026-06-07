@@ -6,6 +6,7 @@ struct HomeView: View {
 
 #if targetEnvironment(simulator)
     @State private var showLaptopImport = false
+    @State private var isDropTargeted = false
 #endif
 
     var body: some View {
@@ -13,10 +14,13 @@ struct HomeView: View {
             List {
                 Section {
                     VStack(alignment: .leading, spacing: 8) {
+                        Label("TrustNest rewrite v2", systemImage: "lock.shield")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.green)
                         Text("Household profiles, on your device")
                             .font(.title3.weight(.bold))
                             .foregroundStyle(.primary)
-                        Text("Scan an ID or document, review the extracted fields, then copy them into medical, tax, school, or other forms.")
+                        Text("Scan IDs and must-have documents. Fields and encrypted file copies stay on this device — no remote AI.")
                             .appHelperText()
                     }
                     .padding(.vertical, 4)
@@ -59,11 +63,15 @@ struct HomeView: View {
 
                     AppActionCard(
                         title: "Upload PDF or image",
-                        subtitle: "Pick from Files, Photos, or email attachments",
+                        subtitle: simulatorUploadSubtitle,
                         systemImage: "doc.badge.plus",
                         tint: .blue
                     ) {
+#if targetEnvironment(simulator)
+                        showLaptopImport = true
+#else
                         appState.showFileImporter = true
+#endif
                     }
                     .disabled(appState.isImportingDocument)
                     .accessibilityIdentifier("homeUploadDocumentButton")
@@ -84,26 +92,6 @@ struct HomeView: View {
                 } header: {
                     Text("Get started")
                 }
-
-#if targetEnvironment(simulator)
-                Section {
-                    AppActionCard(
-                        title: "Browse laptop documents",
-                        subtitle: "Test with files from your Mac (Simulator only)",
-                        systemImage: "macbook.and.iphone",
-                        tint: .purple
-                    ) {
-                        showLaptopImport = true
-                    }
-                    .disabled(appState.isImportingDocument)
-                    .accessibilityIdentifier("homeBrowseLaptopDocumentsButton")
-                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                } header: {
-                    Text("Developer testing")
-                }
-#endif
 
                 if !appState.people.isEmpty {
                     Section {
@@ -131,6 +119,20 @@ struct HomeView: View {
 #if targetEnvironment(simulator)
             .sheet(isPresented: $showLaptopImport) {
                 SimulatorLaptopImportView()
+                    .environmentObject(appState)
+            }
+            .onDrop(of: [UTType.fileURL], isTargeted: $isDropTargeted) { providers in
+                handleSimulatorDrop(providers)
+            }
+            .overlay(alignment: .bottom) {
+                if isDropTargeted {
+                    Text("Drop PDF or image to import")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.ultraThinMaterial, in: Capsule())
+                        .padding(.bottom, 12)
+                }
             }
 #endif
             .sheet(isPresented: $appState.showDocumentScanner) {
@@ -165,6 +167,7 @@ struct HomeView: View {
             }
             .sheet(item: $appState.scanReviewPayload) { payload in
                 ScanReviewView(payload: payload)
+                    .environmentObject(appState)
             }
             .alert(
                 "Document import",
@@ -186,4 +189,32 @@ struct HomeView: View {
             }
         }
     }
+
+    private var simulatorUploadSubtitle: String {
+#if targetEnvironment(simulator)
+        "Browse your Mac Downloads folder (Simulator)"
+#else
+        "Pick from Files, Photos, or email attachments"
+#endif
+    }
+
+#if targetEnvironment(simulator)
+    private func handleSimulatorDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first(where: { $0.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) }) else {
+            return false
+        }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            guard let url = item as? URL else { return }
+            Task { @MainActor in
+                do {
+                    let localURL = try DocumentImportHelper.makeLocalCopy(of: url)
+                    await appState.importDocument(from: localURL, urlIsTemporaryCopy: true)
+                } catch {
+                    appState.documentImportMessage = error.localizedDescription
+                }
+            }
+        }
+        return true
+    }
+#endif
 }

@@ -20,6 +20,8 @@ struct PersonDetailView: View {
 
     var body: some View {
         List {
+            MustHaveDocumentsChecklist(person: person)
+
             ForEach(ProfileSection.allCases) { section in
                 let items = ProfileSchema.fields(in: section).compactMap { field -> (ProfileFieldDefinition, String)? in
                     let value = person.value(for: field.key)

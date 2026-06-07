@@ -8,10 +8,23 @@ apps/ios/*.xcarchive
 *.xcuserstate
 xcuserdata/
 .simulator-test-pids/
-demo/sample-documents/*-kota*
-demo/sample-documents/indian-passport-*.pdf
+demo/sample-documents/*.pdf
+demo/sample-documents/*.png
+demo/sample-documents/*.jpg
+demo/sample-documents/*.jpeg
+demo/sample-documents/*.heic
+demo/sample-documents/*.HEIC
+apps/ios/DreamWorkAppTests/Fixtures/
+**/*passport*test*.pdf
+**/*Passport-NonBlakpages*
+**/*SSN*.png
+**/*SSN*.jpg
+**/*ssn*card*
 apps/ios/DerivedData/
 # Local ONNX/vendor binaries — download via scripts; do not commit (~250MB)
 apps/ios/Vendor/
 # Local-only simulator OCR fixtures (may contain real ID scans)
 apps/ios/DreamWorkAppTests/Fixtures/texas-driver-license-sample.png
+# Local ML training labels (may contain real OCR from device scans)
+local-training/labels.jsonl
+local-training/export/

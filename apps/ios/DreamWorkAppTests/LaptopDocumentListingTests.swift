@@ -17,4 +17,13 @@ final class LaptopDocumentListingTests: XCTestCase {
         XCTAssertTrue(names.contains("sample.pdf"))
         XCTAssertFalse(names.contains("notes.txt"))
     }
+
+    func testLiveMacSampleDocumentsServerIfRunning() async throws {
+        guard ProcessInfo.processInfo.environment["TRUSTNEST_LIVE_SERVER_TEST"] == "1" else {
+            throw XCTSkip("Set TRUSTNEST_LIVE_SERVER_TEST=1 with prepare_simulator_testing.sh running")
+        }
+        let result = await LaptopDocumentListing.load(from: .sampleDocuments)
+        XCTAssertNil(result.errorMessage, result.errorMessage ?? "")
+        XCTAssertFalse(result.documents.isEmpty)
+    }
 }

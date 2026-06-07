@@ -10,6 +10,9 @@ enum ScanFieldValidator {
         "texas", "texass", "california", "florida", "new", "york", "dmv", "dds", "dps",
         "none", "eno",
         "locial", "seourta", "securi", "local", "secur", "social", "security", "administration",
+        "given", "names", "name", "surname", "place", "birth", "piace", "nationality",
+        "passport", "passeport", "pasaporte", "republic", "indian", "india", "issue",
+        "expir", "expiration", "expiry", "nom", "nombres", "apellidos",
     ]
 
     private static let usStateCodes: Set<String> = [
@@ -38,6 +41,12 @@ enum ScanFieldValidator {
             return isPlausiblePhone(value, documentType: documentType)
         case ProfileFieldKey.postalCode:
             return value.range(of: #"^\d{5}(-\d{4})?$"#, options: .regularExpression) != nil
+                || value.range(of: #"^\d{6}$"#, options: .regularExpression) != nil
+        case ProfileFieldKey.addressLine1, ProfileFieldKey.passportAddress:
+            if documentType == .passport {
+                return !isOCRNoiseText(value) && value.count <= 90
+            }
+            return true
         default:
             return true
         }
@@ -47,10 +56,27 @@ enum ScanFieldValidator {
         suggestions.filter { isValid($0, documentType: documentType) }
     }
 
+    static func isOCRNoiseText(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count >= 3 else { return true }
+
+        let noiseChars = "~`{}|\\[]<>?!@#$%^&*_=;:."
+        let noiseCount = trimmed.filter { noiseChars.contains($0) }.count
+        if noiseCount >= 2 { return true }
+        if trimmed.count > 12, Double(noiseCount) / Double(trimmed.count) > 0.08 { return true }
+
+        let letters = trimmed.filter(\.isLetter).count
+        if trimmed.count > 20, Double(letters) / Double(trimmed.count) < 0.55 { return true }
+        if trimmed.filter({ $0 == "~" || $0 == "_" || $0 == ";" }).count >= 2 { return true }
+        return false
+    }
+
     /// Single-token first/last names (Texas DL field 1 / field 2).
     static func isPlausibleNameComponent(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 2, trimmed.count <= 48 else { return false }
+        if isOCRNoiseText(trimmed) { return false }
+        if PassportBiodataSupport.isPassportFieldLabel(trimmed) { return false }
         let lower = trimmed.lowercased()
         if nonNameTokens.contains(lower) { return false }
         if DriverLicenseParserSupport.isStreetSuffixToken(trimmed) { return false }
@@ -60,6 +86,7 @@ enum ScanFieldValidator {
     static func isPlausiblePersonName(_ value: String) -> Bool {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 3, trimmed.count <= 64 else { return false }
+        if isOCRNoiseText(trimmed) { return false }
 
         let lower = trimmed.lowercased()
         if nonNameTokens.contains(lower) { return false }
@@ -71,6 +98,8 @@ enum ScanFieldValidator {
             "limited term", "driver license", "drivers license", "identification card",
             "motor vehicle", "department of", "director of",
             "locial seourta", "social security", "localsecuri",
+            "children:", "adults:", "do not sign", "your first job", "sign this card",
+            "do not laminate", "until age",
         ]
         if bannedPhrases.contains(where: { lower.contains($0) }) { return false }
 
@@ -105,6 +134,10 @@ enum ScanFieldValidator {
         let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count >= 4, trimmed.count <= 20 else { return false }
         guard trimmed.rangeOfCharacter(from: .decimalDigits) != nil else { return false }
+        // ZIP+4 is often OCR'd on its own line and must not become a DL number.
+        if trimmed.range(of: #"^\d{5}-\d{4}$"#, options: .regularExpression) != nil {
+            return false
+        }
 
         let lower = trimmed.lowercased()
         let banned = ["director", "license", "driver", "limited", "term", "department", "motor", "vehicle"]

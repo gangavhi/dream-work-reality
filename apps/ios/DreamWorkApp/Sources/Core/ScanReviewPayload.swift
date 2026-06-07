@@ -34,6 +34,10 @@ struct ScanReviewPayload: Identifiable {
     let prefilledPerson: PersonRecord?
     /// When false, automatic extraction already ran; no extra tap required.
     let showManualExtractionRetry: Bool
+    /// Canonical type for encrypted submission stash (rewrite v2).
+    let canonicalDocumentType: String
+    /// Staged scan file — encrypted on save, never uploaded.
+    let sourceFileURL: URL?
 
     var documentType: ScannedDocumentType { detectedDocumentType }
 }

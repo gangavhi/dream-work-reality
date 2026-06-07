@@ -97,10 +97,11 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_FILE: DreamWorkApp/Resources/Info.plist
         MARKETING_VERSION: "1.1.0"
-        CURRENT_PROJECT_VERSION: "53"
+        CURRENT_PROJECT_VERSION: "57"
         INFOPLIST_KEY_CFBundleDisplayName: DreamWork
         INFOPLIST_KEY_NSCameraUsageDescription: Scan driver's licenses, passports, and other documents to extract profile fields on your device.
         INFOPLIST_KEY_NSPhotoLibraryUsageDescription: Import document photos to extract profile fields on your device.
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to your Mac to import test documents in the iOS Simulator.
         # Required for App Store / Transporter when icons live in Assets.car (iOS 11+ SDK).
         INFOPLIST_KEY_CFBundleIconName: AppIcon
         # Universal app + iPad multitasking: Apple rejects empty/missing orientation keys (409).

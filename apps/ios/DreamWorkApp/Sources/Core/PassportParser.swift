@@ -64,26 +64,32 @@ enum PassportParser {
             )
         }
 
-        let first = parsed.firstName.map { DriverLicenseFormatting.personName($0) }
-        let middle = parsed.middleName.map { DriverLicenseFormatting.personName($0) }
-        let last = parsed.lastName.map { DriverLicenseFormatting.personName($0) }
+        let first = parsed.firstName.flatMap(plausibleNameComponent)
+        let middle = parsed.middleName.flatMap(plausibleNameComponent)
+        let last = parsed.lastName.flatMap(plausibleNameComponent)
         let display = DriverLicenseFormatting.displayName(first: first, middle: middle, last: last)
 
-        add(ProfileFieldKey.displayName, display, 0.97)
+        if let display, ScanFieldValidator.isPlausiblePersonName(display) {
+            add(ProfileFieldKey.displayName, display, 0.97)
+        }
         add(ProfileFieldKey.legalFirstName, first, 0.97)
         add(ProfileFieldKey.legalMiddleName, middle, 0.88)
         add(ProfileFieldKey.legalLastName, last, 0.97)
         add(ProfileFieldKey.passportNumber, parsed.passportNumber, 0.96)
         add(ProfileFieldKey.passportCountry, parsed.nationality, 0.93)
         add(ProfileFieldKey.passportExpiry, parsed.expiryDate, 0.94)
-        add(ProfileFieldKey.dateOfBirth, parsed.dateOfBirth, 0.95)
+        if let dob = parsed.dateOfBirth,
+           PassportBiodataSupport.isPlausibleDateOfBirth(dob, issueDate: parsed.issueDate, expiryDate: parsed.expiryDate)
+        {
+            add(ProfileFieldKey.dateOfBirth, dob, 0.95)
+        }
         add(ProfileFieldKey.country, country, 0.9)
 
-        if let pob = parsed.placeOfBirth {
-            if pob.uppercased().contains("TEXAS") {
-                add(ProfileFieldKey.state, "TX", 0.82)
-            }
-            add(ProfileFieldKey.city, pob, 0.75)
+        if let pob = parsed.placeOfBirth,
+           PassportBiodataSupport.isPlausiblePlaceValue(pob),
+           let state = USJurisdictionSupport.inferStateCode(fromPlaceText: pob)
+        {
+            add(ProfileFieldKey.state, state, 0.82)
         }
 
         var seen = Set<String>()
@@ -181,6 +187,11 @@ enum PassportParser {
                #"(?i)surname(?:\s*/\s*[^\n]+)?[^\nA-Z]*\n\s*([A-Z][A-Z\s\-']{1,40})"#,
                #"(?i)surname[^\nA-Z]*\n\s*([A-Z]{2,20})"#,
            ])
+            ?? PassportBiodataSupport.valueOnNextLine(
+                matching: ["surname"],
+                in: lines,
+                accept: { PassportBiodataSupport.sanitizeNameValue($0) != nil }
+            ).flatMap({ PassportBiodataSupport.sanitizeNameValue($0) })
         {
             result.lastName = DriverLicenseFormatting.personName(last)
         }
@@ -188,24 +199,41 @@ enum PassportParser {
         if result.firstName == nil,
            let given = labeledValue(in: joined, patterns: [
                #"(?i)given\s*names?(?:\s*/\s*[^\n]+)?[^\nA-Z]*\n\s*([A-Z][A-Z\s\-']{1,60})"#,
-               #"(?i)given\s*names?[^\nA-Z]*\n?\s*([A-Z][A-Z\s\-'.]{1,60})"#,
+               #"(?i)given\s*names?[^\nA-Z]*\n\s*([A-Z][A-Z\s\-'.]{1,60})"#,
            ])
+            ?? PassportBiodataSupport.valueOnNextLine(
+                matching: ["given name", "given names"],
+                in: lines,
+                accept: { PassportBiodataSupport.sanitizeNameValue($0) != nil }
+            ).flatMap({ PassportBiodataSupport.sanitizeNameValue($0) })
         {
             applyGivenNames(given, to: &result)
         }
 
         if result.passportNumber == nil,
            let number = labeledValue(in: joined, patterns: [
-               #"(?i)passport\s*(?:no|number|\.?\s*no\.?)(?:\s*/\s*[^\n]+)?[^\nA-Z0-9]*([A-Z0-9]{8,9})"#,
+               #"(?i)passport\s*(?:no|number|\.?\s*no\.?)(?:\s*/\s*[^\n]+)?[^\nA-Z0-9]*\n\s*([A-Z0-9]{8,9})"#,
+               #"(?i)passport\s*(?:no|number|\.?\s*no\.?)[^\nA-Z0-9]*([A-Z0-9]{8,9})"#,
            ])
+            ?? PassportBiodataSupport.valueOnNextLine(
+                matching: ["passport no", "passport number"],
+                in: lines,
+                accept: { $0.range(of: #"^[A-Z0-9]{8,9}$"#, options: .regularExpression) != nil }
+            )
         {
             result.passportNumber = number.uppercased()
         }
 
         if result.nationality == nil,
            let nat = labeledValue(in: joined, patterns: [
-               #"(?i)nationality(?:\s*/\s*[^\n]+)?[^\nA-Z]*\n?\s*([A-Z][A-Z\s]{4,40})"#,
+               #"(?i)nationality(?:\s*/\s*[^\n]+)?[^\nA-Z]*\n\s*([A-Z][A-Z\s]{4,40})"#,
+               #"(?i)nationality[^\nA-Z]*\n?\s*([A-Z][A-Z\s]{4,40})"#,
            ])
+            ?? PassportBiodataSupport.valueOnNextLine(
+                matching: ["nationality"],
+                in: lines,
+                accept: { PassportBiodataSupport.sanitizeBiodataValue($0) != nil }
+            ).flatMap({ PassportBiodataSupport.sanitizeBiodataValue($0) })
         {
             result.nationality = DriverLicenseFormatting.personName(nat)
             if nat.uppercased().contains("UNITED STATES") { result.countryCode = "US" }
@@ -214,31 +242,42 @@ enum PassportParser {
 
         if result.dateOfBirth == nil {
             result.dateOfBirth = labeledDate(in: joined, patterns: [
-                #"(?i)date\s*of\s*birth(?:\s*/\s*[^\n]+)?[^\dA-Z]*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*birth(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*birth(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{2}\D?\d{2}\D?\d{4})"#,
                 #"(?i)date\s*of\s*birth[^\d]*(\d{2}\D?\d{2}\D?\d{4})"#,
             ], preferEarliest: true, countryCode: result.countryCode)
         }
 
         if result.issueDate == nil {
             result.issueDate = labeledDate(in: joined, patterns: [
-                #"(?i)date\s*of\s*issue(?:\s*/\s*[^\n]+)?[^\dA-Z]*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*issue(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*issue(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{2}\D?\d{2}\D?\d{4})"#,
             ], preferEarliest: false, countryCode: result.countryCode)
         }
 
         if result.expiryDate == nil {
             result.expiryDate = labeledDate(in: joined, patterns: [
-                #"(?i)date\s*of\s*expir(?:y|ation)(?:\s*/\s*[^\n]+)?[^\dA-Z]*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*expir(?:y|ation)(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{1,2}\s+[A-Z]{3}\s+\d{4})"#,
+                #"(?i)date\s*of\s*expir(?:y|ation)(?:\s*/\s*[^\n]+)?[^\dA-Z]*\n\s*(\d{2}\D?\d{2}\D?\d{4})"#,
                 #"(?i)expir(?:y|ation)[^\d]*(\d{2}\D?\d{2}\D?\d{4})"#,
             ], preferEarliest: false, countryCode: result.countryCode)
         }
 
         if result.placeOfBirth == nil,
            let pob = labeledValue(in: joined, patterns: [
-               #"(?i)place\s*of\s*birth(?:\s*/\s*[^\n]+)?[^\n]*\n?\s*([A-Z][A-Z,\.\s]{3,60})"#,
+               #"(?i)place\s*of\s*birth(?:\s*/\s*[^\n]+)?[^\n]*\n\s*([A-Z][A-Z,\.\s]{3,60})"#,
+               #"(?i)piace\s*of\s*birth[^\n]*\n\s*([A-Z][A-Z,\.\s]{3,60})"#,
            ])
+            ?? PassportBiodataSupport.valueOnNextLine(
+                matching: ["place of birth", "piace of birth"],
+                in: lines,
+                accept: { PassportBiodataSupport.isPlausiblePlaceValue($0) }
+            )
         {
             result.placeOfBirth = DriverLicenseFormatting.city(pob.replacingOccurrences(of: ",", with: ", "))
         }
+
+        validateDates(in: &result)
     }
 
     private static func parseNameLines(from lines: [String], into result: inout ParsedPassport) {
@@ -262,8 +301,8 @@ enum PassportParser {
     // MARK: - Helpers
 
     private static func applyGivenNames(_ raw: String, to result: inout ParsedPassport) {
-        let words = raw
-            .replacingOccurrences(of: ".", with: " ")
+        guard let sanitized = PassportBiodataSupport.sanitizeNameValue(raw) else { return }
+        let words = sanitized
             .split(whereSeparator: \.isWhitespace)
             .map { DriverLicenseFormatting.personName(String($0)) }
             .filter { ScanFieldValidator.isPlausibleNameComponent($0) }
@@ -275,6 +314,7 @@ enum PassportParser {
     }
 
     private static func cleanNameToken(_ raw: String) -> String {
+        if ScanFieldValidator.isOCRNoiseText(raw) { return "" }
         var token = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         token = token.replacingOccurrences(of: #"\.\d+$"#, with: "", options: .regularExpression)
         token = token.replacingOccurrences(of: #"\d+$"#, with: "", options: .regularExpression)
@@ -286,7 +326,14 @@ enum PassportParser {
         if ["passport", "national", "indian", "republic", "united", "states", "america"].contains(where: { lower.contains($0) }) {
             return ""
         }
+        guard ScanFieldValidator.isPlausibleNameComponent(token) else { return "" }
         return token
+    }
+
+    private static func plausibleNameComponent(_ raw: String) -> String? {
+        let trimmed = DriverLicenseFormatting.personName(raw)
+        guard ScanFieldValidator.isPlausibleNameComponent(trimmed) else { return nil }
+        return trimmed
     }
 
     private static func mapCountryCode(_ issuer: String) -> String {
@@ -377,11 +424,20 @@ enum PassportParser {
     private static func labeledValue(in text: String, patterns: [String]) -> String? {
         for pattern in patterns {
             if let value = firstCapture(in: text, pattern: pattern) {
-                let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-                if !trimmed.isEmpty { return trimmed }
+                if let sanitized = PassportBiodataSupport.sanitizeBiodataValue(value) {
+                    return sanitized
+                }
             }
         }
         return nil
+    }
+
+    private static func validateDates(in result: inout ParsedPassport) {
+        if let dob = result.dateOfBirth,
+           !PassportBiodataSupport.isPlausibleDateOfBirth(dob, issueDate: result.issueDate, expiryDate: result.expiryDate)
+        {
+            result.dateOfBirth = nil
+        }
     }
 
     private static func labeledDate(

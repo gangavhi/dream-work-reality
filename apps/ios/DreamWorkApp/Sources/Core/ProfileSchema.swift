@@ -25,6 +25,9 @@ enum ProfileFieldKey {
     static let driversLicenseExpiry = "drivers_license_expiry"
     static let passportNumber = "passport_number"
     static let passportCountry = "passport_country"
+    static let passportIssueDate = "passport_issue_date"
+    static let passportIssuedPlace = "passport_issued_place"
+    static let passportAddress = "passport_address"
     static let passportExpiry = "passport_expiry"
     static let insuranceCarrier = "insurance_carrier"
     static let insuranceMemberId = "insurance_member_id"
@@ -132,6 +135,9 @@ enum ProfileSchema {
         ProfileFieldDefinition(key: ProfileFieldKey.stateIdExpiry, label: "State ID expiry", section: .governmentIds, isSensitive: false),
         ProfileFieldDefinition(key: ProfileFieldKey.passportNumber, label: "Passport number", section: .governmentIds, isSensitive: true),
         ProfileFieldDefinition(key: ProfileFieldKey.passportCountry, label: "Passport country", section: .governmentIds, isSensitive: false),
+        ProfileFieldDefinition(key: ProfileFieldKey.passportIssueDate, label: "Passport issue date", section: .governmentIds, isSensitive: false),
+        ProfileFieldDefinition(key: ProfileFieldKey.passportIssuedPlace, label: "Passport issued place", section: .governmentIds, isSensitive: false),
+        ProfileFieldDefinition(key: ProfileFieldKey.passportAddress, label: "Passport address", section: .governmentIds, isSensitive: false),
         ProfileFieldDefinition(key: ProfileFieldKey.passportExpiry, label: "Passport expiry", section: .governmentIds, isSensitive: false),
         // Tax & financial
         ProfileFieldDefinition(key: ProfileFieldKey.ssn, label: "SSN", section: .tax, isSensitive: true),

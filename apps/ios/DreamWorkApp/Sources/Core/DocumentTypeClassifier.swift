@@ -88,6 +88,9 @@ enum DocumentTypeClassifier {
         if text.range(of: #"\d{3}-\d{2}-\d{4}"#, options: .regularExpression) != nil {
             signals.append("SSN number format")
         }
+        if text.contains("CHILDREN:") || text.contains("ADULTS:") || text.contains("DO NOT LAMINATE") {
+            signals.append("SSA card instructions")
+        }
         let confidence = signals.count >= 2 ? fullConfidence : 0.9
         return DocumentClassification(documentType: .ssnCard, confidence: confidence, matchedSignals: signals)
     }
@@ -189,16 +192,25 @@ enum DocumentTypeClassifier {
     }
 
     private static func detectInsuranceCard(in text: String) -> DocumentClassification? {
-        var signals: [String] = []
-        if text.contains("MEMBER") { signals.append("member ID") }
-        if text.contains("SUBSCRIBER") { signals.append("subscriber") }
-        if text.contains("RXBIN") { signals.append("RX BIN") }
-        if text.contains("GROUP #") || text.contains("GROUP#") { signals.append("group number") }
+        guard InsuranceCardParser.isInsuranceCard(text) else { return nil }
 
-        guard !signals.isEmpty else { return nil }
+        var signals: [String] = []
+        let upper = text.uppercased()
+        if upper.contains("MEMBER") { signals.append("member ID") }
+        if upper.contains("SUBSCRIBER") { signals.append("subscriber") }
+        if upper.contains("RXBIN") || upper.contains("RX BIN") { signals.append("RX BIN") }
+        if upper.contains("GROUP #") || upper.contains("GROUP#") { signals.append("group number") }
+        if upper.contains("ID CARDS AS OF") { signals.append("UHC portal export") }
+        if upper.contains("MEDICAL") { signals.append("medical plan") }
+        if upper.contains("UNITED") || upper.contains("UHC") { signals.append("UnitedHealthcare") }
+        if upper.contains("AETNA") { signals.append("Aetna") }
+        if upper.contains("ANTHEM") { signals.append("Anthem") }
+        if upper.contains("BLUE CROSS") || upper.contains("BCBS") { signals.append("BCBS") }
+
+        if signals.isEmpty { signals.append("insurance card layout") }
         return DocumentClassification(
             documentType: .insuranceCard,
-            confidence: signals.count >= 2 ? fullConfidence : 0.85,
+            confidence: signals.count >= 2 ? fullConfidence : 0.88,
             matchedSignals: signals
         )
     }

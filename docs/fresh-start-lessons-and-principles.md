@@ -124,7 +124,7 @@ Many **canonical government identifier fields** have an **expiry date** (from ev
 | Field group | Expiry key (Layer B) | Related canonical fields |
 |-------------|----------------------|--------------------------|
 | Driver license | `driver_license_expiry` | `driver_license_number`, `driver_license_state`, name, DOB, address |
-| Passport | `passport_expiry` | `passport_number`, name, DOB, nationality |
+| Passport | `passport_expiry` | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_issue_date`, `passport_issued_place`, `passport_address` |
 | State ID | `state_id_expiry` | `state_id_number`, name, DOB |
 | Visa | `visa_expiry` | `visa_number` |
 | Work authorization | `work_authorization_expiry` | `work_authorization_number` |
@@ -278,7 +278,7 @@ If a type fails the test → **classify-only** (Layer A may label it; `form_rele
 
 | `document_type` | Why it stays | Layer C extractor |
 |-----------------|--------------|-------------------|
-| `passport` | `passport_number`, `passport_expiry`, nationality | `PassportExtractor` |
+| `passport` | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry`, `passport_issue_date`, `passport_issued_place`, `passport_address` | `PassportExtractor` |
 | `driversLicense` | DL#, state, address, expiry | `TexasDriverLicenseExtractor` |
 | `stateId` | State ID#, expiry | `StateIdExtractor` |
 | `ssnCard` | `ssn` | `SSNCardExtractor` |
@@ -296,7 +296,7 @@ If a type fails the test → **classify-only** (Layer A may label it; `form_rele
 | `birthCertificate` | No unique typed fields (name/DOB from passport/DL); **stash for school upload** instead | `form_relevant: false`, **stash: true** |
 | `marriageCertificate` | `marital_status` is a one-tap manual field on forms | `form_relevant: false` |
 | `taxReturn` | Same tax fields as W-2/1099; full return not needed for form automation | `form_relevant: false` |
-| `w2`, `form1099`, `payStub` | Tax/loan niche; SSN duplicates SSN card; not school/medical intake | `form_relevant: false` |
+| `w2`, `form1099`, `payStub` | Must-have **stash** for loan/benefits upload; no intake field extract v1 | `form_relevant: false`, **stash: true** |
 | `transcript`, `degree`, `studentId` | Education history is manual or form write-back; not reliable scan→fill | `form_relevant: false` |
 | `medicationList`, `medicalRecord` | Unstructured clinical text; poor form-fill signal | `form_relevant: false` |
 | `emergencyContact` | Emergency blocks are typed on forms; scan path adds noise | `form_relevant: false` |
@@ -361,9 +361,25 @@ Examples: `Immunization Record — Emma Chen — 2026-06-01` · `Birth Certifica
 | `driversLicense` | Parent/guardian ID verification | ✅ identity + address |
 | `stateId` | Child ID verification (non-driver) | ✅ identity fields |
 | `passport` | ID verification (travel, some schools) | ✅ passport fields |
+| `ssnCard` | SSN verification upload (when requested) | ✅ `ssn` fields |
+| `w2`, `form1099`, `payStub` | Loan / benefits / tax file upload | ❌ stash only |
 | `bankStatement` | Benefits / loan proof (when requested) | ✅ address, routing/account |
 
-**Not auto-stashed:** `unknown`, receipts, W-2, 1099, pay stub, marriage cert, medical records, tax returns — unless added to stash list in a future scope.
+**Not auto-stashed:** `unknown`, receipts, marriage cert, medical records, tax returns (full return).
+
+#### Must-have documents (household baseline)
+
+| ✓ | Category | `document_type`(s) | Stash | Extract v1 |
+|---|----------|-------------------|:-----:|:----------:|
+| ✓ | Passport / ID | `passport`, `stateId` | ✅ | ✅ |
+| ✓ | Driver License | `driversLicense` | ✅ | ✅ |
+| ✓ | SSN Card | `ssnCard` | ✅ | ✅ |
+| ✓ | Address Proof | `utility_bill`, `lease` | ✅ | ✅ |
+| ✓ | Insurance Card | `insuranceCard` | ✅ | ✅ |
+| ✓ | W-2 / 1099 / Pay stub | `w2`, `form1099`, `payStub` | ✅ | ❌ |
+| ✓ | Bank Statement | `bankStatement` | ✅ | partial |
+| ✓ | Emergency Contact | — | manual | manual (`emergency_contacts[]`) |
+| ✓ | Employment Information | — | manual | manual (`employment` profile section) |
 
 #### Auto form fill extraction matrix (mandated documents)
 
@@ -371,10 +387,10 @@ What each **mandated** document contributes to **auto form fill** (typed fields 
 
 | Document | Field extract | File stash | Layer B fields extracted (auto form fill) | Typical USA form use |
 |----------|:-------------:|:----------:|----------------------------------------|----------------------|
-| **Passport** (`passport`) | ✅ | ✅ | `first_name`, `last_name`, `full_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry` | Travel, I-9 alt ID, some school ID fields |
+| **Passport** (`passport`) | ✅ | ✅ | `full_name`, `first_name`, `last_name`, `date_of_birth`, `gender`, `nationality`, `passport_number`, `passport_expiry`, `passport_issue_date`, `passport_issued_place`, `passport_address` | Travel, I-9 alt ID, some school ID fields |
 | **Driver’s license** (`driversLicense`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `driver_license_number`, `driver_license_state`, `driver_license_expiry`, `current_address` | School registration, medical intake, rental, pharmacy |
 | **State ID** (`stateId`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `state_id_number`, `state_id_expiry` | Child school forms (non-driver), youth programs |
-| **SSN card** (`ssnCard`) | ✅ | ❌ | `first_name`, `last_name`, `ssn` | Benefits, credit, employment I-9 (SSN field) |
+| **SSN card** (`ssnCard`) | ✅ | ✅ | `first_name`, `last_name`, `ssn` | Benefits, credit, employment I-9 (SSN field) |
 | **Insurance card** (`insuranceCard`) | ✅ | ✅ | `first_name`, `last_name`, `date_of_birth`, `insurance_provider`, `policy_number`, `insurance_group_id` | Medical portals, pharmacy, school nurse |
 | **Utility bill** (`utility_bill`) | ✅ | ✅ | `full_name` (optional), `current_address` | School proof of residence, Medicaid address verify |
 | **Lease** (`lease`) | ✅ | ✅ | `first_name`, `last_name`, `current_address` | School district, rental applications |
@@ -384,7 +400,7 @@ What each **mandated** document contributes to **auto form fill** (typed fields 
 | **Work authorization / EAD** (`workAuthorization`) | ✅ | ❌ | `first_name`, `last_name`, `work_authorization_number`, `work_authorization_expiry` | I-9, employer work-auth verification |
 | **Immigration form** (`immigrationForm`, I-94, etc.) | ✅ | ❌ | `visa_number` or `work_authorization_number`, expiry, nationality (form-specific) | USCIS / border entry records |
 | **Birth certificate** (`birthCertificate`) | ❌ | ✅ | — (no fields) | School **file upload** only; use state ID/passport for name/DOB fields |
-| **W-2 / 1099 / pay stub** | ❌ | ❌ | — | Tax prep / loan niche — not intake auto-fill (future scope) |
+| **W-2 / 1099 / pay stub** | ❌ | ✅ | — (stash only v1) | Loan / benefits upload attach; field extract future scope |
 | **Marriage cert / transcript / medical records** | ❌ | ❌ | — | Manual entry or form write-back |
 
 **Legend:** ✅ = runs on scan · ❌ = does not run · `vaccination_status[]` = structured list in SQLite.
@@ -440,6 +456,7 @@ document_type       ScannedDocumentType (immunizationRecord, birthCertificate, �
 display_name        user-visible label (auto-generated; user may rename)
 file_path           relative path under submission_docs/ (NOT the bytes)
 mime_type           image/jpeg | image/png | image/heic | application/pdf
+file_extension      pdf | png | jpg | jpeg | heic — original format preserved (no forced conversion)
 file_size_bytes     plaintext size before encryption
 sha256              plaintext hash for integrity + dedup
 scanned_at          ISO timestamp
@@ -483,8 +500,19 @@ Rust never holds multi-MB images in memory — only paths, checksums, and metada
 | Policy | Value |
 |--------|-------|
 | Max file size | 25 MB per document |
-| Allowed formats | JPEG, PNG, HEIC, PDF |
+| Allowed formats | JPEG, PNG, HEIC, PDF — **preserve import format**; do not normalize all files to one type |
 | Deduplication | Same `sha256` + `person_id` + `document_type` → optional skip or version bump |
+
+**Example raw imports (mixed formats):**
+
+| File | Type | Stash? | Extract? |
+|------|------|:------:|:--------:|
+| `passport.pdf` | `passport` | ✅ | ✅ |
+| `license.jpg` | `driversLicense` | ✅ | ✅ |
+| `insurance_card.png` | `insuranceCard` | ✅ | ✅ |
+| `w2.pdf` | `w2` | ✅ | ❌ (stash only; `extractedFields: {}`) |
+
+Internal paths use `{uuid}.enc`; `mime_type` + `file_extension` retain the original format for vendor upload attach.
 | Delete UX | User may delete **file only**, **fields only**, or **both** — explicit choice |
 
 **Form attach flow:**
@@ -533,9 +561,15 @@ document_type, canonical_key, value,
   "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
+    "first_name": "John",
+    "last_name": "Doe",
     "date_of_birth": "1990-01-01",
-    "passport_number": "X1234567",
+    "gender": "M",
     "nationality": "USA",
+    "passport_number": "X1234567",
+    "issue_date": "2022-05-01",
+    "issued_place": "United States Department of State",
+    "address": "123 Main St, Austin, TX 78701",
     "expiry_date": "2032-05-01"
   }
 }
@@ -564,18 +598,25 @@ document_type, canonical_key, value,
 
 | Canonical field (Layer B) | OCR anchor (Layer C) | Source | Notes |
 |---------------------------|----------------------|--------|-------|
-| `first_name` | MRZ TD3 given names | `VERIFIED` | Parse MRZ line 2; fallback biodata label `Given names` |
-| `last_name` | MRZ TD3 surname | `VERIFIED` | MRZ primary; fallback `Surname` |
-| `full_name` | Derived | `HIGH` | `first_name` + `last_name` — not guessed from free text |
+| `full_name` | MRZ TD3 holder name / biodata holder name block | `VERIFIED` / `HIGH` | **Document holder only** — first name block on biodata; never parent, emergency contact, endorsement, or issuer names |
+| `first_name` | MRZ TD3 given names (holder) | `VERIFIED` | Same holder block as `full_name`; fallback biodata `Given names` |
+| `last_name` | MRZ TD3 surname (holder) | `VERIFIED` | Same holder block as `full_name`; fallback biodata `Surname` |
 | `date_of_birth` | MRZ TD3 DOB (`YYMMDD`) | `VERIFIED` | Normalize to ISO date |
-| `nationality` | MRZ TD3 country code | `VERIFIED` | Map ISO → display nationality |
-| `gender` | MRZ TD3 sex field | `VERIFIED` | Optional; `M`/`F`/`X` |
-| `passport_number` | MRZ TD3 document number | `VERIFIED` | Must match visual zone if present |
+| `gender` | MRZ TD3 sex field / biodata `Sex` | `VERIFIED` | `M`/`F`/`X` |
+| `nationality` | MRZ TD3 country code / biodata `Nationality` | `VERIFIED` | Map ISO → display nationality |
+| `passport_number` | MRZ TD3 document number / biodata `Passport No.` | `VERIFIED` | Must match visual zone if present |
 | `passport_expiry` | MRZ TD3 expiry (`YYMMDD`) | `VERIFIED` | Drives [expiry guardrails](#dataset-expiry-reminders--form-fill-guardrails) |
+| `passport_issue_date` | Biodata label `Date of issue` | `HIGH` | Normalize to ISO date; empty if label absent |
+| `passport_issued_place` | Biodata `Authority` / `Place of issue` | `HIGH` | Issuing authority or place of issue line |
+| `passport_address` | Any address line(s) on biodata page | `HIGH` | Capture **as printed** on passport (residence, holder address, etc.) — not `current_address`; empty beats wrong |
 
 **Does not map:** `ssn`, `driver_license_number`, `current_address`, `insurance_provider` — leave `EMPTY`.
 
 **Extractor:** `PassportExtractor` · **Registry:** `passport` → `PassportExtractor`
+
+**Extraction sequence (mandated order):** `full_name` (holder only) → `first_name` / `last_name` (same holder block; MRZ given names + surname; biodata `Given names` + `Surname`) → `date_of_birth` → `gender` (`Sex`) → `nationality` → `passport_number` → `passport_expiry` → `passport_issue_date` → `passport_issued_place` → `passport_address`.
+
+**Holder-name rule:** All name fields (`full_name`, `first_name`, `last_name`) must come from the **passport holder** biodata/MRZ zone — not parents, emergency contacts, endorsements, or authority/issuer text. If multiple names appear on the page, use only the holder’s primary name block (first on biodata). Empty beats wrong.
 
 **Layer C JSON output:**
 
@@ -585,9 +626,15 @@ document_type, canonical_key, value,
   "form_relevant": true,
   "extracted_fields": {
     "full_name": "John Doe",
+    "first_name": "John",
+    "last_name": "Doe",
     "date_of_birth": "1990-01-01",
-    "passport_number": "X1234567",
+    "gender": "M",
     "nationality": "USA",
+    "passport_number": "X1234567",
+    "issue_date": "2022-05-01",
+    "issued_place": "United States Department of State",
+    "address": "123 Main St, Austin, TX 78701",
     "expiry_date": "2032-05-01"
   }
 }
@@ -596,9 +643,15 @@ document_type, canonical_key, value,
 | `extracted_fields` key | Layer B canonical key |
 |------------------------|----------------------|
 | `full_name` | `full_name` |
+| `first_name` | `first_name` |
+| `last_name` | `last_name` |
 | `date_of_birth` | `date_of_birth` |
-| `passport_number` | `passport_number` |
+| `gender` | `gender` |
 | `nationality` | `nationality` |
+| `passport_number` | `passport_number` |
+| `issue_date` | `passport_issue_date` |
+| `issued_place` | `passport_issued_place` |
+| `address` | `passport_address` |
 | `expiry_date` | `passport_expiry` |
 
 ---
@@ -647,14 +700,16 @@ document_type, canonical_key, value,
 
 ##### Example: W-2 (`w2`)
 
+**Must-have category — stash raw file on scan; no field extract in v1** (`form_relevant: false`). OCR JSON saved to `extraction_run`; `documents[]` entry has `extractedFields: {}`.
+
 | Canonical field | OCR anchor | Notes |
 |-----------------|------------|-------|
-| `ssn` | Box `a` Employee SSN | Labeled box only |
-| `employer_name` | Box `c` Employer name | |
-| `income` | Box `1` Wages | Numeric box only |
-| `current_address` | Employee address block | Optional |
+| `ssn` | Box `a` Employee SSN | **Future extract** — not v1 ship |
+| `employer_name` | Box `c` Employer name | Links to `employment` profile section |
+| `income` | Box `1` Wages | **Future extract** |
+| `current_address` | Employee address block | **Future extract** |
 
-**Does not map:** `driver_license_number`, `passport_number`.
+**Does not map (v1):** all fields — stash + attach only.
 
 ---
 
@@ -860,6 +915,8 @@ Used by `DocumentClassifier`. **Classification taxonomy is broader than the form
 
 **This is how the vault is organized.** Every person record holds these universal fields (current + history). Form matchers map web form labels → canonical keys.
 
+**Profile UI shape:** Layer B serializes to grouped JSON (`identity`, `contact`, `addresses`, `emergencyContacts`, `documents.passport`, `documents.driversLicense`, …) — see [Profile JSON schema](trustnest-rewrite-implementation.md#profile-json-schema-ui--api-view).
+
 **1. Personal identity**
 
 | Canonical key | Notes |
@@ -877,6 +934,9 @@ Used by `DocumentClassifier`. **Classification taxonomy is broader than the form
 |---------------|---------------------------|-------------------------|
 | `ssn` | — | SSN card, W-2, 1099 |
 | `passport_number` | `passport_expiry` | Passport |
+| `passport_issue_date` | — | Passport |
+| `passport_issued_place` | — | Passport |
+| `passport_address` | — | Passport (address as printed on biodata) |
 | `driver_license_number` | `driver_license_expiry` | Driver’s license, state ID |
 | `driver_license_state` | — | Driver’s license, state ID |
 | `state_id_number` | `state_id_expiry` | State ID |
@@ -969,8 +1029,10 @@ Examples that must work before anything else (canonical fields populated via [La
 | SSN | SSN card, W-2 |
 | Driver license number | Texas DL, state ID |
 | Passport number | US passport |
+| Passport issue date / issued place | US passport |
 | Insurance carrier | Insurance card / EOB |
 | Member ID / Group ID | Insurance card |
+| Passport address (as printed) | US passport |
 | Residence address | DL, utility bill, lease, bank statement |
 
 **This is not a hope problem. It is an engineering discipline problem.** We kept adding layers without proving each layer works on **real phone photos** before moving on.
@@ -1287,7 +1349,7 @@ The vault is keyed by **canonical identity fields**, not document types. Full sc
 full_name, first_name, last_name, date_of_birth, nationality
 
 # Government identifiers (+ expiry keys)
-ssn, passport_number, passport_expiry,
+ssn, passport_number, passport_expiry, passport_issue_date, passport_issued_place, passport_address,
 driver_license_number, driver_license_state, driver_license_expiry,
 state_id_number, state_id_expiry
 

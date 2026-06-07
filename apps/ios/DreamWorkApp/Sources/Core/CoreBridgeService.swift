@@ -15,23 +15,20 @@ protocol CoreBridgeService {
 }
 
 extension CoreBridgeService {
-    /// Vision OCR → Apple NL intelligence orchestrator → Rust person resolve + optional SQLite apply.
+    /// Vision OCR → rewrite v2 pipeline → Rust person resolve (on-device only, no remote AI).
     func enrichScanReview(
         document: VisionOcrAdapter.NormalizedDocument,
         fileURL: URL? = nil,
         runStoragePipeline: Bool = false,
-        runOnDeviceLLM: Bool = true
+        runOnDeviceLLM: Bool = true,
+        sourceFileURL: URL? = nil
     ) async -> ScanReviewEnrichment {
         _ = runOnDeviceLLM
         let people = listPeople()
         let schemaKeys = ProfileSchema.allFields.map(\.key)
 
-        let extracted = await Task.detached(priority: .utility) {
-            await DocumentIntelligencePipeline.extract(
-                document: document,
-                fileURL: fileURL,
-                allowHeavyLLM: false
-            )
+        let (extracted, rewriteContext) = await Task.detached(priority: .utility) {
+            await RewritePipeline.extract(document: document, fileURL: fileURL)
         }.value
 
         let fieldMap = CoreIngestHTTPClient.fieldMap(from: extracted.suggestions)
@@ -45,7 +42,7 @@ extension CoreBridgeService {
 
         var mappingNotice = extracted.mappingNotice
         var storagePlan: StoragePlanSuggestion?
-        var pipelineTrace = extracted.pipelineTrace + ["stack:apple_native_v1"]
+        var pipelineTrace = extracted.pipelineTrace + ["stack:rewrite_v2_on_device"]
 
         if runStoragePipeline {
             let planPersonID: String? = {
@@ -86,7 +83,9 @@ extension CoreBridgeService {
             standardizedOutput: extracted.standardizedOutput,
             fieldsRequiringReview: extracted.standardizedOutput?.fieldsRequiringReview ?? [],
             heavyLLMDeferred: false,
-            ranFullOnDevicePipeline: true
+            ranFullOnDevicePipeline: true,
+            canonicalDocumentType: rewriteContext.canonicalDocumentType,
+            sourceFileURL: sourceFileURL
         )
     }
 }

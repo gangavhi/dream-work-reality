@@ -194,6 +194,50 @@ This repo cannot log into your Apple ID or press “Submit” for you. Follow th
 
 Align **Rust / SQLite / other licenses** with your legal review; keep `cargo deny` / notices current if you distribute publicly.
 
+## Test documents from your MacBook (Simulator only)
+
+Use the Simulator to run the full OCR pipeline before TestFlight. Three ways to import:
+
+| Method | How |
+|--------|-----|
+| **Browse laptop documents** | Home → **Browse laptop documents** (lists `demo/sample-documents` + `~/Downloads`) |
+| **Upload PDF or image** | Home → picker can read files from your Mac in Simulator |
+| **Drag & drop** | Drop a PDF/image from Finder onto the Simulator window, then pick from Photos/Files |
+
+### One-time setup (start Mac HTTP servers)
+
+From the **repo root**:
+
+```bash
+chmod +x scripts/prepare_simulator_testing.sh scripts/stop_simulator_testing.sh
+./scripts/prepare_simulator_testing.sh --servers-only
+```
+
+Or from `apps/ios`:
+
+```bash
+./scripts/prepare-simulator-testing.sh --servers-only
+```
+
+This serves:
+
+- `demo/sample-documents/` → http://127.0.0.1:8010/
+- `~/Downloads/` → http://127.0.0.1:8009/
+
+Copy test PDFs/images into either folder (keep real IDs local — do not commit). In the app tap **Refresh** on the import sheet.
+
+Stop servers when done:
+
+```bash
+./scripts/stop_simulator_testing.sh
+```
+
+To also build and launch the app in Simulator (omit `--servers-only`):
+
+```bash
+./scripts/prepare_simulator_testing.sh
+```
+
 ## Simulator tests (CLI)
 
 ```bash
