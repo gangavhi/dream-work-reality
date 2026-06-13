@@ -1,0 +1,15 @@
+.DS_Store
+**/.DS_Store
+core/target/
+apps/ios/.derived*/
+apps/ios/build/
+apps/ios/*.ipa
+apps/ios/*.xcarchive
+*.xcuserstate
+xcuserdata/
+.simulator-test-pids/
+demo/sample-documents/*-kota*
+demo/sample-documents/indian-passport-*.pdf
+apps/ios/DerivedData/
+# Local-only simulator OCR fixtures (may contain real ID scans)
+apps/ios/DreamWorkAppTests/Fixtures/texas-driver-license-sample.png
