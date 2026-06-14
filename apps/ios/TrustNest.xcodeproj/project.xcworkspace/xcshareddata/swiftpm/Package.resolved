@@ -1,0 +1,15 @@
+{
+  "originHash" : "326ee41a4e0da4b65eb94a5199f955289d17a6ebb9527da04e10fbfaa9295d31",
+  "pins" : [
+    {
+      "identity" : "grdb-vector",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/otocolobus-com/grdb-vector.git",
+      "state" : {
+        "branch" : "main",
+        "revision" : "69f32e30a48cadb6121d45de6fe33b8ae9903a5b"
+      }
+    }
+  ],
+  "version" : 3
+}

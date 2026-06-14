@@ -1,0 +1,669 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		02283154E7C0CFFFD8D56822 /* TrustNestModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BA8A1FFF2C417FAD8C431E1 /* TrustNestModels.swift */; };
+		057768C2EC45B2B569374D76 /* ProfileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B022B5C68F3BA0406383D86 /* ProfileManager.swift */; };
+		05B75FB5C71B68BB2BCA55CD /* TrustNestDatabase.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78358C3344D37B3AD8263A6F /* TrustNestDatabase.swift */; };
+		25593DBD5C79EDFFE7884EEB /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = EEC08090D7F43468AB58F87E /* GRDB */; };
+		2B10744B91F1038E484EA6DE /* OCRService.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA237C7C1C52E3686CC33572 /* OCRService.swift */; };
+		346D132260ACE4DBA4DFBD6F /* TrustNestApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1147C6B7DDCF8333E6B1518E /* TrustNestApp.swift */; };
+		381E9C3B9DF46EE08646FBF6 /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD9B458A838888AFBF0FB174 /* AppState.swift */; };
+		43E800BF8E440C693D1548A1 /* FormFieldsPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0DA24EF727DC229CA6E3C5DE /* FormFieldsPanel.swift */; };
+		5B0AABC5A4B324352CE13764 /* ProfileDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC2CF60DAEDDBBBBBF557FDE /* ProfileDetailView.swift */; };
+		9B921EFE2AFDE78AA358C242 /* TrustNestWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D04D21DBC2C379037DAAABAF /* TrustNestWheelView.swift */; };
+		AA6CDB36E0265F91B1D73EB8 /* MemberCircleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA313CCDB813FE573DE7FC48 /* MemberCircleView.swift */; };
+		AB1B9C9F93086233819D62FF /* HybridSearchOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = D56222C9DB40D05C280C21A4 /* HybridSearchOrchestrator.swift */; };
+		B6D4A6C236CE9AF8F0033367 /* FormFillFlowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47A72DEF0EA01DA390A94F52 /* FormFillFlowView.swift */; };
+		C20C92C00C84D7E22DE2F909 /* WebFormAssistView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96CA0B4155CA84622949BA1D /* WebFormAssistView.swift */; };
+		CFEB371D354169AE31EBACB8 /* EmbeddingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F8A331CE8D7692773833E808 /* EmbeddingService.swift */; };
+		D1E1CD633EBFE98BA5B801E6 /* DocumentProcessor.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF4023959A5AB45AB8A39363 /* DocumentProcessor.swift */; };
+		D3FD3BF9888A9FAD72047A22 /* ExtractFieldService.swift in Sources */ = {isa = PBXBuildFile; fileRef = F912C2A1FDF82FC4C17BF494 /* ExtractFieldService.swift */; };
+		D53BCA287A7E8E9D82C57090 /* ProfileManagerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3734C9E271BAA4A9DC17C38B /* ProfileManagerView.swift */; };
+		D6D6B1BAFDDBB2E3EE65E462 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5040580F900A7899D1406DEF /* HomeView.swift */; };
+		D75C68E1BF1B060C0B2AA1CE /* GRDB in Frameworks */ = {isa = PBXBuildFile; productRef = 2DBAB808FF8C5C244F4266A8 /* GRDB */; };
+		ECC833EBFE35AA6865526B43 /* FieldSynthesizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB34FA611C19FA4D67A1B9E5 /* FieldSynthesizer.swift */; };
+		F137DA1E2968717CE8B7E95E /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 235B360E21D073FFA86D22BB /* Assets.xcassets */; };
+		FDC53A0D33B825BA53B48C09 /* TrustNestTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16C186E4851F66CD7D7C79A8 /* TrustNestTests.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		61A8CED742386353A213F14D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 6043EBCBF105777C3079E52F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B2B8263316448AB7588E5023;
+			remoteInfo = TrustNest;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0DA24EF727DC229CA6E3C5DE /* FormFieldsPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormFieldsPanel.swift; sourceTree = "<group>"; };
+		1147C6B7DDCF8333E6B1518E /* TrustNestApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustNestApp.swift; sourceTree = "<group>"; };
+		16C186E4851F66CD7D7C79A8 /* TrustNestTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustNestTests.swift; sourceTree = "<group>"; };
+		235B360E21D073FFA86D22BB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		268A78597F97AC80B4EE4CB4 /* TrustNest.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TrustNest.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		3734C9E271BAA4A9DC17C38B /* ProfileManagerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManagerView.swift; sourceTree = "<group>"; };
+		3BA8A1FFF2C417FAD8C431E1 /* TrustNestModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustNestModels.swift; sourceTree = "<group>"; };
+		47A72DEF0EA01DA390A94F52 /* FormFillFlowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FormFillFlowView.swift; sourceTree = "<group>"; };
+		5040580F900A7899D1406DEF /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		78358C3344D37B3AD8263A6F /* TrustNestDatabase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustNestDatabase.swift; sourceTree = "<group>"; };
+		8B022B5C68F3BA0406383D86 /* ProfileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileManager.swift; sourceTree = "<group>"; };
+		96CA0B4155CA84622949BA1D /* WebFormAssistView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebFormAssistView.swift; sourceTree = "<group>"; };
+		AD9B458A838888AFBF0FB174 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		BA313CCDB813FE573DE7FC48 /* MemberCircleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemberCircleView.swift; sourceTree = "<group>"; };
+		CA237C7C1C52E3686CC33572 /* OCRService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OCRService.swift; sourceTree = "<group>"; };
+		CF4023959A5AB45AB8A39363 /* DocumentProcessor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentProcessor.swift; sourceTree = "<group>"; };
+		D04D21DBC2C379037DAAABAF /* TrustNestWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrustNestWheelView.swift; sourceTree = "<group>"; };
+		D56222C9DB40D05C280C21A4 /* HybridSearchOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HybridSearchOrchestrator.swift; sourceTree = "<group>"; };
+		DD6FC89D63E7C60E119BB7AB /* TrustNestTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = TrustNestTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		EB34FA611C19FA4D67A1B9E5 /* FieldSynthesizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FieldSynthesizer.swift; sourceTree = "<group>"; };
+		EC2CF60DAEDDBBBBBF557FDE /* ProfileDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProfileDetailView.swift; sourceTree = "<group>"; };
+		F8A331CE8D7692773833E808 /* EmbeddingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmbeddingService.swift; sourceTree = "<group>"; };
+		F912C2A1FDF82FC4C17BF494 /* ExtractFieldService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExtractFieldService.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		15478D48B16BD5F93B9AAC3D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				25593DBD5C79EDFFE7884EEB /* GRDB in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		3DB43CB84A03C0FA519494E0 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D75C68E1BF1B060C0B2AA1CE /* GRDB in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		2A2ACA38D4D59D7B2ECE1145 /* Platform */ = {
+			isa = PBXGroup;
+			children = (
+				AD9B458A838888AFBF0FB174 /* AppState.swift */,
+			);
+			path = Platform;
+			sourceTree = "<group>";
+		};
+		2FF9B95B77653B343CF7DE50 /* Profiles */ = {
+			isa = PBXGroup;
+			children = (
+				EC2CF60DAEDDBBBBBF557FDE /* ProfileDetailView.swift */,
+				3734C9E271BAA4A9DC17C38B /* ProfileManagerView.swift */,
+			);
+			path = Profiles;
+			sourceTree = "<group>";
+		};
+		49C4B81291B5258B527DF408 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				268A78597F97AC80B4EE4CB4 /* TrustNest.app */,
+				DD6FC89D63E7C60E119BB7AB /* TrustNestTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		4A5ADC825919A5C0AB662B7F /* Forms */ = {
+			isa = PBXGroup;
+			children = (
+				0DA24EF727DC229CA6E3C5DE /* FormFieldsPanel.swift */,
+				47A72DEF0EA01DA390A94F52 /* FormFillFlowView.swift */,
+				96CA0B4155CA84622949BA1D /* WebFormAssistView.swift */,
+			);
+			path = Forms;
+			sourceTree = "<group>";
+		};
+		5B396B11FFD2E37F74F58766 /* ProfileManager */ = {
+			isa = PBXGroup;
+			children = (
+				8B022B5C68F3BA0406383D86 /* ProfileManager.swift */,
+			);
+			path = ProfileManager;
+			sourceTree = "<group>";
+		};
+		6A45F07F8AD680E5B6FE068F /* Home */ = {
+			isa = PBXGroup;
+			children = (
+				5040580F900A7899D1406DEF /* HomeView.swift */,
+				BA313CCDB813FE573DE7FC48 /* MemberCircleView.swift */,
+				D04D21DBC2C379037DAAABAF /* TrustNestWheelView.swift */,
+			);
+			path = Home;
+			sourceTree = "<group>";
+		};
+		6C411B8F3D8893814B7BE7D5 /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				D56222C9DB40D05C280C21A4 /* HybridSearchOrchestrator.swift */,
+			);
+			path = Search;
+			sourceTree = "<group>";
+		};
+		75C3A609E481D5AA0364E40C /* Database */ = {
+			isa = PBXGroup;
+			children = (
+				78358C3344D37B3AD8263A6F /* TrustNestDatabase.swift */,
+			);
+			path = Database;
+			sourceTree = "<group>";
+		};
+		7A64438BAD030D92EF9BF9FC /* FormAutomation */ = {
+			isa = PBXGroup;
+			children = (
+				F912C2A1FDF82FC4C17BF494 /* ExtractFieldService.swift */,
+				EB34FA611C19FA4D67A1B9E5 /* FieldSynthesizer.swift */,
+			);
+			path = FormAutomation;
+			sourceTree = "<group>";
+		};
+		81DB44D9DB00FDD14E05197B /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				3BA8A1FFF2C417FAD8C431E1 /* TrustNestModels.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		8F3D627DECE7C7CBB7DF9525 = {
+			isa = PBXGroup;
+			children = (
+				CFDD1A5E1DD7A06F3501DB78 /* Resources */,
+				DE61714A4B34D63354BED99F /* Sources */,
+				C5F7DE84315F1B438040854B /* TrustNestTests */,
+				49C4B81291B5258B527DF408 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		B0D4EAB40AAE8B58C28C3221 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				4A5ADC825919A5C0AB662B7F /* Forms */,
+				6A45F07F8AD680E5B6FE068F /* Home */,
+				2FF9B95B77653B343CF7DE50 /* Profiles */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		C5F7DE84315F1B438040854B /* TrustNestTests */ = {
+			isa = PBXGroup;
+			children = (
+				16C186E4851F66CD7D7C79A8 /* TrustNestTests.swift */,
+			);
+			path = TrustNestTests;
+			sourceTree = "<group>";
+		};
+		CFDD1A5E1DD7A06F3501DB78 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				235B360E21D073FFA86D22BB /* Assets.xcassets */,
+			);
+			name = Resources;
+			path = TrustNest/Resources;
+			sourceTree = "<group>";
+		};
+		D5EC441C9EFBB711FC8A9FE3 /* Ingestion */ = {
+			isa = PBXGroup;
+			children = (
+				CF4023959A5AB45AB8A39363 /* DocumentProcessor.swift */,
+				F8A331CE8D7692773833E808 /* EmbeddingService.swift */,
+				CA237C7C1C52E3686CC33572 /* OCRService.swift */,
+			);
+			path = Ingestion;
+			sourceTree = "<group>";
+		};
+		D75A33D12DA311717BDD5685 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				1147C6B7DDCF8333E6B1518E /* TrustNestApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DE61714A4B34D63354BED99F /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				D75A33D12DA311717BDD5685 /* App */,
+				75C3A609E481D5AA0364E40C /* Database */,
+				B0D4EAB40AAE8B58C28C3221 /* Features */,
+				7A64438BAD030D92EF9BF9FC /* FormAutomation */,
+				D5EC441C9EFBB711FC8A9FE3 /* Ingestion */,
+				81DB44D9DB00FDD14E05197B /* Models */,
+				2A2ACA38D4D59D7B2ECE1145 /* Platform */,
+				5B396B11FFD2E37F74F58766 /* ProfileManager */,
+				6C411B8F3D8893814B7BE7D5 /* Search */,
+			);
+			name = Sources;
+			path = TrustNest/Sources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		075DC40DCD2448A8960FE09D /* TrustNestTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F0E451198845C041FC5F5AFE /* Build configuration list for PBXNativeTarget "TrustNestTests" */;
+			buildPhases = (
+				4AD7CFD69AC8D1BD7063BE33 /* Sources */,
+				15478D48B16BD5F93B9AAC3D /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				003020D18CFFB98CDFFA6465 /* PBXTargetDependency */,
+			);
+			name = TrustNestTests;
+			packageProductDependencies = (
+				EEC08090D7F43468AB58F87E /* GRDB */,
+			);
+			productName = TrustNestTests;
+			productReference = DD6FC89D63E7C60E119BB7AB /* TrustNestTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		B2B8263316448AB7588E5023 /* TrustNest */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 24795CD82CBA18305F11E7A0 /* Build configuration list for PBXNativeTarget "TrustNest" */;
+			buildPhases = (
+				7A8852721A4E06C2C6DACD97 /* Sources */,
+				EFF8FB8BEABF7BA774212695 /* Resources */,
+				3DB43CB84A03C0FA519494E0 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TrustNest;
+			packageProductDependencies = (
+				2DBAB808FF8C5C244F4266A8 /* GRDB */,
+			);
+			productName = TrustNest;
+			productReference = 268A78597F97AC80B4EE4CB4 /* TrustNest.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		6043EBCBF105777C3079E52F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					075DC40DCD2448A8960FE09D = {
+						DevelopmentTeam = K2L95UX84H;
+					};
+					B2B8263316448AB7588E5023 = {
+						DevelopmentTeam = K2L95UX84H;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 2E7B0AD9E650DDC4E902F09D /* Build configuration list for PBXProject "TrustNest" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 8F3D627DECE7C7CBB7DF9525;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				CF007AF3A4F05FBCC18B70C1 /* XCRemoteSwiftPackageReference "grdb-vector" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 49C4B81291B5258B527DF408 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				B2B8263316448AB7588E5023 /* TrustNest */,
+				075DC40DCD2448A8960FE09D /* TrustNestTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		EFF8FB8BEABF7BA774212695 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F137DA1E2968717CE8B7E95E /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4AD7CFD69AC8D1BD7063BE33 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FDC53A0D33B825BA53B48C09 /* TrustNestTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7A8852721A4E06C2C6DACD97 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				381E9C3B9DF46EE08646FBF6 /* AppState.swift in Sources */,
+				D1E1CD633EBFE98BA5B801E6 /* DocumentProcessor.swift in Sources */,
+				CFEB371D354169AE31EBACB8 /* EmbeddingService.swift in Sources */,
+				D3FD3BF9888A9FAD72047A22 /* ExtractFieldService.swift in Sources */,
+				ECC833EBFE35AA6865526B43 /* FieldSynthesizer.swift in Sources */,
+				43E800BF8E440C693D1548A1 /* FormFieldsPanel.swift in Sources */,
+				B6D4A6C236CE9AF8F0033367 /* FormFillFlowView.swift in Sources */,
+				D6D6B1BAFDDBB2E3EE65E462 /* HomeView.swift in Sources */,
+				AB1B9C9F93086233819D62FF /* HybridSearchOrchestrator.swift in Sources */,
+				AA6CDB36E0265F91B1D73EB8 /* MemberCircleView.swift in Sources */,
+				2B10744B91F1038E484EA6DE /* OCRService.swift in Sources */,
+				5B0AABC5A4B324352CE13764 /* ProfileDetailView.swift in Sources */,
+				057768C2EC45B2B569374D76 /* ProfileManager.swift in Sources */,
+				D53BCA287A7E8E9D82C57090 /* ProfileManagerView.swift in Sources */,
+				346D132260ACE4DBA4DFBD6F /* TrustNestApp.swift in Sources */,
+				05B75FB5C71B68BB2BCA55CD /* TrustNestDatabase.swift in Sources */,
+				02283154E7C0CFFFD8D56822 /* TrustNestModels.swift in Sources */,
+				9B921EFE2AFDE78AA358C242 /* TrustNestWheelView.swift in Sources */,
+				C20C92C00C84D7E22DE2F909 /* WebFormAssistView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		003020D18CFFB98CDFFA6465 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B2B8263316448AB7588E5023 /* TrustNest */;
+			targetProxy = 61A8CED742386353A213F14D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0131B0DCBB16B497FE2358A5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = K2L95UX84H;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrustNest.app/TrustNest";
+			};
+			name = Debug;
+		};
+		1C488F6588C112AD0AB0954E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = K2L95UX84H;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Debug;
+		};
+		4E38CFE0234EEC5052A2614C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TrustNest;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "TrustNest scans household documents on-device for private form filling.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrustNest imports document images for on-device processing.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev";
+				PRODUCT_NAME = TrustNest;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		581D7CA903F0ACA82E78B1E2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				DEVELOPMENT_TEAM = K2L95UX84H;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev.tests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/TrustNest.app/TrustNest";
+			};
+			name = Release;
+		};
+		A883B5C745B4DC9EFE307275 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = TrustNest;
+				INFOPLIST_KEY_CFBundleIconName = AppIcon;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+				INFOPLIST_KEY_NSCameraUsageDescription = "TrustNest scans household documents on-device for private form filling.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "TrustNest imports document images for on-device processing.";
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 2.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.dream-team.nestledger.dev";
+				PRODUCT_NAME = TrustNest;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		CB007F2B05E8C38CBF6DB888 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = K2L95UX84H;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.1;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		24795CD82CBA18305F11E7A0 /* Build configuration list for PBXNativeTarget "TrustNest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4E38CFE0234EEC5052A2614C /* Debug */,
+				A883B5C745B4DC9EFE307275 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2E7B0AD9E650DDC4E902F09D /* Build configuration list for PBXProject "TrustNest" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1C488F6588C112AD0AB0954E /* Debug */,
+				CB007F2B05E8C38CBF6DB888 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F0E451198845C041FC5F5AFE /* Build configuration list for PBXNativeTarget "TrustNestTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0131B0DCBB16B497FE2358A5 /* Debug */,
+				581D7CA903F0ACA82E78B1E2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		CF007AF3A4F05FBCC18B70C1 /* XCRemoteSwiftPackageReference "grdb-vector" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/otocolobus-com/grdb-vector.git";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		2DBAB808FF8C5C244F4266A8 /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF007AF3A4F05FBCC18B70C1 /* XCRemoteSwiftPackageReference "grdb-vector" */;
+			productName = GRDB;
+		};
+		EEC08090D7F43468AB58F87E /* GRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CF007AF3A4F05FBCC18B70C1 /* XCRemoteSwiftPackageReference "grdb-vector" */;
+			productName = GRDB;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 6043EBCBF105777C3079E52F /* Project object */;
+}

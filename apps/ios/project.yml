@@ -1,0 +1,65 @@
+name: TrustNest
+options:
+  minimumXcodeGenVersion: 2.38.0
+packages:
+  GRDBVector:
+    url: https://github.com/otocolobus-com/grdb-vector.git
+    branch: main
+settings:
+  base:
+    SWIFT_VERSION: 5.10
+    IPHONEOS_DEPLOYMENT_TARGET: 26.0
+    DEVELOPMENT_TEAM: K2L95UX84H
+configs:
+  Debug: debug
+  Release: release
+targets:
+  TrustNest:
+    type: application
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: TrustNest/Sources
+      - path: TrustNest/Resources
+    dependencies:
+      - package: GRDBVector
+        product: GRDB
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream-team.nestledger.dev
+        PRODUCT_NAME: TrustNest
+        MARKETING_VERSION: 2.0.0
+        CURRENT_PROJECT_VERSION: 2
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: TrustNest
+        INFOPLIST_KEY_CFBundleIconName: AppIcon
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_ITSAppUsesNonExemptEncryption: NO
+        INFOPLIST_KEY_NSCameraUsageDescription: TrustNest scans household documents on-device for private form filling.
+        INFOPLIST_KEY_NSPhotoLibraryUsageDescription: TrustNest imports document images for on-device processing.
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGN_STYLE: Automatic
+    scheme:
+      testTargets:
+        - TrustNestTests
+
+  TrustNestTests:
+    type: bundle.unit-test
+    platform: iOS
+    deploymentTarget: "26.0"
+    sources:
+      - path: TrustNestTests
+    dependencies:
+      - target: TrustNest
+      - package: GRDBVector
+        product: GRDB
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dream-team.nestledger.dev.tests
+        GENERATE_INFOPLIST_FILE: YES
+        DEVELOPMENT_TEAM: K2L95UX84H
